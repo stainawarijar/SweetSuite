@@ -1,0 +1,18 @@
+# Start a line with a hash sign to create a comment.
+# Empty lines will be ignored.
+# Specify the monoisotopic mass (Da) and the charge state as an integer.
+# Specify for each element the number of atoms whose isotopes can vary.
+# Elements set to zero can also be left out.
+
+
+mass: 1234.567
+charge: -1
+
+carbons: 0
+hydrogens: 0
+nitrogens: 0
+oxygens: 0
+sulfurs: 0
+potassiums: 0
+irons: 0
+chlorines: 0

@@ -1,0 +1,17 @@
+Setting,Value
+alignment_time_window,5.0
+alignment_mz_window,0.1
+alignment_sn_cutoff,27
+alignment_min_peaks,5
+charge_carrier,proton
+sum_spectrum_resolution,100
+background_mass_window,10.0
+calibration_mass_window,0.2
+quantitation_mz_window,0.065
+min_calibrant_number,4
+min_isotopic_fraction,0.8
+quantitate_aligned_only,True
+quadratic_mass_window,False
+quadratic_mz2,0.0
+quadratic_mz,0.0
+quadratic_constant,0.0

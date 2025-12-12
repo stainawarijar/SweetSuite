@@ -1,0 +1,22 @@
+# Package requirements for Python 3.14
+#
+# Set up virtual environment in Windows using MINGW64/Git Bash:
+# $ py -3.14 -m venv venv
+# $ source venv/Scripts/activate
+# $ pip install -r requirements.txt
+#
+# Set up virtual environment in Windows using CMD:
+# > py -3.14 -m venv venv
+# > venv\Scripts\activate
+# > pip install -r requirements.txt
+#
+# Use `deactivate` to leave the virtual environment.
+
+matplotlib == 3.10.7
+numpy == 2.3.5
+openpyxl == 3.1.5
+pandas == 2.3.3
+pybase64 == 1.4.2
+PyQt6 == 6.10.0
+scipy == 1.16.3
+xlsxwriter == 3.2.9

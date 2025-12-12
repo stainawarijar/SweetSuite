@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>batch_status</class>
+ <widget class="QWidget" name="batch_status">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>291</width>
+    <height>199</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Batch process</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">* {
+    font-family: 'DejaVu Sans';
+}
+
+QProgressBar {
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    text-align: center;
+    background: #444444;
+    color: white;
+}
+
+QProgressBar::chunk {
+    background-color: #228B22;
+    width: 6px;      
+    margin: 1px;  
+}</string>
+  </property>
+  <widget class="QProgressBar" name="progressBar_alignment">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>110</y>
+     <width>271</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font-weight: bold;
+font-size: 11pt;</string>
+   </property>
+   <property name="value">
+    <number>0</number>
+   </property>
+   <property name="format">
+    <string>Not performed</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_processing">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>8</y>
+     <width>201</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>DejaVu Sans</family>
+     <pointsize>10</pointsize>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font-size: 10pt;</string>
+   </property>
+   <property name="text">
+    <string>Status...</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>220</x>
+     <y>8</y>
+     <width>61</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">background-color: #8B0000;
+font-weight: bold;
+color: white;
+font-size: 10.5pt;</string>
+   </property>
+   <property name="text">
+    <string>Abort</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_alignment_status">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>90</y>
+     <width>161</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>DejaVu Sans</family>
+     <pointsize>10</pointsize>
+     <italic>true</italic>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font-size: 10pt;</string>
+   </property>
+   <property name="text">
+    <string>Alignment status:</string>
+   </property>
+  </widget>
+  <widget class="QProgressBar" name="progressBar_quantitation">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>160</y>
+     <width>271</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font-weight: bold;
+font-size: 11pt;</string>
+   </property>
+   <property name="value">
+    <number>0</number>
+   </property>
+   <property name="format">
+    <string>Not performed</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_quantitation_status">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>140</y>
+     <width>161</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>DejaVu Sans</family>
+     <pointsize>10</pointsize>
+     <italic>true</italic>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font-size: 10pt;</string>
+   </property>
+   <property name="text">
+    <string>Quantitation status:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_alignment_status_2">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>40</y>
+     <width>231</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <family>DejaVu Sans</family>
+     <pointsize>10</pointsize>
+     <italic>true</italic>
+    </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font-size: 10pt;</string>
+   </property>
+   <property name="text">
+    <string>Generation of analytes reference file:</string>
+   </property>
+  </widget>
+  <widget class="QProgressBar" name="progressBar_analytes_ref">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>60</y>
+     <width>271</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">font-weight: bold;
+font-size: 11pt;</string>
+   </property>
+   <property name="value">
+    <number>0</number>
+   </property>
+   <property name="format">
+    <string>Not performed</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
