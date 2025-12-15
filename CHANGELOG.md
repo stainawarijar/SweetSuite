@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Fixed
 - Fix the `Revert to default settings` option when using the executable file.
+- Fix double confirmation requirement when exiting the program via `File → Exit`.
 
 
 ## [0.1.0]

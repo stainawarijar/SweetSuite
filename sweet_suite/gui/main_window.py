@@ -134,7 +134,7 @@ class MainWindow(QMainWindow):
             self.open_documentation
         )
         self.ui.actionExit.triggered.connect(
-            self.on_exit
+            self.close
         )
         self.ui.actionExport_settings.triggered.connect(
             self.settings_manager.export_settings
@@ -187,24 +187,6 @@ class MainWindow(QMainWindow):
     def open_documentation(self) -> None:
         """Direct to SweetSuite README page on GitHub."""
         webbrowser.open("https://github.com/stainawarijar/SweetSuite/blob/main/README.md")
-
-    def on_exit(self) -> None:
-        """Exit the program after confirmation."""
-        # Set up confirmation box.
-        box = QMessageBox(self)
-        box.setWindowTitle("Exit program")
-        box.setIcon(QMessageBox.Icon.Question)
-        box.setText("Do you want to exit SweetSuite?")
-        yes_button = box.addButton("Yes, exit", QMessageBox.ButtonRole.YesRole)
-        yes_button.setStyleSheet(
-            "background-color: #8B0000; color: white; font-weight: bold;"
-        )
-        cancel_button = box.addButton("Cancel", QMessageBox.ButtonRole.NoRole)
-        box.setDefaultButton(cancel_button)
-        box.exec()
-        # Check confirmation.
-        if box.clickedButton() == yes_button:
-            self.close()
     
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle window close event (e.g., clicking the X button)."""
