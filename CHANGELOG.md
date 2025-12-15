@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Block file for Neu5Gc.
 
 ## Fixed
-- ...
+- Fix the `Revert to default settings` option when using the executable file.
 
 
 ## [0.1.0]
