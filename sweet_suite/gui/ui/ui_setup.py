@@ -127,15 +127,15 @@ class UISetup:
             "Number of data points per m/z unit."
         )
         ui.background_mass_window.setToolTip(
-            "m/z window used around each analyte used to determine " \
+            "m/z window used around each analyte to determine " \
             "the background signal."
         )
         ui.calibration_mass_window.setToolTip(
-            "Mass window used around the exact mass of a calibrant" \
-            " to determine its observed mass."
+            "Mass window used around the exact m/z of a calibrant" \
+            " to determine its observed m/z."
         )
         ui.quantitation_mz_window.setToolTip(
-            "m/z window used around the exact mass of each isotopic peak" \
+            "m/z window used around the exact m/z of each isotopic peak" \
             " for area integration.\n" \
             "Can be overwritten for individual analytes in the analytes list."
         )
@@ -154,12 +154,12 @@ class UISetup:
         ui.alignment_time_window.setToolTip(
             "Time window used around each alignment feature to determine its "\
             "observed \nretention time. "
-            "Can be overwitten for individual features in the alignment file."
+            "Can be overwritten for individual features in the alignment file."
         )
         ui.alignment_mz_window.setToolTip(
             "m/z window used around the exact m/z of an alignment feature" \
             "when creating an\nextracted ion chromatogram."
-            "Can be overwitten for individual features in the alignment file."
+            "Can be overwritten for individual features in the alignment file."
         )
         ui.alignment_min_peaks.setToolTip(
             "Minimum number of alignment features to use when aligning a\n" \
