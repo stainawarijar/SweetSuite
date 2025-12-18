@@ -159,7 +159,7 @@ class SettingsManager:
                         "to revert to default settings."
                     ),
                     informative_text=str(e),
-                    icon="Information"
+                    icon="Critical"
                 )
     
     def collect_settings(self) -> dict:
