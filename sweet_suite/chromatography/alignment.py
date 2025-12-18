@@ -51,7 +51,7 @@ def fit_power(
     def func_linear(x, a, b):
         return a*x + b
     
-    # Fit powerquadratic function. If it fails, fall back to linear fit.
+    # Fit power function. If it fails, fall back to linear fit.
     # If that also fails, set to `None`.
     try:
         fit = curve_fit(func_power, times_observed, times_required)
