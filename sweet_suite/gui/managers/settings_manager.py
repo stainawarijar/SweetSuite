@@ -155,7 +155,7 @@ class SettingsManager:
                     self.parent,
                     title="Unexpected error",
                     text=(
-                        "An unexpected error occured while attempting "
+                        "An unexpected error occurred while attempting "
                         "to revert to default settings."
                     ),
                     informative_text=str(e),
