@@ -142,7 +142,25 @@ class SettingsManager:
             default_settings_path = utils.resource_path(os.path.join(
                 "sweet_suite", "resources", "templates", "default_settings.csv"
             ))
-            self.import_settings(csv_path=default_settings_path)
+            try:
+                self.import_settings(csv_path=default_settings_path)
+                UIHelpers.show_message_box(
+                    self.parent,
+                    title="Settings reverted",
+                    text="Settings were reverted to their default values.",
+                    icon="Information"
+                )
+            except Exception as e:
+                UIHelpers.show_message_box(
+                    self.parent,
+                    title="Unexpected error",
+                    text=(
+                        "An unexpected error occurred while attempting "
+                        "to revert to default settings."
+                    ),
+                    informative_text=str(e),
+                    icon="Critical"
+                )
     
     def collect_settings(self) -> dict:
         """Extract settings from GUI widgets. 

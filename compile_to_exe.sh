@@ -16,6 +16,7 @@ pyinstaller --onefile \
   --add-data "sweet_suite\gui\assets\google-material-icons\*.svg;sweet_suite\gui\assets\google-material-icons" \
   --add-data "sweet_suite\resources\templates\*.xlsx;sweet_suite\resources\templates" \
   --add-data "sweet_suite\resources\templates\*.block;sweet_suite\resources\templates" \
+  --add-data "sweet_suite\resources\templates\*.csv;sweet_suite\resources\templates" \
   main.py
 
 echo -e "\nDeactivating virtual environment...\n"
