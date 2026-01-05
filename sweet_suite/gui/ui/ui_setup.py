@@ -157,9 +157,9 @@ class UISetup:
             "Can be overwritten for individual features in the alignment file."
         )
         ui.alignment_mz_window.setToolTip(
-            "m/z window used around the exact m/z of an alignment feature" \
-            "when creating an\nextracted ion chromatogram."
-            "Can be overwritten for individual features in the alignment file."
+            "m/z window used around the exact m/z of an alignment feature\n" \
+            "when creating an extracted ion chromatogram. "
+            "Can be overwritten\nfor individual features in the alignment file."
         )
         ui.alignment_min_peaks.setToolTip(
             "Minimum number of alignment features to use when aligning a\n" \
