@@ -36,12 +36,15 @@ class MassSpectrum():
             `time` to create the sum spectrum. Only applicable to LC data.
         calibrants (list[Calibrant]): List with instances of the `Calibrant`
             class. The list is empty when no calibration is performed.
-        calibrated (tuple[]): ...
+        calibrated (tuple[np.ndarray, Figure] | tuple[None, None]): Tuple
+            containing an array with calibrated data and a figure showing
+            the calibration. (None, None) if calibration failed.
         data_calibrated (np.ndarray | None): Array with calibrated MS data.
             If calibration failed, this is set to `None`. When no calibration 
             was performed (an empty `calibrants` list), this will be set to 
             `data_uncalibrated`.
-        calibration_plot: ...
+        calibration_plot: Figure showing calibration of the mass spectrum
+            (observed vs required m/z fit).
     """
 
     def __init__(
