@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>760</width>
+    <width>761</width>
     <height>572</height>
    </rect>
   </property>
@@ -68,7 +68,7 @@ QListWidget {
       <rect>
        <x>10</x>
        <y>40</y>
-       <width>131</width>
+       <width>221</width>
        <height>16</height>
       </rect>
      </property>
@@ -356,7 +356,7 @@ font-size: 10.5pt</string>
       <rect>
        <x>10</x>
        <y>40</y>
-       <width>121</width>
+       <width>221</width>
        <height>16</height>
       </rect>
      </property>
@@ -391,7 +391,7 @@ font-size: 10.5pt</string>
       <rect>
        <x>10</x>
        <y>110</y>
-       <width>231</width>
+       <width>241</width>
        <height>16</height>
       </rect>
      </property>
@@ -429,7 +429,7 @@ font-size: 10.5pt</string>
       <rect>
        <x>10</x>
        <y>170</y>
-       <width>211</width>
+       <width>231</width>
        <height>16</height>
       </rect>
      </property>
@@ -484,7 +484,7 @@ font-size: 10.5pt</string>
       <rect>
        <x>10</x>
        <y>230</y>
-       <width>211</width>
+       <width>221</width>
        <height>16</height>
       </rect>
      </property>
@@ -504,7 +504,7 @@ font-size: 10.5pt</string>
       <rect>
        <x>10</x>
        <y>290</y>
-       <width>211</width>
+       <width>221</width>
        <height>16</height>
       </rect>
      </property>
@@ -600,7 +600,7 @@ font-size: 10.5pt</string>
       <rect>
        <x>260</x>
        <y>290</y>
-       <width>201</width>
+       <width>211</width>
        <height>16</height>
       </rect>
      </property>
@@ -619,7 +619,7 @@ font-size: 10.5pt</string>
       <rect>
        <x>260</x>
        <y>170</y>
-       <width>201</width>
+       <width>211</width>
        <height>16</height>
       </rect>
      </property>
@@ -661,7 +661,7 @@ font-size: 10.5pt</string>
       <rect>
        <x>260</x>
        <y>40</y>
-       <width>201</width>
+       <width>221</width>
        <height>16</height>
       </rect>
      </property>
@@ -898,11 +898,20 @@ font-weight: bold;</string>
     <widget class="QCheckBox" name="quantify_aligned">
      <property name="geometry">
       <rect>
-       <x>10</x>
+       <x>7</x>
        <y>110</y>
-       <width>221</width>
+       <width>231</width>
        <height>18</height>
       </rect>
+     </property>
+     <property name="font">
+      <font>
+       <family>DejaVu Sans</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">font-size: 9pt</string>
      </property>
      <property name="text">
       <string>Quantify aligned mzXML files only</string>
@@ -1030,7 +1039,7 @@ border: 1px solid #b0b0b0;
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>760</width>
+     <width>761</width>
      <height>22</height>
     </rect>
    </property>
