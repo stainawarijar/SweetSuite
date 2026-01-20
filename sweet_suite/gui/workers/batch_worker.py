@@ -261,12 +261,12 @@ class BatchWorker(QObject):
                     return
 
                 if not self.quantitate_aligned_only:
-                    quantitation_results = self.quantitate_mzxml_files(
-                        analytes_ref_path, mzxml_file_paths
-                    )
                     self.logger.info(
                         f"Starting quantitation of {len(mzxml_file_paths)}"
                         " mzXML files"
+                    )
+                    quantitation_results = self.quantitate_mzxml_files(
+                        analytes_ref_path, mzxml_file_paths
                     )
                 else:
                     aligned_mzxml_file_paths = [
