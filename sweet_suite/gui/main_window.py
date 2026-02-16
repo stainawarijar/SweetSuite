@@ -122,22 +122,23 @@ class MainWindow(QMainWindow):
             # MS-only mode: disable all LC-related features
             self.logger.info("Switching to MS-only mode")
             
-            # Disable entire Alignment section with red styling
+            # Disable entire Alignment section with red text and hide spinbox values
             self.ui.frame_alignment.setEnabled(False)
             self.ui.frame_alignment.setStyleSheet(
-                "QFrame { background-color: #FFE6E6; }"
                 "QLabel { color: #8B0000; }"
+                "QSpinBox, QDoubleSpinBox { color: transparent; }"
             )
             
-            # Disable sum spectrum resolution (LC-specific)
+            # Disable sum spectrum resolution (LC-specific) and hide value
             self.ui.sum_spectrum_resolution.setEnabled(False)
+            self.ui.sum_spectrum_resolution.setStyleSheet("color: transparent;")
             self.ui.label_resolution.setEnabled(False)
             self.ui.label_resolution.setStyleSheet("color: #8B0000;")
             
             # Disable calibration table (time-based rows)
             self.ui.tableWidget_calibration.setEnabled(False)
             self.ui.tableWidget_calibration.setStyleSheet(
-                "QTableWidget { background-color: #FFE6E6; color: #8B0000; }"
+                "QTableWidget { color: #8B0000; }"
             )
             self.ui.pushButton_apply_sn.setEnabled(False)
             
@@ -161,6 +162,7 @@ class MainWindow(QMainWindow):
             
             # Enable sum spectrum resolution and reset styling
             self.ui.sum_spectrum_resolution.setEnabled(True)
+            self.ui.sum_spectrum_resolution.setStyleSheet("")
             self.ui.label_resolution.setEnabled(True)
             self.ui.label_resolution.setStyleSheet("")
             

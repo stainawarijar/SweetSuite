@@ -99,14 +99,15 @@ class BatchCoordinator:
         
         # Check batch directory path
         try:
-            mzxml_folder_path = self.ui.path_mzxml.item(0).text()
+            raw_folder_path = self.ui.path_mzxml.item(0).text()
         except AttributeError:
-            mzxml_folder_path = None
+            raw_folder_path = None
         
         # Set up batch worker
         self.batch_worker = BatchWorker(
             blocks=self.parent.blocks,
-            mzxml_folder_path=mzxml_folder_path,
+            raw_folder_path=raw_folder_path,
+            ms_only=self.parent.ms_only_mode,
             # Alignment settings
             alignment_list_df=self.parent.alignment_list_df,
             alignment_time_window=float(self.ui.alignment_time_window.value()),
@@ -120,6 +121,7 @@ class BatchCoordinator:
             sum_spectrum_resolution=int(self.ui.sum_spectrum_resolution.value()),
             background_mass_window=float(self.ui.background_mass_window.value()),
             calibration_mass_window=float(self.ui.calibration_mass_window.value()),
+            calibrant_sn_cutoff=float(self.ui.calibrant_sn_cutoff.value()),
             quantitation_mz_window=float(self.ui.quantitation_mz_window.value()),
             min_calibrant_number=int(self.ui.min_calibrant_number.value()),
             min_isotopic_fraction=float(self.ui.min_isotopic_fraction.value()),
