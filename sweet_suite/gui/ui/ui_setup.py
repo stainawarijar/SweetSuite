@@ -124,7 +124,7 @@ class UISetup:
         
         # Settings tooltips
         ui.sum_spectrum_resolution.setToolTip(
-            "Number of data points per m/z unit."
+            "Number of data points per m/z unit in an LC-MS spectrum."
         )
         ui.background_mass_window.setToolTip(
             "m/z window used around each analyte to determine " \
