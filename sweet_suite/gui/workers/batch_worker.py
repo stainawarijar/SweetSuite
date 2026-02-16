@@ -914,7 +914,10 @@ class BatchWorker(QObject):
             "SweetSuite version": __version__,
             "Batch process start time": self.start_time,
             "Charge carrier": self.charge_carrier,
-            "Sum spectrum resolution": self.sum_spectrum_resolution,
+            "Sum spectrum resolution": (
+                "N/A - MS-only mode" if self.ms_only
+                else self.sum_spectrum_resolution
+            ),
             "Background mass window": self.background_mass_window,
             "Calibration mass window": self.calibration_mass_window,
             "Quantitation m/z window": self.quantitation_mz_window,
@@ -924,10 +927,22 @@ class BatchWorker(QObject):
             "Quadratic coefficients": (
                 str(self.quadratic_coeffs) if self.quadratic_mz_window else "N/A"
             ),
-            "Alignment time window": self.alignment_time_window,
-            "Alignment m/z window": self.alignment_mz_window,
-            "Alignment S/N cutoff": self.alignment_sn_cutoff,
-            "Alignment min. peaks": self.alignment_min_peaks
+            "Alignment time window": (
+                "N/A - MS-only mode" if self.ms_only
+                else self.alignment_time_window
+            ),
+            "Alignment m/z window": (
+                "N/A - MS-only mode" if self.ms_only
+                else self.alignment_mz_window
+            ),
+            "Alignment S/N cutoff": (
+                "N/A - MS-only mode" if self.ms_only
+                else self.alignment_sn_cutoff
+            ),
+            "Alignment min. peaks": (
+                "N/A - MS-only mode" if self.ms_only
+                else self.alignment_min_peaks
+            )
         }
 
         global_settings = pd.DataFrame([
@@ -960,18 +975,28 @@ class BatchWorker(QObject):
         if quantitation_results is None:
             calibration_settings = None
         else:
-            calibration_settings = pd.DataFrame([
-                {
-                    "time": time_window[0],
-                    "window": time_window[1],
-                    "calibrate": params["calibrate"],
-                    "sn_cutoff": (
-                        params["sn_cutoff"] if params["calibrate"]
-                        else "N/A"
-                    )
-                }
-                for time_window, params in self.sum_spectra_calibration.items()
-            ])
+            if self.ms_only:
+                # MS-only mode: Show N/A for time-based settings
+                calibration_settings = pd.DataFrame([{
+                    "time": "N/A - MS-only mode",
+                    "window": "N/A - MS-only mode",
+                    "calibrate": "N/A - MS-only mode",
+                    "sn_cutoff": "N/A - MS-only mode"
+                }])
+            else:
+                # LC-MS mode: Show actual calibration settings per retention time range
+                calibration_settings = pd.DataFrame([
+                    {
+                        "time": time_window[0],
+                        "window": time_window[1],
+                        "calibrate": params["calibrate"],
+                        "sn_cutoff": (
+                            params["sn_cutoff"] if params["calibrate"]
+                            else "N/A"
+                        )
+                    }
+                    for time_window, params in self.sum_spectra_calibration.items()
+                ])
 
         utils.write_to_excel(
             out_path=self.excel_path,
