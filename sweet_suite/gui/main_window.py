@@ -135,11 +135,8 @@ class MainWindow(QMainWindow):
             self.ui.label_resolution.setEnabled(False)
             self.ui.label_resolution.setStyleSheet("color: #8B0000;")
             
-            # Disable calibration table (time-based rows)
-            self.ui.tableWidget_calibration.setEnabled(False)
-            self.ui.tableWidget_calibration.setStyleSheet(
-                "QTableWidget { color: #8B0000; }"
-            )
+            # Hide calibration table (not applicable in MS-only mode)
+            self.ui.tableWidget_calibration.setVisible(False)
             self.ui.pushButton_apply_sn.setEnabled(False)
             
             # Disable "Quantify aligned files only" checkbox
@@ -166,7 +163,8 @@ class MainWindow(QMainWindow):
             self.ui.label_resolution.setEnabled(True)
             self.ui.label_resolution.setStyleSheet("")
             
-            # Enable calibration table and reset styling
+            # Show and enable calibration table
+            self.ui.tableWidget_calibration.setVisible(True)
             self.ui.tableWidget_calibration.setEnabled(True)
             self.ui.tableWidget_calibration.setStyleSheet("")
             self.ui.pushButton_apply_sn.setEnabled(True)
