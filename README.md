@@ -10,13 +10,13 @@ targeted quantitation of (glyco)peptides and glycans in both LC-MS and MS-only d
 ***Note:*** *This software is still in an experimental stage.*
 
 - [USING SWEETSUITE](#using-sweetsuite)
-    - [Retention time alignment](#-retention-time-alignment)
-    - [Analyte quantitation](#-analyte-quantitation)
-    - [MS-only mode](#-ms-only-mode)
-    - [Data output](#-data-output)
-- [INSTALLATION](#️-installation)
-- [SYSTEM REQUIREMENTS](#️-system-requirements)
-- [CREDITS](#-credits)
+    - [Retention time alignment](#retention-time-alignment)
+    - [LC-MS analyte quantitation](#lc-ms-analyte-quantitation)
+    - [MS-only analyte quantitation](#ms-only-analyte-quantitation)
+    - [Data output](#data-output)
+- [INSTALLATION](#installation)
+- [SYSTEM REQUIREMENTS](#system-requirements)
+- [CREDITS](#credits)
     - [Copyright notice](#copyright-notice)
     - [Third-party assets](#third-party-assets)
 
@@ -72,7 +72,7 @@ Below is an example of a valid alignment file:
 | 593.827   | 310.8   |           |             |    9      |    x     |
 
 
-### LC-MS mode analyte quantitation
+### LC-MS analyte quantitation
 Download the analytes template `.xlsx` file from the Toolbar
 (`File → Templates → Analyte list`) and fill in at least the following columns: 
 `analyte`, `charge_min`, `charge_max`, `time`, and `time_window`.
@@ -108,7 +108,7 @@ Below is an example of a valid analytes list:
 | IgGIV1H5N4F1S1  |     2      |     3      |   0.04    |           | 109    |     10      |
 | IgGIV1H5N4F1S2  |     2      |     3      |   0.04    |           | 109    |     10      |
 
-### MS-only mode analyte quantitation
+### MS-only analyte quantitation
 SweetSuite also supports processing of MS-only data 
 without chromatographic separation (MS-only mode). In this mode, raw data should 
 be provided as `.xy` files.
