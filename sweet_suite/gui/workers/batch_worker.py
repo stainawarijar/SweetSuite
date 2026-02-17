@@ -683,24 +683,26 @@ class BatchWorker(QObject):
                     )
 
                     # Write calibration plot to pdf.
-                    if mass_spectrum.calibration_plot is not None:
-                        self.logger.info(
-                            f"Calibrated sum spectrum ({mass_spectrum.time}"
-                            f" ± {mass_spectrum.time_window} seconds) for "
-                            f"{os.path.basename(path)}"
-                        )
-                        pdf.savefig(mass_spectrum.calibration_plot)
-                        plt.close(mass_spectrum.calibration_plot)
-                        # Set plot to None to free up memory.
-                        mass_spectrum.calibration_plot = None
-
-                    elif len(calibrants_list) > 0:
-                        self.logger.info(
-                            f"Failed calibrating sum spectrum ({mass_spectrum.time}"
-                            f" ± {mass_spectrum.time_window} seconds) for "
-                            f"{os.path.basename(path)}"
-                        )
-                    
+                    if len(calibrants_list) > 0:
+                        # Calibration was attempted
+                        if mass_spectrum.data_calibrated is not None:
+                            self.logger.info(
+                                f"Calibrated sum spectrum ({mass_spectrum.time}"
+                                f" ± {mass_spectrum.time_window} seconds) for "
+                                f"{os.path.basename(path)}"
+                            )
+                        else:
+                            self.logger.info(
+                                f"Failed calibrating sum spectrum ({mass_spectrum.time}"
+                                f" ± {mass_spectrum.time_window} seconds) for "
+                                f"{os.path.basename(path)}"
+                            )
+                        # Save plot (success or failure) to PDF
+                        if mass_spectrum.calibration_plot is not None:
+                            pdf.savefig(mass_spectrum.calibration_plot)
+                            plt.close(mass_spectrum.calibration_plot)
+                            # Set plot to None to free up memory.
+                            mass_spectrum.calibration_plot = None
                     else:
                         self.logger.info(
                             f"Skipped calibration of sum spectrum ({mass_spectrum.time}"
@@ -850,20 +852,22 @@ class BatchWorker(QObject):
                 )
 
                 # Write calibration plot to pdf.
-                if mass_spectrum.calibration_plot is not None:
-                    self.logger.info(
-                        f"Calibrated spectrum for {file_name}"
-                    )
-                    pdf.savefig(mass_spectrum.calibration_plot)
-                    plt.close(mass_spectrum.calibration_plot)
-                    # Set plot to None to free up memory.
-                    mass_spectrum.calibration_plot = None
-
-                elif len(calibrants_list) > 0:
-                    self.logger.info(
-                        f"Failed calibrating spectrum for {file_name}"
-                    )
-                
+                if len(calibrants_list) > 0:
+                    # Calibration was attempted
+                    if mass_spectrum.data_calibrated is not None:
+                        self.logger.info(
+                            f"Calibrated spectrum for {file_name}"
+                        )
+                    else:
+                        self.logger.info(
+                            f"Failed calibrating spectrum for {file_name}"
+                        )
+                    # Save plot (success or failure) to PDF
+                    if mass_spectrum.calibration_plot is not None:
+                        pdf.savefig(mass_spectrum.calibration_plot)
+                        plt.close(mass_spectrum.calibration_plot)
+                        # Set plot to None to free up memory.
+                        mass_spectrum.calibration_plot = None
                 else:
                     self.logger.info(
                         f"Skipped calibration of spectrum for {file_name}"

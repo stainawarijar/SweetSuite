@@ -7,7 +7,7 @@ import pandas as pd
 from .analyte import Analyte
 from .calibrant import Calibrant
 from .isotopic_peak import IsotopicPeak
-from .plotting import plot_polynomial
+from .plotting import plot_polynomial, plot_calibration_failure
 
 
 class MassSpectrum():
@@ -163,7 +163,25 @@ class MassSpectrum():
 
         # Check against the minimum number of calibrants.
         if len(calibrants_above_cutoff) < self.min_calibrant_number:
-            return (None, None)
+            # Generate failure plot showing only calibrants above S/N cutoff.
+            # Collect m/z values for calibrants that passed the S/N threshold.
+            # Explicitly get the observed m/z (from spectrum) and exact m/z (theoretical).
+            mzs_observed = []
+            mzs_exact = []
+            for cal in calibrants_above_cutoff:
+                # cal.mz_observed: the peak m/z found in the spectrum via spline
+                # cal.mz_exact: the theoretical m/z value (inherited from IsotopicPeak)
+                observed_mz_value = float(cal.mz_observed)
+                expected_mz_value = float(cal.mz_exact)
+                mzs_observed.append(observed_mz_value)
+                mzs_exact.append(expected_mz_value)
+            
+            failure_plot = plot_calibration_failure(
+                title=self.name,
+                mzs_observed=mzs_observed,
+                mzs_exact=mzs_exact
+            )
+            return (None, failure_plot)
     
         # Fit 2nd degree polynomial through (observed, exact) m/z pairs.
         mzs_observed = [cal.mz_observed for cal in calibrants_above_cutoff]
