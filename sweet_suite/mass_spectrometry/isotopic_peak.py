@@ -1,3 +1,5 @@
+import logging
+
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
@@ -40,6 +42,7 @@ class IsotopicPeak:
             integration_mz_window: m/z window (Th) used for extracting the 
                 peak from the spectrum.
         """
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.mz_exact = mz_exact
         self.charge = charge
         self.spectrum = spectrum
@@ -210,26 +213,42 @@ class IsotopicPeak:
         # Initialize with the mid-point of the query grid.
         max_pair = (mz_array[len(mz_array) // 2], 0.0)
 
-        try:
-            # Fit cubic spline and evaluate.
-            spline = InterpolatedUnivariateSpline(
-                x=mzs, y=intensities, k=3
+        # Check if we have enough data points for cubic spline 
+        # (k=3 requires at least 4 points).
+        if len(mzs) >= 4:
+            try:
+                # Fit cubic spline and evaluate.
+                spline = InterpolatedUnivariateSpline(
+                    x=mzs, y=intensities, k=3
+                )
+                predicted = spline(mz_array)
+
+                for idx, intensity in enumerate(predicted):
+                    if intensity > max_pair[1]:
+                        max_pair = (mz_array[idx], float(intensity))
+
+                return max_pair
+
+            except ValueError as e:
+                # Fallback: use non-fitted local maximum in the window.
+                self.logger.warning(
+                    f"Spline fit failed for m/z {self.mz_exact:.4f} "
+                    f"(window={mz_window:.4f} Th): {str(e)}. "
+                    f"Using non-fitted local maximum."
+                )
+        else:
+            self.logger.warning(
+                f"Insufficient data points ({len(mzs)}) for m/z {self.mz_exact:.4f} "
+                f"(window={mz_window:.4f} Th). Using non-fitted local maximum. "
+                f"Consider increasing the calibration mass window."
             )
-            predicted = spline(mz_array)
+        
+        # Use non-fitted local maximum (either insufficient points or spline failed).
+        for idx, intensity in enumerate(intensities):
+            if intensity > max_pair[1]:
+                max_pair = (mzs[idx], float(intensity))
 
-            for idx, intensity in enumerate(predicted):
-                if intensity > max_pair[1]:
-                    max_pair = (mz_array[idx], float(intensity))
-
-            return max_pair
-
-        except ValueError:
-            # Fallback: use non-fitted local maximum in the window.
-            for idx, intensity in enumerate(intensities):
-                if intensity > max_pair[1]:
-                    max_pair = (mzs[idx], float(intensity))
-
-            return max_pair
+        return max_pair
 
     def get_mass_error_ppm(self) -> float:
         """Return mass error in parts per million (ppm) based on the
