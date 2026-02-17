@@ -374,10 +374,9 @@ class InputAnalyte:
         - `mz_window`: integration window (Th) to be used around the exact m/z
             value of the isotopologue.
         - `time`: retention time of the corresponding cluster for which a
-            sum spectrum will be created. Applicable only to LC-MS data; set to
-            `None` otherwise.
-        - `time_window`: retention time window for the sum spectrum.
-            Applicable only to LC-MS data; set to `None` otherwise.
+            sum spectrum will be created (LC-MS data), or `np.nan` (MS-only data).
+        - `time_window`: retention time window for the sum spectrum
+            (LC-MS data), or `np.nan` (MS-only data).
         - `calibrant`: whether the isotopologue should be used as a calibrant.
             If an analyte was specified as a calibrant in the provided analyte 
             list, the isotopologue with the highest relative abundance will be 
@@ -386,11 +385,7 @@ class InputAnalyte:
         Returns:
             A DataFrame with the following columns:
             `peak`, `charge_carrier`, `mz`, `relative_area`, `mz_window`,
-            `time` (for LC data), `time_window` (for LC data), `calibrant`.
-
-            Note: For non-LC data (when `time` or `time_window` is `None`),
-            the current implementation returns an empty DataFrame until
-            non-LC handling is implemented.
+            `time`, `time_window`, `calibrant`.
         """
         # Initiate empty DataFrame
         reference = pd.DataFrame()
@@ -407,51 +402,48 @@ class InputAnalyte:
                 key=lambda i: self.isotopologues[i][1],
             )
 
-        # Determine if data contains retention times or not.
-        is_lc_data = (self.time is not None and self.time_window is not None)
+        # Determine mode: MS-only or LC-MS data.
+        ms_only = (self.time is None or self.time_window is None)
+        
+        # Set time values based on mode.
+        time_val = np.nan if ms_only else self.time
+        time_window_val = np.nan if ms_only else self.time_window
 
-        # Loop over charge states and isotopologues and build
-        # a DataFrame. Structure will depend on type of data
-        # (LC-MS or MALDI).
-        if is_lc_data:
-            # Loop over charge states (in steps of charge unit).
-            for charge in range(self.charge_min, self.charge_max + 1, charge_unit):
-                # Loop over isotopologues.
-                for idx, iso in enumerate(self.isotopologues):
-                    # Calculate m/z and m/z integration window.
-                    mz = (
-                        (iso[0] + (charge / charge_unit) * charge_carrier_mass) 
-                        / charge
-                    )
-                    mz_window = (
-                        self.mz_window_coeffs[0] * mz**2
-                        + self.mz_window_coeffs[1] * mz
-                        + self.mz_window_coeffs[2]
-                    )
-                    # Create small DataFrame for this isotopologue
-                    df = pd.DataFrame([{
-                        "peak": f"{self.name}_{charge}_{iso[2]}",
-                        "charge_carrier": self.charge_carrier,
-                        "mz": mz,
-                        "relative_area": iso[1],
-                        "mz_window": mz_window,
-                        "time": self.time,
-                        "time_window": self.time_window,
-                        "calibrant": self.calibrant and idx == max_area_idx,
-                    }])
+        # Loop over charge states (in steps of charge unit).
+        for charge in range(self.charge_min, self.charge_max + 1, charge_unit):
+            # Loop over isotopologues.
+            for idx, iso in enumerate(self.isotopologues):
+                # Calculate m/z and m/z integration window.
+                mz = (
+                    (iso[0] + (charge / charge_unit) * charge_carrier_mass) 
+                    / charge
+                )
+                mz_window = (
+                    self.mz_window_coeffs[0] * mz**2
+                    + self.mz_window_coeffs[1] * mz
+                    + self.mz_window_coeffs[2]
+                )
+                # Create small DataFrame for this isotopologue
+                df = pd.DataFrame([{
+                    "peak": f"{self.name}_{charge}_{iso[2]}",
+                    "charge_carrier": self.charge_carrier,
+                    "mz": mz,
+                    "relative_area": iso[1],
+                    "mz_window": mz_window,
+                    "time": time_val,
+                    "time_window": time_window_val,
+                    "calibrant": self.calibrant and idx == max_area_idx,
+                }])
 
-                    # Add to larger `reference` DataFrame.
-                    if not reference.empty:
-                        reference = pd.concat(
-                            [reference, df], ignore_index = True
-                        )
-                    else:
-                        # Needed for first step in loop, because we start
-                        # with an empty dataframe.
-                        reference = df
-        else:
-            # NOTE: Write code for non-LC data (e.g., MALDI).
-            pass
+                # Add to larger `reference` DataFrame.
+                if not reference.empty:
+                    reference = pd.concat(
+                        [reference, df], ignore_index = True
+                    )
+                else:
+                    # Needed for first step in loop, because we start
+                    # with an empty dataframe.
+                    reference = df
 
         return reference
 

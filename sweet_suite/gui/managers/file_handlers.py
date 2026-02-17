@@ -80,6 +80,8 @@ class FileHandlers:
             self.ui.path_analytes_list.clear()
             self.parent.analytes_list_df = None
             self.ui.tableWidget_calibration.setRowCount(0)
+            # Reset to LC-MS mode when analyte list is cleared
+            self.parent.set_ms_only_mode(False)
     
     def open_alignment_list(self) -> None:
         """Open file dialog for selecting an alignment list."""
@@ -241,7 +243,7 @@ class FileHandlers:
         
         Returns True if correctly formatted, False otherwise.
         """
-        # Check required columns. `mz_window` is optional.
+        # Check required columns. `mz_window`, `time`, `time_window` are optional.
         columns_required = [
             "analyte", "charge_min", "charge_max",
             "calibrant", "time", "time_window", "mz_window"
@@ -262,8 +264,9 @@ class FileHandlers:
             return False
         
         # Check for missing entries in required columns.
+        # Note: time and time_window are now optional (for MS-only mode).
         required_cols = [
-            "analyte", "charge_min", "charge_max", "time", "time_window"
+            "analyte", "charge_min", "charge_max"
         ]
         missing_rows = (
             df[required_cols].isnull().any(axis=1)
@@ -275,8 +278,53 @@ class FileHandlers:
                 title="Missing entries",
                 text="Some rows have missing values in required columns.",
                 informative_text=(
-                    "If any of 'analyte', 'charge_min', 'charge_max', 'time', "
-                    "or 'time_window' is filled for a row, all must be filled."
+                    "The columns 'analyte', 'charge_min', and 'charge_max' "
+                    "must be filled for all rows."
+                ),
+                icon="Critical"
+            )
+            return False
+        
+        # Check that time data is either completely present or completely absent.
+        # Per-row check: if a row has time data, it must have both time and time_window.
+        time_cols = ["time", "time_window"]
+        partial_time_per_row = (
+            df[time_cols].isnull().any(axis=1)
+            & df[time_cols].notnull().any(axis=1)
+        )
+        if partial_time_per_row.any():
+            UIHelpers.show_message_box(
+                self.parent,
+                title="Incomplete time information",
+                text="Some rows have incomplete retention time data.",
+                informative_text=(
+                    "If a row has retention time data, both 'time' and 'time_window' "
+                    "must be filled."
+                ),
+                icon="Critical"
+            )
+            return False
+        
+        # Global check: either ALL rows must have time data, or NO rows can have it.
+        rows_with_time = df["time"].notnull().sum()
+        rows_with_time_window = df["time_window"].notnull().sum()
+        total_rows = len(df)
+        
+        # Check if we have a mix of filled and empty time data
+        has_partial_data = (
+            (0 < rows_with_time < total_rows) or 
+            (0 < rows_with_time_window < total_rows)
+        )
+        
+        if has_partial_data:
+            UIHelpers.show_message_box(
+                self.parent,
+                title="Mixed time data not allowed",
+                text="The analyte list contains a mix of LC-MS and MS-only data.",
+                informative_text=(
+                    "Either ALL rows must have retention time information (LC-MS mode), "
+                    "or ALL rows must be empty (MS-only mode). "
+                    "Mixing is not allowed."
                 ),
                 icon="Critical"
             )
@@ -351,6 +399,26 @@ class FileHandlers:
                 icon="Critical"
             )
             return False
+        
+        # Detect MS-only mode (all time values are NaN)
+        all_time_missing = df["time"].isnull().all() and df["time_window"].isnull().all()
+        
+        if all_time_missing:
+            # MS-only mode detected
+            UIHelpers.show_message_box(
+                self.parent,
+                title="MS-only mode detected",
+                text="No retention time information was found in the analyte list.",
+                informative_text=(
+                    "The software will operate in MS-only mode. "
+                    "All chromatography-related features will be disabled."
+                ),
+                icon="Information"
+            )
+            self.parent.set_ms_only_mode(True)
+        else:
+            # LC-MS mode (has retention time data)
+            self.parent.set_ms_only_mode(False)
         
         return True
 

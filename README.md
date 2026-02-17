@@ -1,30 +1,36 @@
 ![Experimental](https://img.shields.io/badge/status-experimental-yellow)
 
 # SweetSuite
-SweetSuite is a program for processing LC-MS glycoproteomics data. It is based
-on [LaCyTools](https://github.com/Tarskin/LaCyTools) and on
-[MassyTools](https://github.com/Tarskin/MassyTools).
-The software provides options for retention time alignment and for targeted
-quantitation of (glyco)peptides.
+SweetSuite is a program for processing LC-MS and MS-only 
+glycoproteomics data. It is based on [LaCyTools](https://github.com/Tarskin/LaCyTools) 
+and on [MassyTools](https://github.com/Tarskin/MassyTools).
+The software provides options for retention time alignment (LC-MS mode) and for 
+targeted quantitation of (glyco)peptides and glycans in both LC-MS and MS-only data.
 
 ***Note:*** *This software is still in an experimental stage.*
 
 - [USING SWEETSUITE](#using-sweetsuite)
-    - [Retention time alignment](#-retention-time-alignment)
-    - [Analyte quantitation](#-analyte-quantitation)
-- [INSTALLATION](#️-installation)
-- [SYSTEM REQUIREMENTS](#️-system-requirements)
-- [CREDITS](#-credits)
+    - [Retention time alignment](#retention-time-alignment)
+    - [LC-MS analyte quantitation](#lc-ms-analyte-quantitation)
+    - [MS-only analyte quantitation](#ms-only-analyte-quantitation)
+    - [Data output](#data-output)
+- [INSTALLATION](#installation)
+- [SYSTEM REQUIREMENTS](#system-requirements)
+- [CREDITS](#credits)
     - [Copyright notice](#copyright-notice)
     - [Third-party assets](#third-party-assets)
 
 ## USING SWEETSUITE
 ***Note:*** *A more extensive user guide may be written in the future.*
 
-Before using SweetSuite, raw data files should be converted to mzXML format
-using [ProteoWizard MSConvert](https://proteowizard.sourceforge.io/).
+For LC-MS data, raw data files should be converted to mzXML format using 
+[ProteoWizard MSConvert](https://proteowizard.sourceforge.io/).
 <br>(*Recommended settings: 32-bit encoding precision, use zlib compression,
 remove zero samples.*)
+
+For MS-only data, provide `.xy` files. These are simple text files 
+with two columns, the first column containing *m/z* values and the second
+column containing intensities. 
 
 SweetSuite offers options for retention time alignment and for quantitation of analytes. 
 Both are optional and can be skipped by simply not uploading an alignment file or an analytes file (see below).
@@ -66,7 +72,7 @@ Below is an example of a valid alignment file:
 | 593.827   | 310.8   |           |             |    9      |    x     |
 
 
-### Analyte quantitation
+### LC-MS analyte quantitation
 Download the analytes template `.xlsx` file from the Toolbar
 (`File → Templates → Analyte list`) and fill in at least the following columns: 
 `analyte`, `charge_min`, `charge_max`, `time`, and `time_window`.
@@ -101,6 +107,38 @@ Below is an example of a valid analytes list:
 | IgGIV1H4N4F1S1  |     2      |     3      |   0.04    |           | 109    |     10      |
 | IgGIV1H5N4F1S1  |     2      |     3      |   0.04    |           | 109    |     10      |
 | IgGIV1H5N4F1S2  |     2      |     3      |   0.04    |           | 109    |     10      |
+
+### MS-only analyte quantitation
+SweetSuite also supports processing of MS-only data 
+without chromatographic separation (MS-only mode). In this mode, raw data should 
+be provided as `.xy` files.
+
+To activate MS-only mode, simply leave the `time` and `time_window` columns 
+**completely empty** for all analytes in your analytes list. SweetSuite will 
+automatically detect this and switch to MS-only mode. A green indicator 
+("Mode: MS-only") will appear in the GUI.
+
+In MS-only mode:
+- Retention time alignment is disabled (not applicable without chromatography).
+- The sum spectrum resolution setting is disabled.
+- The calibration table for time-based settings is hidden.
+- Calibration is still available: if you specify calibrants in your analyte list, 
+  they will be used for mass calibration across all analytes.
+
+Below is an example of a valid MS-only analytes list:
+
+|  analyte         | charge_min | charge_max | mz_window | calibrant |  time  | time_window |
+|:---------------:|:----------:|:----------:|:---------:|:---------:|:------:|:-----------:|
+| IgG1H3N4F1      |     2      |     3      |           |     x     |        |             |
+| IgG1H4N4F1      |     2      |     3      |           |     x     |        |             |
+| IgG1H5N4F1      |     2      |     3      |           |           |        |             |
+| IgG1H4N4F1S1    |     2      |     3      |           |           |        |             |
+| IgG1H5N4F1S1    |     2      |     3      |           |     x     |        |             |
+| IgG1H5N4F1S2    |     2      |     3      |           |     x     |        |             |
+
+**Note:** You cannot mix LC-MS and MS-only data within the same analyte list. 
+Either all rows must have retention time information, or all rows must have empty 
+`time` and `time_window` columns.
 
 ### Data output
 After analyte quantitation, an `xlsx` file is generated with results stored
