@@ -288,7 +288,7 @@ class BatchWorker(QObject):
                         )
                         self.error.emit(
                             "Empty directory",
-                            "The specified folder contains no mzMXL files.",
+                            "The specified folder contains no mzXML files.",
                             "",
                             "Warning"
                         )
