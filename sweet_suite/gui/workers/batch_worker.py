@@ -619,7 +619,7 @@ class BatchWorker(QObject):
                 if self.stop_requested:
                     self.logger.info("BatchWorker stop requested during quantitation")
                     self.aborted.emit()
-                    return False
+                    return
 
                 # Read mzXML file.
                 mzxml = Mzxml(path)
