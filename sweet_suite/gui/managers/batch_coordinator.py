@@ -173,7 +173,7 @@ class BatchCoordinator:
         box.setIcon(QMessageBox.Icon.Warning)
         box.setText("Do you want to abort the batch process?")
         box.setInformativeText(
-            "The batch process will stop after the current file has been" \
+            "The batch process will stop after the current file has been " \
             "fully processed."
         )
         yes_button = box.addButton("Yes, abort", QMessageBox.ButtonRole.YesRole)
