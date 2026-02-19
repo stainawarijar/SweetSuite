@@ -288,12 +288,18 @@ at one charge state into high-level metrics:
 
 | Attribute | Description |
 |---|---|
-| `total_area` | Sum of per-peak trapezoidal areas |
-| `total_background` | Sum of background areas |
+| `total_area` | Sum of per-peak trapezoidal areas (or maximum intensities when `use_peak_height=True`) |
+| `total_background` | Sum of background areas (or average background intensities when `use_peak_height=True`) |
 | `total_area_background_subtracted` | `total_area − total_background` |
 | `signal_to_noise` | S/N of the most abundant isotopologue |
 | `mass_error_ppm` | ppm error of the most abundant isotopologue |
 | `isotopic_pattern_quality` | IPQ: similarity of observed to theoretical isotope ratios |
+
+Accepts an optional `use_peak_height: bool` flag (default `False`). When `True`, all
+area-based calculations switch to using the `maximum_intensity` column from the peaks
+DataFrame, and per-peak background subtraction uses `background_and_noise[0]` (average
+background intensity) instead of `background_and_noise[1]` (background area).
+S/N computation is intensity-based regardless of this flag.
 
 #### `mass_spectrum.py` — `MassSpectrum`
 
@@ -307,9 +313,10 @@ reference DataFrame (from `InputAnalyte`), it:
    Calibration fails (and is skipped) when fewer than `min_calibrant_number`
    calibrants pass the S/N cut-off.
 2. **Peak integration** — for each row in the reference DataFrame, creates an
-   `IsotopicPeak`, computes its area and background, and stores the results.
+   `IsotopicPeak`, computes its area, maximum intensity, and background, and stores the results.
 3. **Analyte assembly** — groups peaks by `(analyte, charge)` and creates one
-   `Analyte` per group.
+   `Analyte` per group, forwarding the `use_peak_height` flag so the correct
+   metric is used for all quantitation calculations.
 
 #### `plotting.py`
 
@@ -331,6 +338,8 @@ Standalone plotting functions used by `MassSpectrum`:
   with one row per `(file, analyte, charge)` combination. Columns include
   `mz_exact`, `isotopic_fraction`, and whichever output parameters the user
   selected (e.g. `total_area`, `signal_to_noise`, `mass_error_ppm`, `IPQ`).
+  Accepts a `use_peak_height: bool` parameter that is forwarded to
+  `MassSpectrum.quantify_analytes()` and from there to each `Analyte`.
 
 ---
 
@@ -406,7 +415,10 @@ UI object(s) it needs, making them independently testable.
 
 - **`AdvancedSettingsHandler`** — manages the advanced settings `QDialog`.
   Promotes the three quadratic m/z-window coefficient spinboxes to the custom
-  `ScientificSpinBox` widget (supports scientific-notation entry).
+  `ScientificSpinBox` widget (supports scientific-notation entry). Also manages
+  the *Use peak heights instead of areas for quantitation* checkbox
+  (`checkBox_peakHeights`), whose state is read by `BatchCoordinator` at
+  batch start and persisted via `SettingsManager`.
 
 #### ui/
 
