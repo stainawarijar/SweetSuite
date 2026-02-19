@@ -631,16 +631,6 @@ class FileHandlers:
         
         if all_time_missing:
             # MS-only mode detected
-            UIHelpers.show_message_box(
-                self.parent,
-                title="MS-only mode detected",
-                text="No retention time information was found in the analyte list.",
-                informative_text=(
-                    "The software will operate in MS-only mode. "
-                    "All chromatography-related features will be disabled."
-                ),
-                icon="Information"
-            )
             self.parent.set_ms_only_mode(True)
         else:
             # LC-MS mode (has retention time data)
