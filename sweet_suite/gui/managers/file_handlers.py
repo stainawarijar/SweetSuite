@@ -262,6 +262,17 @@ class FileHandlers:
                 )
                 return False
 
+        for col in ["mz", "mz_window"]:
+            if (df[col] < 0).any():
+                UIHelpers.show_message_box(
+                    self.parent,
+                    title="Negative values detected",
+                    text=f"Column '{col}' contains negative values.",
+                    informative_text="All numeric entries must be non-negative.",
+                    icon="Critical"
+                )
+                return False
+
         # Validate that relative_area values are within the expected [0, 1] range.
         if ((df["relative_area"] < 0) | (df["relative_area"] > 1)).any():
             UIHelpers.show_message_box(
@@ -305,7 +316,7 @@ class FileHandlers:
             )
             return False
 
-        # If time columns are filled, they must be numeric.
+        # If time columns are filled, they must be numeric and non-negative.
         if time_all_full:
             for col in ["time", "time_window"]:
                 if not pd.api.types.is_numeric_dtype(df[col]):
@@ -313,6 +324,15 @@ class FileHandlers:
                         self.parent,
                         title="Incorrect data type",
                         text=f"Column '{col}' may contain only numeric values.",
+                        icon="Critical"
+                    )
+                    return False
+                if (df[col] < 0).any():
+                    UIHelpers.show_message_box(
+                        self.parent,
+                        title="Negative values detected",
+                        text=f"Column '{col}' contains negative values.",
+                        informative_text="All numeric entries must be non-negative.",
                         icon="Critical"
                     )
                     return False
