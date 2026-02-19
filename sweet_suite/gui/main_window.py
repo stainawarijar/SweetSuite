@@ -68,6 +68,7 @@ class MainWindow(QMainWindow):
         """Initialize data container attributes."""
         self.alignment_list_df = None
         self.analytes_list_df = None
+        self.analytes_ref_df = None
         self.blocks = None
         self.ms_only_mode = False  # Track whether in MS-only mode
     

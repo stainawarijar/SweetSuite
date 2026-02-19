@@ -1,5 +1,6 @@
 import os
 
+import pandas as pd
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QCheckBox, QSpinBox, QTableWidgetItem
 from PyQt6.QtGui import QIcon
@@ -28,10 +29,19 @@ class CalibrationTableManager:
             if isinstance(spinbox, QSpinBox):
                 spinbox.setValue(self.ui.calibrant_sn_cutoff.value())
     
-    def update_table(self) -> None:
-        """Populates the calibration table."""
-        df = self.parent.analytes_list_df
-        
+    def update_table(self, df: "pd.DataFrame | None" = None) -> None:
+        """Populates the calibration table.
+
+        Args:
+            df: DataFrame to populate from. If None, falls back to the parent's
+                `analytes_list_df`. Accepts both the analytes list format
+                (where the `calibrant` column contains non-null markers for
+                calibrant rows) and the reference file format (where the
+                `calibrant` column is a boolean).
+        """
+        if df is None:
+            df = self.parent.analytes_list_df
+
         # Extract unique (time, time_window) combinations. 
         unique_combos = (
             df[["time", "time_window"]]
@@ -73,7 +83,12 @@ class CalibrationTableManager:
             combo_rows = df[
                 (df["time"] == time) & (df["time_window"] == time_window)
             ]
-            calibrants_present = combo_rows["calibrant"].notna().any()
+            # For ref files `calibrant` is a proper bool column; for analytes
+            # lists it uses non-null markers (any non-NaN value means True).
+            if pd.api.types.is_bool_dtype(df["calibrant"]):
+                calibrants_present = bool(combo_rows["calibrant"].any())
+            else:
+                calibrants_present = combo_rows["calibrant"].notna().any()
             
             # Time/Window columns (centered).
             time_item = QTableWidgetItem(str(time))

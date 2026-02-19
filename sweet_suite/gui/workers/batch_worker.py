@@ -51,6 +51,7 @@ class BatchWorker(QObject):
             alignment_sn_cutoff: float,
             alignment_min_peaks: int,
             analytes_list_df: pd.DataFrame | None,
+            analytes_ref_df: pd.DataFrame | None,
             sum_spectra_calibration: dict,
             charge_carrier: str,
             sum_spectrum_resolution: int,
@@ -78,6 +79,7 @@ class BatchWorker(QObject):
         self.alignment_sn_cutoff = alignment_sn_cutoff
         self.alignment_min_peaks = alignment_min_peaks
         self.analytes_list_df = analytes_list_df
+        self.analytes_ref_df = analytes_ref_df
         self.sum_spectra_calibration = sum_spectra_calibration
         self.charge_carrier = charge_carrier
         self.sum_spectrum_resolution = sum_spectrum_resolution
@@ -119,11 +121,35 @@ class BatchWorker(QObject):
         """Main execution method for batch processing."""
         self.logger.info("BatchWorker run started")
         # Generate analytes reference file if applicable.
-        if self.analytes_list_df is None:
+        if self.analytes_list_df is None and self.analytes_ref_df is None:
             self.logger.info(
-                "No analytes list provided, skipping reference file generation"
+                "No analytes provided, skipping reference file generation"
             )
             analytes_ref_path = None
+
+        elif self.analytes_ref_df is not None:
+            # Reference file was uploaded directly: write it to disk and skip
+            # the generation step.
+            self.logger.info("Using pre-loaded analytes reference file")
+            try:
+                analytes_ref_path = self._write_ref_df(self.analytes_ref_df)
+                self.logger.info(
+                    f"Pre-loaded reference file written to: {analytes_ref_path}"
+                )
+            except Exception as e:
+                self.logger.exception(
+                    f"Error writing pre-loaded reference file: {str(e)}"
+                )
+                self.error.emit(
+                    "Error",
+                    "Could not write the reference file to disk:",
+                    str(e),
+                    "Critical"
+                )
+                self.finished.emit(False)
+                return
+            self.ref_progress.emit(100)
+
         else:
             try:
                 # Write analytes reference file to batch folder,
@@ -355,6 +381,26 @@ class BatchWorker(QObject):
         self.logger.info("BatchWorker finished successfully")
         self.finished.emit(True)
     
+    def _write_ref_df(self, ref_df: pd.DataFrame) -> str:
+        """Write a pre-loaded reference DataFrame to disk as an .xlsx file.
+
+        Args:
+            ref_df: Reference DataFrame in the standard reference file format.
+
+        Returns:
+            Absolute path to the written .xlsx file.
+        """
+        out_dir = (
+            os.getcwd() if self.raw_folder_path is None
+            else self.raw_folder_path
+        )
+        out_path = os.path.join(
+            out_dir,
+            f"{self.start_time}_analytes_ref.xlsx"
+        )
+        utils.write_to_excel(out_path, {"analytes": ref_df})
+        return out_path
+
     def make_ref_file(self) -> str:
         """Generate the analytes reference .xlsx file and return its path."""
         raw_folder_path=(

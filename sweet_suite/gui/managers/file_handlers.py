@@ -50,9 +50,10 @@ class FileHandlers:
             self.parent.alignment_list_df = None
     
     def clear_analytes_file(self) -> None:
-        """Clear the selected analytes file from the UI and internal state."""
-        # Do nothing if no file was selected. 
-        if self.parent.analytes_list_df is None:
+        """Clear the selected analytes list or reference file from the UI and
+        internal state."""
+        # Do nothing if no file was selected.
+        if self.parent.analytes_list_df is None and self.parent.analytes_ref_df is None:
             return
         
         # Set up confirmation box.
@@ -79,8 +80,9 @@ class FileHandlers:
         if msg_box.clickedButton() == yes_button:
             self.ui.path_analytes_list.clear()
             self.parent.analytes_list_df = None
+            self.parent.analytes_ref_df = None
             self.ui.tableWidget_calibration.setRowCount(0)
-            # Reset to LC-MS mode when analyte list is cleared
+            # Reset to LC-MS mode when analyte file is cleared
             self.parent.set_ms_only_mode(False)
     
     def open_alignment_list(self) -> None:
@@ -126,33 +128,217 @@ class FileHandlers:
         self.parent.alignment_list_df = df
     
     def open_analytes_list(self) -> None:
-        """Open file dialog for selecting an analytes list."""
+        """Open file dialog for selecting an analytes list or reference file."""
         file_path, _ = QFileDialog.getOpenFileName(
             None,
-            "Select a '.xlsx' analytes list:",
+            "Select a '.xlsx' analytes list or reference file:",
             "",
             "Excel files (*.xlsx);;All Files (*)"
         )
         if not file_path:
             return
-        
+
         # Add file path to UI.
         self.ui.path_analytes_list.clear()
         self.ui.path_analytes_list.addItem(file_path)
-        
+
         # Read in the Excel file.
         df = pd.read_excel(file_path)
 
-        # Check formatting of the list.
-        if not self.check_analytes_list(df):
+        # Determine which format the file matches by inspecting its columns.
+        _ANALYTES_COLS = {
+            "analyte", "charge_min", "charge_max",
+            "calibrant", "time", "time_window", "mz_window"
+        }
+        _REF_COLS = {
+            "peak", "charge_carrier", "mz", "relative_area",
+            "mz_window", "time", "time_window", "calibrant"
+        }
+        file_cols = set(df.columns)
+
+        if file_cols == _ANALYTES_COLS:
+            # Validate as analytes list (shows error popups on failure).
+            if not self.check_analytes_list(df):
+                self.ui.path_analytes_list.clear()
+                self.parent.analytes_list_df = None
+                self.parent.analytes_ref_df = None
+                self.ui.tableWidget_calibration.setRowCount(0)
+                return
+            # Store and populate calibration table.
+            self.parent.analytes_list_df = df
+            self.parent.analytes_ref_df = None
+            self.parent.calibration_table_manager.update_table()
+
+        elif file_cols == _REF_COLS:
+            # Validate as reference file (shows error popups on failure).
+            if not self.check_ref_file(df):
+                self.ui.path_analytes_list.clear()
+                self.parent.analytes_list_df = None
+                self.parent.analytes_ref_df = None
+                self.ui.tableWidget_calibration.setRowCount(0)
+                return
+            self._apply_ref_file(df)
+
+        else:
+            # Column set does not match either known format.
+            UIHelpers.show_message_box(
+                self.parent,
+                title="Unrecognized file format",
+                text="The uploaded file is neither a valid analytes list nor a valid reference file.",
+                informative_text=(
+                    "An analytes list must have columns: "
+                    "'analyte', 'charge_min', 'charge_max', 'calibrant', "
+                    "'time', 'time_window', 'mz_window'. "
+                    "A reference file must have columns: "
+                    "'peak', 'charge_carrier', 'mz', 'relative_area', "
+                    "'mz_window', 'time', 'time_window', 'calibrant'."
+                ),
+                icon="Critical"
+            )
             self.ui.path_analytes_list.clear()
             self.parent.analytes_list_df = None
+            self.parent.analytes_ref_df = None
             self.ui.tableWidget_calibration.setRowCount(0)
-            return
-        
-        # Update data container and table.
-        self.parent.analytes_list_df = df
-        self.parent.calibration_table_manager.update_table()
+            self.parent.set_ms_only_mode(False)
+
+    def check_ref_file(self, df: pd.DataFrame) -> bool:
+        """Check the structure of an analytes reference file.
+
+        Validates column presence, data types, completeness of required
+        columns, and time/time_window consistency (either both entirely
+        filled or both entirely empty).
+
+        Returns True if correctly formatted, False otherwise.
+        """
+        # Required columns are already guaranteed by the caller (column-set
+        # routing in open_analytes_list), but we re-check here defensively.
+        columns_required = {
+            "peak", "charge_carrier", "mz", "relative_area",
+            "mz_window", "time", "time_window", "calibrant"
+        }
+        if set(df.columns) != columns_required:
+            UIHelpers.show_message_box(
+                self.parent,
+                title="Incorrect formatting",
+                text="The reference file must contain the following columns:",
+                informative_text=(
+                    "'peak', 'charge_carrier', 'mz', 'relative_area', "
+                    "'mz_window', 'time', 'time_window' and 'calibrant'."
+                ),
+                icon="Critical"
+            )
+            return False
+
+        # Columns that must never contain missing values.
+        always_required = ["peak", "charge_carrier", "mz", "relative_area", "mz_window", "calibrant"]
+        for col in always_required:
+            if df[col].isnull().any():
+                UIHelpers.show_message_box(
+                    self.parent,
+                    title="Missing values",
+                    text=f"Column '{col}' must not contain any missing values.",
+                    icon="Critical"
+                )
+                return False
+
+        # Data type checks.
+        for col in ["peak", "charge_carrier"]:
+            if not pd.api.types.is_string_dtype(df[col]):
+                UIHelpers.show_message_box(
+                    self.parent,
+                    title="Incorrect data type",
+                    text=f"Column '{col}' must contain only string values.",
+                    icon="Critical"
+                )
+                return False
+
+        for col in ["mz", "relative_area", "mz_window"]:
+            if not pd.api.types.is_numeric_dtype(df[col]):
+                UIHelpers.show_message_box(
+                    self.parent,
+                    title="Incorrect data type",
+                    text=f"Column '{col}' may contain only numeric values.",
+                    icon="Critical"
+                )
+                return False
+
+        if not pd.api.types.is_bool_dtype(df["calibrant"]):
+            UIHelpers.show_message_box(
+                self.parent,
+                title="Incorrect data type",
+                text="Column 'calibrant' must contain only boolean values (True/False).",
+                icon="Critical"
+            )
+            return False
+
+        # Time columns must be either both entirely filled or both entirely empty.
+        time_all_null = df["time"].isnull().all()
+        time_all_full = df["time"].notnull().all()
+        time_window_all_null = df["time_window"].isnull().all()
+        time_window_all_full = df["time_window"].notnull().all()
+
+        if not (
+            (time_all_null and time_window_all_null)
+            or (time_all_full and time_window_all_full)
+        ):
+            UIHelpers.show_message_box(
+                self.parent,
+                title="Incomplete time information",
+                text=(
+                    "Columns 'time' and 'time_window' must be either "
+                    "both completely filled or both completely empty."
+                ),
+                icon="Critical"
+            )
+            return False
+
+        # If time columns are filled, they must be numeric.
+        if time_all_full:
+            for col in ["time", "time_window"]:
+                if not pd.api.types.is_numeric_dtype(df[col]):
+                    UIHelpers.show_message_box(
+                        self.parent,
+                        title="Incorrect data type",
+                        text=f"Column '{col}' may contain only numeric values.",
+                        icon="Critical"
+                    )
+                    return False
+
+        return True
+
+    def _apply_ref_file(self, df: pd.DataFrame) -> None:
+        """Apply a validated reference file to the application state.
+
+        Stores the reference DataFrame, detects LC-MS vs MS-only mode,
+        updates the calibration table (LC-MS only), and shows a confirmation
+        pop-up to the user.
+
+        Args:
+            df: A pre-validated reference DataFrame.
+        """
+        self.parent.analytes_ref_df = df
+        self.parent.analytes_list_df = None
+
+        # Detect mode from time column.
+        ms_only = df["time"].isnull().all()
+
+        if ms_only:
+            self.parent.set_ms_only_mode(True)
+            self.ui.tableWidget_calibration.setRowCount(0)
+        else:
+            self.parent.set_ms_only_mode(False)
+            self.parent.calibration_table_manager.update_table(df)
+
+        UIHelpers.show_message_box(
+            self.parent,
+            title="Reference file detected",
+            text="A reference file was successfully uploaded.",
+            informative_text=(
+                "The analyte reference file generation step will be "
+                "skipped during batch processing."
+            ),
+            icon="Information"
+        )
 
     def check_alignment_list(self, df: pd.DataFrame) -> bool:
         """Check structure of the alignment list.

@@ -118,6 +118,7 @@ class BatchCoordinator:
             sum_spectra_calibration=sum_spectra_calibration,
             charge_carrier=charge_carrier,
             analytes_list_df=self.parent.analytes_list_df,
+            analytes_ref_df=self.parent.analytes_ref_df,
             sum_spectrum_resolution=int(self.ui.sum_spectrum_resolution.value()),
             background_mass_window=float(self.ui.background_mass_window.value()),
             calibration_mass_window=float(self.ui.calibration_mass_window.value()),
@@ -242,17 +243,28 @@ class BatchCoordinator:
         """Setup the batch progress dialog with initial state."""
         self.batch_ui.pushButton.setEnabled(True)
         self.batch_ui.label_processing.setText("Processing files...")
-        
-        if self.parent.analytes_list_df is None:
+
+        has_analytes = (
+            self.parent.analytes_list_df is not None
+            or self.parent.analytes_ref_df is not None
+        )
+
+        if not has_analytes:
             self.batch_ui.progressBar_analytes_ref.setFormat("Not performed")
             self.batch_ui.progressBar_quantitation.setFormat("Not performed")
+        elif self.parent.analytes_ref_df is not None:
+            # Reference file uploaded directly: no generation step needed.
+            self.batch_ui.progressBar_analytes_ref.setValue(100)
+            self.batch_ui.progressBar_analytes_ref.setFormat("Pre-loaded")
+            self.batch_ui.progressBar_quantitation.setValue(0)
+            self.batch_ui.progressBar_quantitation.setFormat("%p%")
         else:
             self.batch_ui.progressBar_analytes_ref.setValue(0)
             self.batch_ui.progressBar_quantitation.setValue(0)
             self.batch_ui.progressBar_analytes_ref.setFormat("%p%")
             self.batch_ui.progressBar_quantitation.setFormat("%p%")
-        
-        if self.parent.alignment_list_df is None:
+
+        if self.parent.alignment_list_df is None or self.parent.ms_only_mode:
             self.batch_ui.progressBar_alignment.setFormat("Not performed")
         else:
             self.batch_ui.progressBar_alignment.setValue(0)

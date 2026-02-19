@@ -367,7 +367,7 @@ font-size: 10.5pt</string>
       </font>
      </property>
      <property name="text">
-      <string>Upload analytes list:</string>
+      <string>Analytes list or reference file:</string>
      </property>
     </widget>
     <widget class="QToolButton" name="open_analytes_list">
