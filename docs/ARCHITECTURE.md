@@ -385,7 +385,7 @@ Initialises and wires together all GUI components:
 - Connects Qt signals (button clicks, menu actions) to the appropriate
   manager methods.
 - Holds the shared application state: `alignment_list_df`, `analytes_list_df`,
-  `blocks`, and `ms_only_mode`.
+  `analytes_ref_df`, `blocks`, and `ms_only_mode`.
 
 #### managers/
 
@@ -398,7 +398,7 @@ UI object(s) it needs, making them independently testable.
 | `BatchWorker` | `workers/batch_worker.py` | Runs the complete processing pipeline in a `QThread`; emits progress/finished/error signals |
 | `BlockParser` | `block_parser.py` | Reads all `.block` files in the selected directory and builds the `blocks` dict; validates element names and value types |
 | `CalibrationTableManager` | `calibration_table_manager.py` | Populates the interactive calibration S/N table when an analytes list is loaded |
-| `FileHandlers` | `file_handlers.py` | Opens file dialogs; reads and validates alignment and analytes Excel files |
+| `FileHandlers` | `file_handlers.py` | Opens file dialogs; reads and validates alignment and analytes Excel files. When an `.xlsx` file is uploaded as the analytes input, detects automatically whether it is an analytes list or a pre-generated reference file, validates accordingly, and routes to the appropriate handler |
 | `SettingsManager` | `settings_manager.py` | Exports all GUI settings to CSV; imports settings from CSV; resets to defaults |
 | `TemplateManager` | `template_manager.py` | Copies template files (alignment list, analytes list, block) to a user-chosen directory |
 
@@ -435,6 +435,9 @@ These files should not be edited by hand; re-generate them with
   moved to a `QThread` by `BatchCoordinator`. The `run()` method executes the
   full pipeline sequentially and emits `ref_progress`, `alignment_progress`,
   and `quantitation_progress` signals to drive the progress bar in the UI.
+  When a pre-loaded reference DataFrame (`analytes_ref_df`) is available, the
+  reference generation step is skipped and the DataFrame is written directly to
+  disk via `_write_ref_df()`.
 
 ---
 
@@ -477,12 +480,14 @@ User uploads:
   - mzXML files (folder)
   - alignment list (.xlsx)       [optional]
   - analytes list (.xlsx)        [optional]
+      OR reference file (.xlsx)  [optional, skips step 1]
 
 BatchCoordinator.start_batch_process()
   └─ BlockParser.parse_blocks()  → blocks dict
   └─ BatchWorker(run in QThread)
 
   1. Build reference table
+     [skipped if a reference file was uploaded directly]
      InputAnalyte(blocks, row)   → reference_df (per analyte)
 
   2. For each mzXML file:
