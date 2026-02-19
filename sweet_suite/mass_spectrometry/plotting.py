@@ -76,7 +76,7 @@ def plot_polynomial(
     ax_plot.plot(x_fit, y_fit, color="#FF851B", label=function)
     ax_plot.plot(x_fit, x_fit, color="#0074D9", linestyle="--", label="Target")
     ax_plot.set_xlabel("Observed m/z")
-    ax_plot.set_ylabel("Required m/z")
+    ax_plot.set_ylabel("Exact m/z")
     ax_plot.set_title(title)
     
     # Disable scientific notation on both axes
@@ -236,7 +236,7 @@ def plot_calibration_failure(
     )
     
     ax_plot.set_xlabel("Observed m/z")
-    ax_plot.set_ylabel("Required m/z")
+    ax_plot.set_ylabel("Exact m/z")
     ax_plot.set_title(title)
     
     # Disable scientific notation on both axes
