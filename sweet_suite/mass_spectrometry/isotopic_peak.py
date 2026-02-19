@@ -73,10 +73,39 @@ class IsotopicPeak:
         return np.trapezoid(y=self.data[:, 1], x=self.data[:, 0])
 
     def get_maximum_intensity(self) -> float:
-        """Return the maximum intensity of the spectrum in the m/z range
-        `[mz_exact ± integration_mz_window]`.
+        """Return the intensity of the local maximum closest to `mz_exact`
+        within the m/z range `[mz_exact ± integration_mz_window]`.
+
+        A local maximum is defined as a point whose intensity is strictly
+        greater than both its immediate neighbours. If no local maximum is
+        found (e.g. the window captures only a monotone slope), the global
+        maximum intensity within the window is returned as a fallback.
         """
-        return np.max(self.data[:, 1])
+        intensities = self.data[:, 1]
+        mzs = self.data[:, 0]
+
+        # Find indices of interior local maxima.
+        local_max_indices = [
+            i for i in range(1, len(intensities) - 1)
+            if intensities[i] > intensities[i - 1]
+            and intensities[i] > intensities[i + 1]
+        ]
+
+        if local_max_indices:
+            # Pick the local maximum whose m/z is closest to mz_exact.
+            closest = min(
+                local_max_indices,
+                key=lambda i: abs(mzs[i] - self.mz_exact)
+            )
+            return float(intensities[closest])
+
+        # Fallback: no local maximum found, return global maximum.
+        self.logger.warning(
+            f"No local maximum found for m/z {self.mz_exact:.4f} "
+            f"(window={self.integration_mz_window:.4f} Th). "
+            f"Using global maximum as fallback."
+        )
+        return float(np.max(intensities))
 
     def get_background_and_noise(
         self,
