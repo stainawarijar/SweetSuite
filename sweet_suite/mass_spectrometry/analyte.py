@@ -15,17 +15,19 @@ class Analyte:
         background_and_noise (tuple): Tuple containing the following 
             information for the monoisotopic peak of the analyte: 
             `(average background intensity, background area, noise)`.
+        use_peak_height (bool): If True, use maximum intensity instead of
+            trapezoidal area for quantitation.
         mz_monoisotopic (float): Monoisotopic m/z value.
         isotopic_fraction (float): Theoretical fraction of the isotopic 
             pattern that was integrated.
         mass_error_ppm (float): Mass error in parts per million (ppm), based on 
             the isotopic peak with the highest theoretical relative area.
-        total_area (float): Total observed area of the integrated isotopic
-            peaks.
-        total_background (float): Total background area of the analyte.
+        total_area (float): Total observed area (or summed peak heights) of the
+            integrated isotopic peaks.
+        total_background (float): Total background of the analyte.
         total_noise (float): Total noise of the analyte.
         total_area_background_subtracted (float): Total background 
-            subtracted area of the analyte.
+            subtracted area (or summed peak heights) of the analyte.
         signal_to_noise (float): The signal-to-noise (S/N) of the analyte,
             based on the isotopic peak with the highest theoretical relative 
             area.
@@ -38,7 +40,8 @@ class Analyte:
             name: str,
             charge: int,
             peaks: pd.DataFrame,
-            background_and_noise: tuple[float, float, float]
+            background_and_noise: tuple[float, float, float],
+            use_peak_height: bool = False
     ):
         """Initialize an analyte.
 
@@ -47,15 +50,21 @@ class Analyte:
                 number.
             charge: Charge state of the analyte.
             peaks: A DataFrame with the following columns: `peak`, `mz_exact`,
-                `relative_area_theoretical`, `area`, `mass_error_ppm`.
+                `relative_area_theoretical`, `area`, `maximum_intensity`,
+                `mass_error_ppm`.
             background_and_noise: A tuple containing the following information
                 for the monoisotopic peak of the analyte:
                 `(average background intensity, background area, noise)`.
+            use_peak_height: If True, use the maximum intensity of each
+                isotopic peak instead of the trapezoidal area for quantitation.
+                Background subtraction is performed using the average background
+                intensity instead of the background area. Defaults to False.
         """
         self.name = name
         self.charge = charge
         self.peaks = peaks
         self.background_and_noise = background_and_noise
+        self.use_peak_height = use_peak_height
         self.mz_monoisotopic = self.get_mz_monoisotopic()
         self.isotopic_fraction = self.get_isotopic_fraction()
         self.mass_error_ppm = self.get_mass_error_ppm()
@@ -87,21 +96,29 @@ class Analyte:
         return mass_error_ppm
 
     def get_total_area(self) -> float:
-        """Return the sum of the isotopologue areas."""
-        areas_sum = np.sum(self.peaks["area"])
+        """Return the sum of the isotopologue areas (or peak heights).
+        
+        When `self.use_peak_height` is True, the sum of maximum intensities is
+        returned instead of the sum of trapezoidal areas.
+        """
+        col = "maximum_intensity" if self.use_peak_height else "area"
+        values_sum = np.sum(self.peaks[col])
         # In case of negative result, return zero.
-        if areas_sum > 0:
-            return areas_sum
+        if values_sum > 0:
+            return values_sum
         else:
             return float(0)
     
     def get_total_background(self) -> float:
-        """Return total background area of the analyte.
+        """Return total background of the analyte.
         
-        The background area of the analyte is calculated as the monoisotopic
-        background area multiplied by the total number of isotopic peaks.
+        In area mode: background area multiplied by number of isotopic peaks.
+        In peak-height mode: average background intensity multiplied by number
+        of isotopic peaks.
         """
-        total_background = self.background_and_noise[1] * len(self.peaks)
+        # [0] = average background intensity, [1] = background area
+        bg = self.background_and_noise[0 if self.use_peak_height else 1]
+        total_background = bg * len(self.peaks)
         # In case of negative result, return zero.
         if total_background > 0:
             return total_background
@@ -122,18 +139,21 @@ class Analyte:
             return float(0)
 
     def get_total_area_background_subtracted(self) -> float:
-        """Return the background subtracted total area.
+        """Return the background subtracted total area (or peak heights).
         
-        The monoisotopic background area is subtracted from the area of each 
-        isotopic peak. The resulting positive background subtracted areas are
-        summed to yield the total background subtracted area of the analyte.
+        In area mode: the monoisotopic background area is subtracted from the
+        area of each isotopic peak.
+        In peak-height mode: the average background intensity is subtracted
+        from the maximum intensity of each isotopic peak.
+        The resulting positive values are summed.
         """
-        background_area = self.background_and_noise[1]
-        areas = self.peaks["area"] - background_area
-        areas_sum = np.sum(areas[areas > 0])
+        col = "maximum_intensity" if self.use_peak_height else "area"
+        bg = self.background_and_noise[0 if self.use_peak_height else 1]
+        values = self.peaks[col] - bg
+        values_sum = np.sum(values[values > 0])
         # In case of negative result, return zero.
-        if areas_sum > 0:
-            return areas_sum
+        if values_sum > 0:
+            return values_sum
         else:
             return float(0)
 
@@ -186,8 +206,9 @@ class Analyte:
 
         # Calculate observed background subtracted areas of isotopic peaks.
         # Resulting negative values are set to zero.
-        background =  self.background_and_noise[1]
-        areas_observed = np.maximum(self.peaks["area"] - background, 0)
+        col = "maximum_intensity" if self.use_peak_height else "area"
+        bg = self.background_and_noise[0 if self.use_peak_height else 1]
+        areas_observed = np.maximum(self.peaks[col] - bg, 0)
 
         # Calculate observed relative areas.
         try:

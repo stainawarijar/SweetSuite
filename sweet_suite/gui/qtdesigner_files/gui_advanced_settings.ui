@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>370</width>
-    <height>180</height>
+    <width>401</width>
+    <height>233</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -21,14 +21,19 @@
 
 #frame {
     border: 1px solid #b0b0b0;
-}</string>
+}
+
+#frame_2 {
+    border: 1px solid #b0b0b0;
+}
+</string>
   </property>
   <widget class="QFrame" name="frame">
    <property name="geometry">
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>351</width>
+     <width>381</width>
      <height>161</height>
     </rect>
    </property>
@@ -168,6 +173,35 @@
     </property>
     <property name="text">
      <string>+</string>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QFrame" name="frame_2">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>180</y>
+     <width>381</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="frameShape">
+    <enum>QFrame::StyledPanel</enum>
+   </property>
+   <property name="frameShadow">
+    <enum>QFrame::Raised</enum>
+   </property>
+   <widget class="QCheckBox" name="checkBox_peakHeights">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>10</y>
+      <width>351</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Use peak heights instead of areas for quantitation</string>
     </property>
    </widget>
   </widget>

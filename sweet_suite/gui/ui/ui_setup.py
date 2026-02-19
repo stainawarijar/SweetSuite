@@ -136,7 +136,8 @@ class UISetup:
         )
         ui.quantitation_mz_window.setToolTip(
             "m/z window used around the exact m/z of each isotopic peak" \
-            " for area integration.\n" \
+            " for area integration\n" \
+            "(or for determining peak height, if enabled under advanced settings).\n" \
             "Can be overwritten for individual analytes in the analytes list."
         )
         ui.min_isotopic_fraction.setToolTip(

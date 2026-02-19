@@ -204,7 +204,8 @@ class MassSpectrum():
         
     def quantify_analytes(
             self,
-            analytes_ref: pd.DataFrame
+            analytes_ref: pd.DataFrame,
+            use_peak_height: bool = False
     ) -> list[Analyte] | None:
         """Quantify analytes and calculate quality control parameters.
 
@@ -216,6 +217,8 @@ class MassSpectrum():
         
         Args:
             analytes_ref: A data frame with the following columns: ...
+            use_peak_height: If True, use maximum intensity of each isotopic
+                peak instead of the trapezoidal area for quantitation.
         
         Returns:
             A list with instances of the `Analyte` class.
@@ -277,7 +280,8 @@ class MassSpectrum():
                             "peak", "mz_exact", "relative_area_theoretical",
                             "area", "maximum_intensity", "mass_error_ppm"
                         ]), 
-                        background_and_noise=background_and_noise
+                        background_and_noise=background_and_noise,
+                        use_peak_height=use_peak_height
                     ))
                     # Reset peaks list.
                     peaks = []
@@ -308,7 +312,8 @@ class MassSpectrum():
                 "peak", "mz_exact", "relative_area_theoretical",
                 "area", "maximum_intensity", "mass_error_ppm"
             ]), 
-            background_and_noise=background_and_noise
+            background_and_noise=background_and_noise,
+            use_peak_height=use_peak_height
         ))
 
         return analytes
