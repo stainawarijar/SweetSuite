@@ -262,6 +262,19 @@ class FileHandlers:
                 )
                 return False
 
+        # Validate that relative_area values are within the expected [0, 1] range.
+        if ((df["relative_area"] < 0) | (df["relative_area"] > 1)).any():
+            UIHelpers.show_message_box(
+                self.parent,
+                title="Invalid relative_area values",
+                text="Column 'relative_area' must contain only values between 0 and 1 (inclusive).",
+                informative_text=(
+                    "Please check the reference file for malformed or corrupted "
+                    "relative_area values and try again."
+                ),
+                icon="Critical"
+            )
+            return False
         if not pd.api.types.is_bool_dtype(df["calibrant"]):
             UIHelpers.show_message_box(
                 self.parent,
