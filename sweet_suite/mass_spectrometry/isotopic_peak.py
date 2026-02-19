@@ -210,9 +210,6 @@ class IsotopicPeak:
         n_query = max(int((mzs[-1] - mzs[0]) * 2500), 10)
         mz_array = np.linspace(start=mzs[0], stop=mzs[-1], num=n_query)
 
-        # Initialize with the mid-point of the query grid.
-        max_pair = (mz_array[len(mz_array) // 2], 0.0)
-
         # Check if we have enough data points for cubic spline 
         # (k=3 requires at least 4 points).
         if len(mzs) >= 4:
@@ -223,9 +220,8 @@ class IsotopicPeak:
                 )
                 predicted = spline(mz_array)
 
-                for idx, intensity in enumerate(predicted):
-                    if intensity > max_pair[1]:
-                        max_pair = (mz_array[idx], float(intensity))
+                idx = np.argmax(predicted)
+                max_pair = (mz_array[idx], float(predicted[idx]))
 
                 return max_pair
 
@@ -244,9 +240,8 @@ class IsotopicPeak:
             )
         
         # Use non-fitted local maximum (either insufficient points or spline failed).
-        for idx, intensity in enumerate(intensities):
-            if intensity > max_pair[1]:
-                max_pair = (mzs[idx], float(intensity))
+        idx = np.argmax(intensities)
+        max_pair = (mzs[idx], float(intensities[idx]))
 
         return max_pair
 
