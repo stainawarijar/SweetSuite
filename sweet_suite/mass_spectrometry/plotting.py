@@ -94,9 +94,9 @@ def plot_polynomial(
     table_data = []
     for idx in sort_indices:
         table_data.append([
-            f"{mzs_exact[idx]:.2f}",
-            f"{pre_cal_errors[idx]:.1f}",
-            f"{post_cal_errors[idx]:.1f}"
+            f"{mzs_exact[idx]:.4f}",
+            f"{pre_cal_errors[idx]:.2f}",
+            f"{post_cal_errors[idx]:.2f}"
         ])
     
     # Create table.
@@ -256,8 +256,8 @@ def plot_calibration_failure(
         table_data = []
         for idx in sort_indices:
             table_data.append([
-                f"{mzs_exact_array[idx]:.2f}",
-                f"{pre_cal_errors[idx]:.1f}"
+                f"{mzs_exact_array[idx]:.4f}",
+                f"{pre_cal_errors[idx]:.2f}"
             ])
         
         # Create table with only 2 columns.

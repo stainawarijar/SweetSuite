@@ -44,7 +44,7 @@ class MassSpectrum():
             was performed (an empty `calibrants` list), this will be set to 
             `data_uncalibrated`.
         calibration_plot: Figure showing calibration of the mass spectrum
-            (observed vs required m/z fit).
+            (observed vs exact m/z fit).
     """
 
     def __init__(
