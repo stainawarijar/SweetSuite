@@ -140,6 +140,10 @@ Below is an example of a valid MS-only analytes list:
 Either all rows must have retention time information, or all rows must have empty 
 `time` and `time_window` columns.
 
+**Advanced:** As an alternative to uploading an analytes list, it is also possible to 
+upload a reference file (the `*_analytes_ref.xlsx` file generated in a previous batch run) 
+directly. When a reference file is detected, the reference generation step is skipped.
+
 ### Data output
 After analyte quantitation, an `xlsx` file is generated with results stored
 in the "Data" tab. The used settings are listed in separate tabs. 

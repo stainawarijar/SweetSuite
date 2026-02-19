@@ -469,7 +469,7 @@ class Ui_MainWindow(object):
         self.label_alignment_sn_cutoff.setText(_translate("MainWindow", "S/N cut-off:"))
         self.label_alignment_min_peak.setText(_translate("MainWindow", "Minimum number of peaks:"))
         self.label_calibration_quantitation.setText(_translate("MainWindow", "Calibration & Quantitation"))
-        self.label_analytes_list.setText(_translate("MainWindow", "Upload analytes list:"))
+        self.label_analytes_list.setText(_translate("MainWindow", "Analytes list or reference file:"))
         self.open_analytes_list.setText(_translate("MainWindow", "..."))
         self.label_resolution.setText(_translate("MainWindow", "Sum spectrum resolution (1 / Th):"))
         self.label_background_mass_window.setText(_translate("MainWindow", "Background mass window (Da):"))
