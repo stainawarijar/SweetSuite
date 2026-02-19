@@ -70,7 +70,7 @@ class Ui_advanced_settings(object):
     def retranslateUi(self, advanced_settings):
         _translate = QtCore.QCoreApplication.translate
         advanced_settings.setWindowTitle(_translate("advanced_settings", "Advanced settings"))
-        self.checkBox_quadratic.setText(_translate("advanced_settings", "Enable quadratic quantitation m/z window"))
+        self.checkBox_quadratic.setText(_translate("advanced_settings", "Use quadratic quantitation m/z window"))
         self.label_mz2_2.setText(_translate("advanced_settings", "× (m/z)"))
         self.label_mz2.setText(_translate("advanced_settings", "× (m/z)²"))
         self.label.setText(_translate("advanced_settings", "m/z window = "))

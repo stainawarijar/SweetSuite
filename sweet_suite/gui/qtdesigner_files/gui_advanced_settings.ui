@@ -64,7 +64,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Enable quadratic quantitation m/z window</string>
+     <string>Use quadratic quantitation m/z window</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_mz2_2">

@@ -51,6 +51,12 @@ def apply_light_palette(app: QApplication) -> None:
     p.setColor(QPalette.ColorRole.Link, QColor(0, 120, 215))
     p.setColor(QPalette.ColorRole.Highlight, QColor(0, 120, 215))
     p.setColor(QPalette.ColorRole.HighlightedText, QColor(255, 255, 255))
+    # Disabled color group – greyed-out text and inputs.
+    p.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, QColor(160, 160, 160))
+    p.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, QColor(160, 160, 160))
+    p.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor(160, 160, 160))
+    p.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Base, QColor(240, 240, 240))
+    p.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Button, QColor(225, 225, 225))
     app.setPalette(p)
 
 

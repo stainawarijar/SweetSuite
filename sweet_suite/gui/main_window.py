@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
             # Disable entire Alignment section with red text and hide spinbox values
             self.ui.frame_alignment.setEnabled(False)
             self.ui.frame_alignment.setStyleSheet(
-                "QLabel { color: #8B0000; }"
+                "QLabel { color: #a0a0a0; }"
                 "QSpinBox, QDoubleSpinBox { color: transparent; }"
             )
             
@@ -134,7 +134,7 @@ class MainWindow(QMainWindow):
             self.ui.sum_spectrum_resolution.setEnabled(False)
             self.ui.sum_spectrum_resolution.setStyleSheet("color: transparent;")
             self.ui.label_resolution.setEnabled(False)
-            self.ui.label_resolution.setStyleSheet("color: #8B0000;")
+            self.ui.label_resolution.setStyleSheet("color: #a0a0a0;")
             
             # Hide calibration table (not applicable in MS-only mode)
             self.ui.tableWidget_calibration.setVisible(False)
@@ -143,7 +143,7 @@ class MainWindow(QMainWindow):
             # Disable "Quantify aligned files only" checkbox
             self.ui.quantify_aligned.setEnabled(False)
             self.ui.quantify_aligned.setChecked(False)
-            self.ui.quantify_aligned.setStyleSheet("color: #8B0000;")
+            self.ui.quantify_aligned.setStyleSheet("color: #a0a0a0;")
             
             # Update mode indicator
             self.mode_indicator_label.setText("Mode: MS-only")
