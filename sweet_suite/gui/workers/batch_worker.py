@@ -492,6 +492,10 @@ class BatchWorker(QObject):
     
     def read_xy_file(self, file_path: str) -> np.ndarray:
         """Read an xy file and return as a 2D numpy array.
+
+        If the intensity column contains negative values, all intensities are
+        shifted upward by the absolute value of the minimum so that the lowest
+        intensity becomes zero.
         
         Args:
             file_path: Path to the .xy file.
@@ -511,6 +515,15 @@ class BatchWorker(QObject):
             
             if data.shape[1] != 2:
                 raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
+            
+            # Shift intensities so the minimum is zero if any are negative.
+            min_intensity = data[:, 1].min()
+            if min_intensity < 0:
+                data[:, 1] -= min_intensity
+                self.logger.info(
+                    f"Negative intensities detected in {os.path.basename(file_path)}: "
+                    f"shifted all intensities by {-min_intensity:.6g} to baseline zero"
+                )
             
             return data
             
