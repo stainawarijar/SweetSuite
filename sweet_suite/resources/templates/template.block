@@ -1,17 +1,23 @@
 # Start a line with a hash sign to create a comment.
 # Empty lines will be ignored.
-# Specify the monoisotopic mass (Da) and the charge state as an integer.
-# Specify for each element the number of atoms whose isotopes can vary.
-# Elements set to zero can also be left out.
 
+# Specify the monoisotopic mass (Da) as a decimal number.
+# Specify the charge state as an integer.
+
+# `mass_modifier` indicates whether the block should be available
+# as a potential mass modifier (0 = False, 1 = True).
+
+# Specify for each element the number of atoms whose isotopes can vary.
+# When an element is left out of the block file, it is assumed to be zero.
 
 mass: 1234.567
-charge: -1
+charge: 1
+mass_modifier: 0
 
-carbons: 0
-hydrogens: 0
-nitrogens: 0
-oxygens: 0
+carbons: 10
+hydrogens: 9
+nitrogens: 8
+oxygens: 4
 sulfurs: 0
 potassiums: 0
 irons: 0

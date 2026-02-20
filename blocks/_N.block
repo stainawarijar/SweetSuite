@@ -1,4 +1,6 @@
 # Neutral nitrogen atom
 mass: 14.003074004
 charge: 0
+mass_modifier: 0
+
 nitrogens: 1

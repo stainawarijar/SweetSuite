@@ -1,0 +1,10 @@
+# 2-aminobenzoic acid (label for released glycans)
+
+mass: 139.06332853255
+charge: 0
+mass_modifier: 1
+
+carbons: 7
+hydrogens: 9
+nitrogens: 1
+oxygens: 2
