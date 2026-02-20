@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 supplying an analytes list. 
 - Display pre- and post-calibration mass errors (ppm) of calibrants in the
 calibration figures.
+- Option to report peak heights instead of areas.
 
 ### Fixed
 - Minor bug fixes in logging.
