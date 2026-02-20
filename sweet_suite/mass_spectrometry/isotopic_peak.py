@@ -202,12 +202,15 @@ class IsotopicPeak:
             mz_window: float
     ) -> tuple[float, float]:
         """Find the (m/z, intensity) tuple for which the intensity has a
-        maximum value within the specified m/z range.
+        local maximum nearest to `mz_exact` within the specified m/z range.
 
         A cubic spline is fitted over the MS data in the range
-        `[mz_exact ± mz_window]`. The m/z that yields the
-        maximum predicted intensity is returned. If spline fitting fails,
-        a non-fitted local maximum is used instead.
+        `[mz_exact ± mz_window]`. Among all local maxima of the spline,
+        the one with the smallest absolute mass error in ppm relative to
+        `mz_exact` is returned. If spline fitting fails or there are
+        insufficient data points, the same selection logic is applied to
+        the raw data points. If no local maximum is found in either case,
+        the data point nearest to `mz_exact` is returned as a fallback.
 
         Args:
             mz_window: m/z window (Th) to use around the exact
@@ -216,7 +219,7 @@ class IsotopicPeak:
                 calibration, this should be equal to `calibration_mz_window`.
         
         Returns:
-            (m/z, intensity) tuple at the maximum within specified m/z range.
+            (m/z, intensity) tuple at the local maximum nearest to `mz_exact`.
         """
         # Get MS data for the specified range.
         idx_low = np.searchsorted(
@@ -252,10 +255,23 @@ class IsotopicPeak:
                 )
                 predicted = spline(mz_array)
 
-                idx = np.argmax(predicted)
-                max_pair = (mz_array[idx], float(predicted[idx]))
+                # Find local maxima in the predicted array.
+                local_max_indices = np.array([
+                    i for i in range(1, len(predicted) - 1)
+                    if predicted[i] > predicted[i - 1] and
+                    predicted[i] > predicted[i + 1]
+                ], dtype=int)
 
-                return max_pair
+                if len(local_max_indices) > 0:
+                    ppm_errors = np.abs(
+                        (self.mz_exact - mz_array[local_max_indices]) / self.mz_exact * 1e6
+                    )
+                    best_idx = local_max_indices[np.argmin(ppm_errors)]
+                    return (mz_array[best_idx], float(predicted[best_idx]))
+
+                # Fallback: no local maximum in spline → nearest point to mz_exact.
+                nearest_idx = np.argmin(np.abs(mz_array - self.mz_exact))
+                return (mz_array[nearest_idx], float(predicted[nearest_idx]))
 
             except ValueError as e:
                 # Fallback: use non-fitted local maximum in the window.
@@ -272,10 +288,22 @@ class IsotopicPeak:
             )
         
         # Use non-fitted local maximum (either insufficient points or spline failed).
-        idx = np.argmax(intensities)
-        max_pair = (mzs[idx], float(intensities[idx]))
+        local_max_indices = np.array([
+            i for i in range(1, len(intensities) - 1)
+            if intensities[i] > intensities[i - 1] and
+            intensities[i] > intensities[i + 1]
+        ], dtype=int)
 
-        return max_pair
+        if len(local_max_indices) > 0:
+            ppm_errors = np.abs(
+                (self.mz_exact - mzs[local_max_indices]) / self.mz_exact * 1e6
+            )
+            best_idx = local_max_indices[np.argmin(ppm_errors)]
+            return (mzs[best_idx], float(intensities[best_idx]))
+
+        # Fallback: no local maximum found → nearest point to mz_exact.
+        nearest_idx = np.argmin(np.abs(mzs - self.mz_exact))
+        return (mzs[nearest_idx], float(intensities[nearest_idx]))
 
     def get_mass_error_ppm(self) -> float:
         """Return mass error in parts per million (ppm) based on the
