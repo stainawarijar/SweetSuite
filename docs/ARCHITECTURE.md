@@ -163,18 +163,28 @@ described analyte object ready for quantitation.
 
 - **Name parsing** — uses a regex to split the analyte name into
   `(block_name, count)` pairs and looks up each block in the blocks dictionary.
-- **Elemental composition** — sums the `mass`, `charge`, and elemental counts
-  (`carbons`, `hydrogens`, etc.) of all constituent blocks.
-- **Monoisotopic mass** — calculated from the summed elemental masses plus the
-  charge carrier mass, divided by the charge state.
-- **Isotopologue distribution** — computes a binomial probability distribution
-  over C, H, N, O, S isotopes using natural abundances from `constants.ISOTOPES`,
-  then selects the subset that together account for at least
-  `min_isotopic_fraction` of the total signal.
-- **Reference DataFrame** — for each selected isotopologue and each charge
-  state in `[charge_min, charge_max]`, produces one row with the expected m/z,
-  relative abundance, retention time window, and calibration flag. This
-  DataFrame drives peak integration in `MassSpectrum`.
+- **Elemental composition** (`get_variable_composition`) — sums the elemental
+  counts (`carbons`, `hydrogens`, etc.) of all constituent blocks, plus the
+  counts from the optional mass modifier block (if one is selected).
+- **Monoisotopic mass** (`get_monoisotopic_mass`) — sums the block masses,
+  plus the mass modifier block mass if applicable.
+- **Isotopologue distribution** (`_compute_distribution`) — uses sequential
+  convolution over elements rather than enumerating all combinations at once.
+  Starting from a delta distribution at the monoisotopic mass, the method
+  folds one element's heavy-isotope distribution at a time into the running
+  list, merging peaks within instrument resolution after each step. This is
+  O(n_elements × n_peaks) rather than O(product of per-element distribution
+  sizes), making it fast even for large glycans with heavy charge carriers
+  such as potassium.
+- **Reference DataFrame** (`get_reference_df`) — for each charge state in
+  `[charge_min, charge_max]`, builds the full ion composition (analyte +
+  modifier + n × carrier) and calls `_compute_distribution` with that
+  composition. This ensures the isotopic contribution of the charge carrier
+  (e.g. ⁴¹K for potassium) is correctly included per charge state. Produces
+  one row per selected isotopologue with the expected m/z, relative abundance,
+  retention time window, calibration flag, `charge_carrier`, and
+  `mass_modifier` columns. This DataFrame drives peak integration in
+  `MassSpectrum`.
 
 ---
 
@@ -416,9 +426,9 @@ UI object(s) it needs, making them independently testable.
 |---|---|---|
 | `BatchCoordinator` | `batch_coordinator.py` | Starts/stops the batch worker thread; shows the progress dialog; routes `pyqtSignal` callbacks to the UI |
 | `BatchWorker` | `workers/batch_worker.py` | Runs the complete processing pipeline in a `QThread`; emits progress/finished/error signals |
-| `BlockParser` | `block_parser.py` | Reads all `.block` files in the selected directory and builds the `blocks` dict; validates element names and value types |
+| `BlockParser` | `block_parser.py` | Reads all `.block` files in the selected directory and builds the `blocks` dict; validates element names and value types; populates the *Charge carrier* dropdown (`update_charge_carriers`) and the *Mass modifier (optional)* dropdown (`update_mass_modifiers`) from the parsed blocks |
 | `CalibrationTableManager` | `calibration_table_manager.py` | Populates the interactive calibration S/N table when an analytes list is loaded |
-| `FileHandlers` | `file_handlers.py` | Opens file dialogs; reads and validates alignment and analytes Excel files. When an `.xlsx` file is uploaded as the analytes input, detects automatically whether it is an analytes list or a pre-generated reference file, validates accordingly, and routes to the appropriate handler |
+| `FileHandlers` | `file_handlers.py` | Opens file dialogs; reads and validates alignment and analytes Excel files. When an `.xlsx` file is uploaded as the analytes input, detects automatically whether it is an analytes list or a pre-generated reference file, validates accordingly, and routes to the appropriate handler. Reference file validation includes the `charge_carrier` and `mass_modifier` string columns |
 | `SettingsManager` | `settings_manager.py` | Exports all GUI settings to CSV; imports settings from CSV; resets to defaults |
 | `TemplateManager` | `template_manager.py` | Copies template files (alignment list, analytes list, block) to a user-chosen directory |
 
@@ -458,9 +468,12 @@ These files should not be edited by hand; re-generate them with
   moved to a `QThread` by `BatchCoordinator`. The `run()` method executes the
   full pipeline sequentially and emits `ref_progress`, `alignment_progress`,
   and `quantitation_progress` signals to drive the progress bar in the UI.
-  When a pre-loaded reference DataFrame (`analytes_ref_df`) is available, the
-  reference generation step is skipped and the DataFrame is written directly to
-  disk via `_write_ref_df()`.
+  Accepts `charge_carrier` and `mass_modifier` parameters (the latter defaults
+  to `None` when no modifier is selected) and forwards them to `InputAnalyte`
+  during reference file generation. The selected modifier name is also recorded
+  in the settings sheet of the output Excel file. When a pre-loaded reference
+  DataFrame (`analytes_ref_df`) is available, the reference generation step is
+  skipped and the DataFrame is written directly to disk via `_write_ref_df()`.
 
 ---
 
@@ -483,14 +496,19 @@ sulfurs: 0
 
 `mass` is the monoisotopic mass contribution of the block (Da).
 `charge` is the fixed charge contribution (e.g. `1` for a proton carrier).
-Elemental counts (`carbons`, `hydrogens`, `nitrogens`, `oxygens`, `sulfurs`)
-are used by `InputAnalyte` to compute the isotopologue distribution.
+`mass_modifier: 1` marks a block as a selectable mass modifier (e.g. water
+loss, derivatisation reagent). Such blocks appear in the *Mass modifier
+(optional)* dropdown in the GUI. When selected, the block's mass and elemental
+counts are added on top of the analyte before any isotopologue calculations.
+Elemental counts (`carbons`, `hydrogens`, `nitrogens`, `oxygens`, `sulfurs`,
+and additional element keys) are used by `InputAnalyte` to compute the
+isotopologue distribution.
 
 Analyte names are formed by concatenating block names with integer
 multipliers, e.g. `IgGI1H3N4F1` resolves to one `IgGI` block, three `H`
 (hexose) blocks, four `N` (HexNAc) blocks, and one `F` (fucose) block.
-The `proton` (or alternative) block is used as the charge carrier and is
-specified separately in the GUI.
+The charge carrier block (e.g. `proton`, `potassium`) and the optional mass
+modifier block are specified separately in the GUI.
 
 ---
 

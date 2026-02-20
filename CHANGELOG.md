@@ -13,6 +13,11 @@ supplying an analytes list.
 - Display pre- and post-calibration mass errors (ppm) of calibrants in the
 calibration figures.
 - Option to report peak heights instead of areas.
+- Support for adding a mass modifier on top of each analyte (e.g., a label
+  for released glycans). The modifier's elemental composition is considered
+  when calculating theoretical isotopologue distributions.
+- Charge carrier isotopes are now considered when calculating theoretical
+  relative isotopologue distributions.
 
 ### Fixed
 - Minor bug fixes in logging.
