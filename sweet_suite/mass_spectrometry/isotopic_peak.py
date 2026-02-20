@@ -73,39 +73,42 @@ class IsotopicPeak:
         return np.trapezoid(y=self.data[:, 1], x=self.data[:, 0])
 
     def get_maximum_intensity(self) -> float:
-        """Return the intensity of the local maximum closest to `mz_exact`
+        """Return the intensity of the local maximum nearest to `mz_exact`
         within the m/z range `[mz_exact ± integration_mz_window]`.
 
         A local maximum is defined as a point whose intensity is strictly
-        greater than both its immediate neighbours. If no local maximum is
-        found (e.g. the window captures only a monotone slope), the global
-        maximum intensity within the window is returned as a fallback.
+        greater than both its immediate neighbours. Among all local maxima,
+        the one with the smallest absolute mass error in ppm relative to
+        `mz_exact` is selected. If no local maximum is found (e.g. the window
+        captures only a monotone slope), the intensity corresponding to the
+        m/z value nearest to `mz_exact` is returned as a fallback.
         """
-        intensities = self.data[:, 1]
         mzs = self.data[:, 0]
+        intensities = self.data[:, 1]
 
-        # Find indices of interior local maxima.
-        local_max_indices = [
+        # Find indices for local maxima.
+        local_max_indices = np.array([
             i for i in range(1, len(intensities) - 1)
-            if intensities[i] > intensities[i - 1]
-            and intensities[i] > intensities[i + 1]
-        ]
+            if intensities[i] > intensities[i - 1] and
+            intensities[i] > intensities[i + 1]
+        ], dtype=int)
 
-        if local_max_indices:
-            # Pick the local maximum whose m/z is closest to mz_exact.
-            closest = min(
-                local_max_indices,
-                key=lambda i: abs(mzs[i] - self.mz_exact)
+        if len(local_max_indices) > 0:
+            # Pick the local maximum with the smallest absolute ppm error.
+            ppm_errors = np.abs(
+                (self.mz_exact - mzs[local_max_indices]) / self.mz_exact * 1e6
             )
-            return float(intensities[closest])
+            best_idx = local_max_indices[np.argmin(ppm_errors)]
+            return float(intensities[best_idx])
 
-        # Fallback: no local maximum found, return global maximum.
+        # Fallback: No local max found → use nearest point to `mz_exact`
         self.logger.warning(
             f"No local maximum found for m/z {self.mz_exact:.4f} "
             f"(window={self.integration_mz_window:.4f} Th). "
-            f"Using global maximum as fallback."
+            f"Using nearest m/z point as fallback."
         )
-        return float(np.max(intensities))
+        nearest_idx = np.argmin(np.abs(mzs - self.mz_exact))
+        return float(intensities[nearest_idx])
 
     def get_background_and_noise(
         self,
