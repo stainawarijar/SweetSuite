@@ -89,4 +89,4 @@ class Ui_advanced_settings(object):
         self.label.setText(_translate("advanced_settings", "m/z window = "))
         self.label_2.setText(_translate("advanced_settings", "+"))
         self.label_3.setText(_translate("advanced_settings", "+"))
-        self.checkBox_peakHeights.setText(_translate("advanced_settings", "Use peak heights instead of areas for quantitation"))
+        self.checkBox_peakHeights.setText(_translate("advanced_settings", "Report peak heights instead of areas"))

@@ -314,7 +314,7 @@ font-size: 10.5pt</string>
       <x>10</x>
       <y>10</y>
       <width>491</width>
-      <height>341</height>
+      <height>401</height>
      </rect>
     </property>
     <property name="frameShape">
@@ -390,7 +390,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>110</y>
+       <y>170</y>
        <width>241</width>
        <height>16</height>
       </rect>
@@ -409,7 +409,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>130</y>
+       <y>190</y>
        <width>221</width>
        <height>22</height>
       </rect>
@@ -428,7 +428,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>170</y>
+       <y>230</y>
        <width>231</width>
        <height>16</height>
       </rect>
@@ -448,7 +448,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>190</y>
+       <y>250</y>
        <width>221</width>
        <height>22</height>
       </rect>
@@ -464,10 +464,13 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>250</y>
+       <y>310</y>
        <width>221</width>
        <height>22</height>
       </rect>
+     </property>
+     <property name="decimals">
+      <number>3</number>
      </property>
      <property name="maximum">
       <double>100.000000000000000</double>
@@ -483,7 +486,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>230</y>
+       <y>290</y>
        <width>221</width>
        <height>16</height>
       </rect>
@@ -503,7 +506,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>290</y>
+       <y>350</y>
        <width>221</width>
        <height>16</height>
       </rect>
@@ -523,7 +526,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>310</y>
+       <y>370</y>
        <width>221</width>
        <height>22</height>
       </rect>
@@ -545,7 +548,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>250</y>
+       <y>310</y>
        <width>221</width>
        <height>22</height>
       </rect>
@@ -561,7 +564,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>230</y>
+       <y>290</y>
        <width>221</width>
        <height>16</height>
       </rect>
@@ -580,7 +583,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>310</y>
+       <y>370</y>
        <width>181</width>
        <height>22</height>
       </rect>
@@ -599,7 +602,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>290</y>
+       <y>350</y>
        <width>211</width>
        <height>16</height>
       </rect>
@@ -618,7 +621,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>170</y>
+       <y>230</y>
        <width>211</width>
        <height>16</height>
       </rect>
@@ -638,7 +641,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>190</y>
+       <y>250</y>
        <width>221</width>
        <height>22</height>
       </rect>
@@ -720,7 +723,7 @@ font-size: 10.5pt</string>
     <widget class="QLabel" name="label_charge_carrier">
      <property name="geometry">
       <rect>
-       <x>260</x>
+       <x>10</x>
        <y>110</y>
        <width>211</width>
        <height>16</height>
@@ -762,7 +765,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>449</x>
-       <y>311</y>
+       <y>371</y>
        <width>33</width>
        <height>20</height>
       </rect>
@@ -794,6 +797,35 @@ font-size: 10.5pt</string>
      </property>
     </widget>
     <widget class="QComboBox" name="comboBox_charge_carrier">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>130</y>
+       <width>221</width>
+       <height>22</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_mass_modifier">
+     <property name="geometry">
+      <rect>
+       <x>260</x>
+       <y>110</y>
+       <width>211</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <family>DejaVu Sans</family>
+       <pointsize>10</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Mass modifier (optional):</string>
+     </property>
+    </widget>
+    <widget class="QComboBox" name="comboBox_mass_modifier">
      <property name="geometry">
       <rect>
        <x>260</x>
@@ -950,9 +982,9 @@ font-size: 10.5pt</string>
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>360</y>
+      <y>420</y>
       <width>491</width>
-      <height>181</height>
+      <height>121</height>
      </rect>
     </property>
     <property name="styleSheet">

@@ -201,7 +201,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Use peak heights instead of areas for quantitation</string>
+     <string>Report peak heights instead of areas</string>
     </property>
    </widget>
   </widget>
