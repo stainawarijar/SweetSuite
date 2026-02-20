@@ -207,8 +207,8 @@ class IsotopicPeak:
         the one with the highest intensity is returned. If spline fitting
         fails or there are insufficient data points, the same selection
         logic is applied to the raw data points. If no local maximum is
-        found in either case, the data point nearest to `mz_exact` is
-        returned as a fallback.
+        found in either case, the data point with the highest intensity
+        within the specified m/z range is returned as a fallback.
 
         Args:
             mz_window: m/z window (Th) to use around the exact
