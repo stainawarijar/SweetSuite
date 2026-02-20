@@ -102,7 +102,7 @@ class IsotopicPeak:
             return float(intensities[best_idx])
 
         # Fallback: No local max found → use nearest point to `mz_exact`
-        self.logger.warning(
+        self.logger.info(
             f"No local maximum found for m/z {self.mz_exact:.4f} "
             f"(window={self.integration_mz_window:.4f} Th). "
             f"Using nearest m/z point as fallback."
