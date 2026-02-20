@@ -1,4 +1,6 @@
 # Neutral phosphorus atom
 mass: 30.973761998
 charge: 0
+mass_modifier: 0
+
 

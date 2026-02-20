@@ -1,0 +1,8 @@
+# Water molecule (mass modifier for unlabeled released glycans).
+
+mass: 18.010564684
+charge: 0
+mass_modifier: 1
+
+hydrogens: 2
+oxygens: 1

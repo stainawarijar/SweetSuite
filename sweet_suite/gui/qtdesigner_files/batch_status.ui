@@ -65,8 +65,8 @@ font-size: 11pt;</string>
     <font>
      <family>DejaVu Sans</family>
      <pointsize>10</pointsize>
-     <weight>75</weight>
-     <bold>true</bold>
+     <weight>50</weight>
+     <bold>false</bold>
     </font>
    </property>
    <property name="styleSheet">
@@ -111,7 +111,7 @@ font-size: 10.5pt;</string>
     <font>
      <family>DejaVu Sans</family>
      <pointsize>10</pointsize>
-     <italic>true</italic>
+     <italic>false</italic>
     </font>
    </property>
    <property name="styleSheet">
@@ -154,7 +154,7 @@ font-size: 11pt;</string>
     <font>
      <family>DejaVu Sans</family>
      <pointsize>10</pointsize>
-     <italic>true</italic>
+     <italic>false</italic>
     </font>
    </property>
    <property name="styleSheet">
@@ -177,7 +177,7 @@ font-size: 11pt;</string>
     <font>
      <family>DejaVu Sans</family>
      <pointsize>10</pointsize>
-     <italic>true</italic>
+     <italic>false</italic>
     </font>
    </property>
    <property name="styleSheet">

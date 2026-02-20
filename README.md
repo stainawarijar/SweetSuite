@@ -89,6 +89,15 @@ To specify potential calibrants, place an `x` in the calibrant column.
 You can override the *m/z* quantitation window for individual analytes by 
 entering a value in the `mz_window` column.
 
+In the GUI, select the appropriate **charge carrier** from the *Charge carrier* 
+dropdown (e.g. `proton`, `sodium`, `potassium`). You can optionally also select a 
+**mass modifier** from the *Mass modifier (optional)* dropdown. A mass modifier 
+represents a structural addition to the analyte — for example a water loss or a 
+derivatisation reagent. Any `.block` file that contains `mass_modifier: 1` will 
+appear in this list. Both the charge carrier's and the modifier's masses and 
+elemental compositions are taken into account when computing theoretical 
+isotopologue distributions.
+
 After you load the analyte list into SweetSuite, an interactive table appears 
 where you can adjust the calibrant S/N cut-off for each retention time range. 
 When quantitation is finished, SweetSuite creates an Excel file containing all results.
@@ -142,7 +151,9 @@ Either all rows must have retention time information, or all rows must have empt
 
 **Advanced:** As an alternative to uploading an analytes list, it is also possible to 
 upload a reference file (the `*_analytes_ref.xlsx` file generated in a previous batch run) 
-directly. When a reference file is detected, the reference generation step is skipped.
+directly. When a reference file is detected, the reference generation step is skipped. 
+The reference file contains a `charge_carrier` and a `mass_modifier` column that record 
+which carrier and modifier were used when the file was generated.
 
 ### Data output
 After analyte quantitation, an `xlsx` file is generated with results stored

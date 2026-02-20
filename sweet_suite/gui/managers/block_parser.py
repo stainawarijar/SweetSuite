@@ -48,17 +48,24 @@ class BlockParser:
                         key = kv[0].strip()
                         
                         # In case of element, check if it is known.
-                        if key not in ["mass", "charge"] and key[:-1] not in ISOTOPES.keys():
+                        if (
+                            key not in ["mass", "charge", "mass_modifier"]
+                            and key[:-1] not in ISOTOPES.keys()
+                        ):
                             UIHelpers.show_message_box(
                                 self.parent,
                                 title="Incorrectly formatting of block file",
-                                text=f"Block file '{block}' contains an unknown element '{key}'.",
-                                informative_text="Adjust the file, or it cannot be used.",
+                                text=(
+                                    f"Block file '{block}' contains an unknown "
+                                    f"element '{key}'."
+                                ),
+                                informative_text=(
+                                    "Adjust the file, or it cannot be used."
+                                ),
                                 icon="Warning"
                             )
                             skip_block = True
                             break
-                        
                         try:
                             values.append(int(kv[1].strip()))
                             keys.append(key)
@@ -183,6 +190,36 @@ class BlockParser:
                 text=(
                     "An unexpected error occured while determining potential"
                     "charge carriers:"
+                ),
+                informative_text=str(e),
+                icon="Critical"
+            )
+    
+    def update_mass_modifiers(self) -> None:
+        """Fill in the options for mass modifiers based on the blocks."""
+        blocks_dict = self.parent.blocks
+        
+        if blocks_dict is None:
+            return
+        
+        try:
+            # Collect mass modifier blocks.
+            options = ["None"]
+            for name, vals in blocks_dict.items():
+                if vals.get("mass_modifier") == 1:
+                    mass = vals["mass"]
+                    options.append(f"{name} ({mass:.2f})")
+            
+            self.ui.comboBox_mass_modifier.clear()
+            self.ui.comboBox_mass_modifier.addItems(options)
+        
+        except Exception as e:
+            UIHelpers.show_message_box(
+                self.parent,
+                title="Unexpected error",
+                text=(
+                    "An unexpected error occurred while determining potential"
+                    " mass modifiers:"
                 ),
                 informative_text=str(e),
                 icon="Critical"
