@@ -76,13 +76,16 @@ class IsotopicPeak:
         """Return the intensity of the highest local maximum within the
         m/z range `[mz_exact ± integration_mz_window]`.
 
-        A local maximum is defined as a point whose intensity is strictly
-        greater than both its immediate neighbours. Among all local maxima,
-        the one with the highest intensity is selected. If no local maximum
-        is found (e.g. the window captures only a monotone slope), the
-        intensity corresponding to the m/z value nearest to `mz_exact` is
-        returned as a fallback.
+        Returns 0.0 if `self.data` is empty. A local maximum is defined as
+        a point whose intensity is strictly greater than both its immediate
+        neighbours. Among all local maxima, the one with the highest
+        intensity is selected. If no local maximum is found (e.g. the
+        window captures only a monotone slope), the intensity corresponding
+        to the m/z value nearest to `mz_exact` is returned as a fallback.
         """
+        if len(self.data) == 0:
+            return 0.0
+
         intensities = self.data[:, 1]
 
         # Find indices for local maxima.
