@@ -48,17 +48,24 @@ class BlockParser:
                         key = kv[0].strip()
                         
                         # In case of element, check if it is known.
-                        if key not in ["mass", "charge", "mass_modifier"] and key[:-1] not in ISOTOPES.keys():
+                        if (
+                            key not in ["mass", "charge", "mass_modifier"]
+                            and key[:-1] not in ISOTOPES.keys()
+                        ):
                             UIHelpers.show_message_box(
                                 self.parent,
                                 title="Incorrectly formatting of block file",
-                                text=f"Block file '{block}' contains an unknown element '{key}'.",
-                                informative_text="Adjust the file, or it cannot be used.",
+                                text=(
+                                    f"Block file '{block}' contains an unknown "
+                                    f"element '{key}'."
+                                ),
+                                informative_text=(
+                                    "Adjust the file, or it cannot be used."
+                                ),
                                 icon="Warning"
                             )
                             skip_block = True
                             break
-                        
                         try:
                             values.append(int(kv[1].strip()))
                             keys.append(key)
