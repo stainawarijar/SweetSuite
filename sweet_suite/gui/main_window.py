@@ -187,9 +187,6 @@ class MainWindow(QMainWindow):
         self.ui.open_blocks_folder.clicked.connect(
             self.file_handlers.open_blocks_folder
         )
-        self.ui.open_blocks_folder.clicked.connect(
-            self.file_handlers.open_blocks_folder
-        )
         self.ui.open_alignment_list.clicked.connect(
             self.file_handlers.open_alignment_list
         )
