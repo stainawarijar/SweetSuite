@@ -64,6 +64,7 @@ class BatchWorker(QObject):
             quantitate_aligned_only: bool,
             quadratic_mz_window: bool,
             quadratic_coeffs: tuple[float, float, float],
+            mass_modifier: str | None = None,
             use_peak_height: bool = False,
             parent = None
     ):
@@ -83,6 +84,7 @@ class BatchWorker(QObject):
         self.analytes_ref_df = analytes_ref_df
         self.sum_spectra_calibration = sum_spectra_calibration
         self.charge_carrier = charge_carrier
+        self.mass_modifier = mass_modifier
         self.sum_spectrum_resolution = sum_spectrum_resolution
         self.background_mass_window = background_mass_window
         self.calibration_mass_window = calibration_mass_window
@@ -447,7 +449,8 @@ class BatchWorker(QObject):
                 time_window=time_window_val,
                 calibrant=(not pd.isnull(line.calibrant)),
                 min_isotopic_fraction=self.min_isotopic_fraction,
-                charge_carrier=self.charge_carrier
+                charge_carrier=self.charge_carrier,
+                mass_modifier=self.mass_modifier
             )
 
             # Append to larger reference data frame.
@@ -981,6 +984,7 @@ class BatchWorker(QObject):
             "SweetSuite version": __version__,
             "Batch process start time": self.start_time,
             "Charge carrier": self.charge_carrier,
+            "Mass modifier": self.mass_modifier if self.mass_modifier is not None else "None",
             "Sum spectrum resolution": (
                 "N/A - MS-only mode" if self.ms_only
                 else self.sum_spectrum_resolution

@@ -1,4 +1,3 @@
-import itertools
 import math
 import re
 
@@ -55,7 +54,8 @@ class InputAnalyte:
         time_window: float | None,
         calibrant: bool,
         min_isotopic_fraction: float,
-        charge_carrier: str
+        charge_carrier: str,
+        mass_modifier: str | None = None
     ):
         """Initialize an analyte and compute its isotopic properties.
 
@@ -77,6 +77,8 @@ class InputAnalyte:
             min_isotopic_fraction: Minimum cumulative isotopic fraction used 
                 when selecting isotopologues.
             charge_carrier: Block name of the charge carrier, e.g. 'proton'.
+            mass_modifier: Block name of the mass modifier (e.g. 'water'), or
+                None if no modifier is applied.
         """
         self.blocks = blocks
         self.name = name
@@ -88,9 +90,12 @@ class InputAnalyte:
         self.calibrant = calibrant
         self.min_isotopic_fraction = min_isotopic_fraction
         self.charge_carrier = charge_carrier
+        self.mass_modifier = mass_modifier
         self.monoisotopic_mass = self.get_monoisotopic_mass()
         self.variable_composition = self.get_variable_composition()
-        self.isotopologues = self.get_isotopologues()
+        self.isotopologues = self.select_isotopologues(
+            self._compute_distribution(self.monoisotopic_mass, self.variable_composition)
+        )
         self.reference_df = self.get_reference_df()
 
     @staticmethod
@@ -217,7 +222,10 @@ class InputAnalyte:
         return merged
 
     def get_monoisotopic_mass(self) -> float:
-        """Return monoisotopic mass (amu) based on block composition."""
+        """Return monoisotopic mass (amu) based on block composition.
+        
+        Includes the mass modifier if one is specified.
+        """
         # Break analyte name up into parts.
         analyte_parts = re.findall(r"\d+|\D+", self.name)
 
@@ -228,6 +236,10 @@ class InputAnalyte:
                 block = self.blocks[unit]
                 number = int(analyte_parts[i + 1])
                 mass += float(block["mass"]) * number
+
+        # Add mass modifier if present.
+        if self.mass_modifier is not None:
+            mass += float(self.blocks[self.mass_modifier]["mass"])
 
         return mass
 
@@ -273,6 +285,15 @@ class InputAnalyte:
                         # Element is not specified in block file, assume 0.
                         continue
 
+        # Add mass modifier composition if present.
+        if self.mass_modifier is not None:
+            block = self.blocks[self.mass_modifier]
+            for element in composition.keys():
+                try:
+                    composition[element] += int(block[element])
+                except KeyError:
+                    continue
+
         return composition
 
     def select_isotopologues(
@@ -316,50 +337,60 @@ class InputAnalyte:
         return sorted(selected, key=lambda x: x[0])
 
     def get_isotopologues(self) -> list[tuple[float, float, int]]:
-        """Generate isotopologue distribution of the neutral molecule.
-
-        Starting from the molecule's variable composition, this method combines
-        the per-element heavy isotope options to estimate which molecular
-        variants (isotopologues) can occur and how likely they are. Results
-        with nearly the same mass are grouped to reflect instrument resolution,
-        and only the most probable isotopologues are returned.
+        """Generate the selected isotopologue distribution of the neutral analyte.
 
         Returns:
             A list of (mass, probability, index) tuples for the selected
             isotopologues, sorted by increasing mass.
         """
-        # Initiate empty dictionary.
-        # `all_distributions` will contain for each heavy isotope a list
-        # of 2-tuples, each tuple having the form (mass_diff, prob).
-        all_distributions = {}
+        return self.select_isotopologues(
+            self._compute_distribution(self.monoisotopic_mass, self.variable_composition)
+        )
 
-        # Loop over elements in composition and extend dictionary.
-        for element in self.variable_composition:
-            distributions = self.get_heavy_isotope_distributions(
-                element=element[:-1],  # Removes 's' from end of string.
-                number=self.variable_composition[element],
+    def _compute_distribution(
+        self,
+        base_mass: float,
+        composition: dict[str, int]
+    ) -> list[tuple[float, float]]:
+        """Compute the full isotopic distribution for a given monoisotopic mass
+        and elemental composition using sequential convolution.
+
+        Rather than enumerating all isotopologue combinations simultaneously
+        (combinatorial explosion via itertools.product), this folds element
+        distributions one at a time into the running distribution, merging
+        masses within the instrument resolution after each step. The
+        intermediate list stays bounded in size, making this O(n_elements *
+        n_peaks) instead of O(product of per-element distribution sizes).
+
+        Args:
+            base_mass: Monoisotopic mass of the ion.
+            composition: Dict mapping element keys (e.g. 'carbons') to counts.
+
+        Returns:
+            A list of (mass, probability) tuples, sorted by increasing mass,
+            with probabilities summing to ~1.0.
+        """
+        # Start from a delta distribution at the monoisotopic mass.
+        current = [(base_mass, 1.0)]
+
+        for element, count in composition.items():
+            if count == 0:
+                continue
+            # Per-element distributions: {isotope_id: [(mass_delta, prob), ...]}
+            dists = self.get_heavy_isotope_distributions(
+                element=element[:-1],  # Remove trailing 's'.
+                number=count,
             )
-            all_distributions.update(distributions)
+            # Convolve and merge after each heavy isotope (typically 1-2 per element).
+            for iso_dist in dists.values():
+                convolved = [
+                    (m + delta, p * q)
+                    for (m, p) in current
+                    for (delta, q) in iso_dist
+                ]
+                current = self.merge_isotopic_masses(convolved)
 
-        # Determine for each possible combination of heavy isotopes the
-        # total mass of the molecule, and the corresponding probability.
-        combis = np.array(list(
-            itertools.product(*all_distributions.values())
-        ))
-        masses = self.monoisotopic_mass + np.sum(combis[:, :, 0], axis=1)
-        probs = np.prod(combis[:, :, 1], axis=1)
-        mass_probs = list(zip(masses, probs))
-
-        # Merge isotopic masses that are closer together than the
-        # instrument's resolution (specified by epsilon, default 0.5).
-        merged_mass_probs = self.merge_isotopic_masses(mass_probs)
-
-        # Select most probable isotopologues until cumulative probability
-        # exceeds `min_isotopic_fraction`. Results in a list with tuples
-        # of the form (mass, probability, isotopologue number).
-        isotopologues = self.select_isotopologues(merged_mass_probs)
-
-        return isotopologues
+        return current
 
     def get_reference_df(self) -> pd.DataFrame:
         """Create a reference DataFrame for the analyte.
@@ -368,6 +399,7 @@ class InputAnalyte:
         most abundant isotopologues:
         - `peak`: formatted as *AnalyteName_ChargeState_IsotopologueNumber*.
         - `charge_carrier`: the name of the charge carrier block used.
+        - `mass_modifier`: the name of the mass modifier block used, or 'None'.
         - `mz`: m/z value of the isotopologue ion.
         - `relative_area`: theoretical relative abundance of the isotopologue,
             as a fraction.
@@ -384,49 +416,71 @@ class InputAnalyte:
 
         Returns:
             A DataFrame with the following columns:
-            `peak`, `charge_carrier`, `mz`, `relative_area`, `mz_window`,
-            `time`, `time_window`, `calibrant`.
+            `peak`, `charge_carrier`, `mass_modifier`, `mz`, `relative_area`,
+            `mz_window`, `time`, `time_window`, `calibrant`.
         """
-        # Initiate empty DataFrame
+        # Initiate empty DataFrame.
         reference = pd.DataFrame()
 
-        # Determine the mass and charge number of the charge carrier.
-        charge_carrier_mass = self.blocks[self.charge_carrier]["mass"]
+        # Determine charge unit and monoisotopic mass of the charge carrier.
         charge_unit = int(self.blocks[self.charge_carrier]["charge"])
+        carrier_mono_mass = float(self.blocks[self.charge_carrier]["mass"])
 
-        # Determine index of isotopologue with highest relative area,
-        # if the analyte is marked as a calibrant.
-        if self.calibrant:
-            max_area_idx = max(
-                range(len(self.isotopologues)),
-                key=lambda i: self.isotopologues[i][1],
-            )
+        # Elemental composition of one charge carrier unit.
+        carrier_composition = {
+            el: int(self.blocks[self.charge_carrier].get(el, 0))
+            for el in self.variable_composition
+        }
 
         # Determine mode: MS-only or LC-MS data.
         ms_only = (self.time is None or self.time_window is None)
-        
+
         # Set time values based on mode.
         time_val = np.nan if ms_only else self.time
         time_window_val = np.nan if ms_only else self.time_window
 
+        # Mass modifier label for the output column.
+        mass_modifier_label = (
+            self.mass_modifier if self.mass_modifier is not None else "None"
+        )
+
         # Loop over charge states (in steps of charge unit).
         for charge in range(self.charge_min, self.charge_max + 1, charge_unit):
-            # Loop over isotopologues.
-            for idx, iso in enumerate(self.isotopologues):
-                # Calculate m/z and m/z integration window.
-                mz = (
-                    (iso[0] + (charge / charge_unit) * charge_carrier_mass) 
-                    / charge
+            n_carriers = charge // charge_unit
+
+            # Full ion monoisotopic mass and elemental composition.
+            ion_mono_mass = self.monoisotopic_mass + n_carriers * carrier_mono_mass
+            ion_composition = {
+                el: self.variable_composition[el] + n_carriers * carrier_composition[el]
+                for el in self.variable_composition
+            }
+
+            # Compute full ion isotopologue distribution and select peaks.
+            per_charge_isotopologues = self.select_isotopologues(
+                self._compute_distribution(ion_mono_mass, ion_composition)
+            )
+
+            # Determine index of most abundant isotopologue for calibrant flag.
+            if self.calibrant:
+                max_area_idx = max(
+                    range(len(per_charge_isotopologues)),
+                    key=lambda i: per_charge_isotopologues[i][1],
                 )
+
+            # Loop over isotopologues.
+            for idx, iso in enumerate(per_charge_isotopologues):
+                # iso[0] is the full ion mass; divide by charge for m/z.
+                mz = iso[0] / charge
                 mz_window = (
                     self.mz_window_coeffs[0] * mz**2
                     + self.mz_window_coeffs[1] * mz
                     + self.mz_window_coeffs[2]
                 )
-                # Create small DataFrame for this isotopologue
+                # Create small DataFrame for this isotopologue.
                 df = pd.DataFrame([{
                     "peak": f"{self.name}_{charge}_{iso[2]}",
                     "charge_carrier": self.charge_carrier,
+                    "mass_modifier": mass_modifier_label,
                     "mz": mz,
                     "relative_area": iso[1],
                     "mz_window": mz_window,
@@ -438,7 +492,7 @@ class InputAnalyte:
                 # Add to larger `reference` DataFrame.
                 if not reference.empty:
                     reference = pd.concat(
-                        [reference, df], ignore_index = True
+                        [reference, df], ignore_index=True
                     )
                 else:
                     # Needed for first step in loop, because we start

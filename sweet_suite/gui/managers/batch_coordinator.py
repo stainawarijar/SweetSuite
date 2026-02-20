@@ -69,6 +69,13 @@ class BatchCoordinator:
             )
             self.parent.setEnabled(True)
             return
+
+        # Determine mass modifier (None if "None" is selected).
+        modifier_selected = self.ui.comboBox_mass_modifier.currentText()
+        if modifier_selected == "None" or modifier_selected == "":
+            mass_modifier = None
+        else:
+            mass_modifier = modifier_selected.split(" (")[0].strip()
         
         # Check if analytes and/or alignment file was uploaded
         analytes_list = self.ui.path_analytes_list.item(0)
@@ -117,6 +124,7 @@ class BatchCoordinator:
             # Calibration & Quantitation settings
             sum_spectra_calibration=sum_spectra_calibration,
             charge_carrier=charge_carrier,
+            mass_modifier=mass_modifier,
             analytes_list_df=self.parent.analytes_list_df,
             analytes_ref_df=self.parent.analytes_ref_df,
             sum_spectrum_resolution=int(self.ui.sum_spectrum_resolution.value()),

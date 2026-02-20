@@ -95,6 +95,7 @@ class MainWindow(QMainWindow):
         if os.path.isdir(blocks_try):
             self.ui.path_blocks.addItem(blocks_try)
             self.block_parser.update_charge_carriers()
+            self.block_parser.update_mass_modifiers()
     
     def setup_mode_indicator(self) -> None:
         """Create and add mode indicator label to the GUI."""

@@ -151,7 +151,7 @@ class FileHandlers:
             "calibrant", "time", "time_window", "mz_window"
         }
         _REF_COLS = {
-            "peak", "charge_carrier", "mz", "relative_area",
+            "peak", "charge_carrier", "mass_modifier", "mz", "relative_area",
             "mz_window", "time", "time_window", "calibrant"
         }
         file_cols = set(df.columns)
@@ -190,7 +190,7 @@ class FileHandlers:
                     "'analyte', 'charge_min', 'charge_max', 'calibrant', "
                     "'time', 'time_window', 'mz_window'. "
                     "A reference file must have columns: "
-                    "'peak', 'charge_carrier', 'mz', 'relative_area', "
+                    "'peak', 'charge_carrier', 'mass_modifier', 'mz', 'relative_area', "
                     "'mz_window', 'time', 'time_window', 'calibrant'."
                 ),
                 icon="Critical"
@@ -213,7 +213,7 @@ class FileHandlers:
         # Required columns are already guaranteed by the caller (column-set
         # routing in open_analytes_list), but we re-check here defensively.
         columns_required = {
-            "peak", "charge_carrier", "mz", "relative_area",
+            "peak", "charge_carrier", "mass_modifier", "mz", "relative_area",
             "mz_window", "time", "time_window", "calibrant"
         }
         if set(df.columns) != columns_required:
@@ -222,7 +222,7 @@ class FileHandlers:
                 title="Incorrect formatting",
                 text="The reference file must contain the following columns:",
                 informative_text=(
-                    "'peak', 'charge_carrier', 'mz', 'relative_area', "
+                    "'peak', 'charge_carrier', 'mass_modifier', 'mz', 'relative_area', "
                     "'mz_window', 'time', 'time_window' and 'calibrant'."
                 ),
                 icon="Critical"
@@ -230,7 +230,7 @@ class FileHandlers:
             return False
 
         # Columns that must never contain missing values.
-        always_required = ["peak", "charge_carrier", "mz", "relative_area", "mz_window", "calibrant"]
+        always_required = ["peak", "charge_carrier", "mass_modifier", "mz", "relative_area", "mz_window", "calibrant"]
         for col in always_required:
             if df[col].isnull().any():
                 UIHelpers.show_message_box(
@@ -242,7 +242,7 @@ class FileHandlers:
                 return False
 
         # Data type checks.
-        for col in ["peak", "charge_carrier"]:
+        for col in ["peak", "charge_carrier", "mass_modifier"]:
             if not pd.api.types.is_string_dtype(df[col]):
                 UIHelpers.show_message_box(
                     self.parent,
@@ -649,7 +649,8 @@ class FileHandlers:
         if self.ui.path_blocks.count() > 0:
             self.ui.path_blocks.clear()
         self.ui.path_blocks.addItem(folder_path)
-        self.parent.update_charge_carriers()
+        self.parent.block_parser.update_charge_carriers()
+        self.parent.block_parser.update_mass_modifiers()
     
     def open_mzxml_path(self) -> None:
         """Open file dialog for selecting a folder with mzXML files."""
