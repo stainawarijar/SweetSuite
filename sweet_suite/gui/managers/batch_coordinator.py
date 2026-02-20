@@ -55,6 +55,10 @@ class BatchCoordinator:
         blocks_dict = self.parent.block_parser.parse_blocks()
         self.parent.blocks = blocks_dict
         
+        if blocks_dict is None:
+            self.parent.setEnabled(True)
+            return
+        
         # Determine charge carrier
         selected = self.ui.comboBox_charge_carrier.currentText()
         if selected != "":
@@ -76,6 +80,22 @@ class BatchCoordinator:
             mass_modifier = None
         else:
             mass_modifier = modifier_selected.split(" (")[0].strip()
+            if mass_modifier not in blocks_dict:
+                UIHelpers.show_message_box(
+                    self.parent,
+                    title="Invalid mass modifier",
+                    text=(
+                        f"The selected mass modifier '{mass_modifier}' is no "
+                        "longer available in the blocks folder."
+                    ),
+                    informative_text=(
+                        "Reload the blocks folder and reselect a valid "
+                        "mass modifier."
+                    ),
+                    icon="Critical"
+                )
+                self.parent.setEnabled(True)
+                return
         
         # Check if analytes and/or alignment file was uploaded
         analytes_list = self.ui.path_analytes_list.item(0)
