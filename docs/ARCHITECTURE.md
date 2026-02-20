@@ -269,16 +269,27 @@ integration window, it slices the relevant region from the spectrum array and
 provides:
 
 - `get_area()` — trapezoidal integration over `[mz_exact ± mz_window]`.
-- `get_maximum_intensity()`.
-- `get_background_and_noise()` — background region is determined by searching
-  outward from the peak until the signal flattens; background is the mean,
-  noise is the standard deviation.
+- `get_maximum_intensity()` — returns the intensity of the highest local
+  maximum within `[mz_exact ± integration_mz_window]`. Falls back to the
+  highest intensity point in the window if no local maximum is found.
+- `get_spline_maximum()` — fits a cubic spline over `[mz_exact ± mz_window]`
+  and returns the `(m/z, intensity)` of the highest local maximum. Falls back
+  to raw data if fewer than 4 points or spline fitting fails. If no local
+  maximum is found in either case, returns the highest intensity point.
+  Used for mass error calculation and calibration.
+- `get_mass_error_ppm()` — calculates the mass error by comparing the
+  spline-derived observed m/z to `mz_exact`.
+- `get_background_and_noise()` — defines evenly-spaced m/z bins around
+  `target_mz` (bin centers separated by the ¹³C–¹²C mass difference / charge).
+  Evaluates all windows of 5 consecutive bins and selects the one with the
+  lowest average intensity as the background region. Background is the mean
+  area / intensity of those 5 bins; noise is their standard deviation.
 
 #### `calibrant.py` — `Calibrant(IsotopicPeak)`
 
 Extends `IsotopicPeak` with spline-based m/z refinement for calibration.
-Fits a univariate spline through the peak data and locates its maximum to
-obtain a sub-bin `mz_observed`. This observed m/z is compared against the
+Calls `get_spline_maximum()` to locate the highest local maximum and obtain
+a sub-data-point `mz_observed`. This observed m/z is compared against the
 theoretical `mz_exact` to produce one calibration data point.
 
 #### `analyte.py` — `Analyte`
