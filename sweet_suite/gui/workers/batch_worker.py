@@ -64,6 +64,7 @@ class BatchWorker(QObject):
             quantitate_aligned_only: bool,
             quadratic_mz_window: bool,
             quadratic_coeffs: tuple[float, float, float],
+            use_peak_height: bool = False,
             parent = None
     ):
         super().__init__(parent)
@@ -92,6 +93,7 @@ class BatchWorker(QObject):
         self.quantitate_aligned_only = quantitate_aligned_only
         self.quadratic_mz_window = quadratic_mz_window
         self.quadratic_coeffs = quadratic_coeffs
+        self.use_peak_height = use_peak_height
         self.excel_path = self.get_output_excel_path()
         self.stop_requested = False
 
@@ -777,7 +779,8 @@ class BatchWorker(QObject):
                     filename=mzxml.file_name,
                     mass_spectra=mass_spectra,
                     analytes_ref=analytes_ref,
-                    output_params=output_params
+                    output_params=output_params,
+                    use_peak_height=self.use_peak_height
                 )
             
                 # Append output to temporary CSV file.
@@ -938,7 +941,8 @@ class BatchWorker(QObject):
                     filename=file_name,
                     mass_spectra=[mass_spectrum],
                     analytes_ref=analytes_ref,
-                    output_params=output_params
+                    output_params=output_params,
+                    use_peak_height=self.use_peak_height
                 )
             
                 # Append output to temporary CSV file.
@@ -990,6 +994,7 @@ class BatchWorker(QObject):
             "Quadratic coefficients": (
                 str(self.quadratic_coeffs) if self.quadratic_mz_window else "N/A"
             ),
+            "Use peak heights": self.use_peak_height,
             "Alignment time window": (
                 "N/A - MS-only mode" if self.ms_only
                 else self.alignment_time_window

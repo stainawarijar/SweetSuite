@@ -7,7 +7,8 @@ def build_quantitation_table(
         filename: str,
         mass_spectra: list[MassSpectrum],
         analytes_ref: pd.DataFrame,
-        output_params: list[str]
+        output_params: list[str],
+        use_peak_height: bool = False
 ) -> pd.DataFrame:
     """Create a table in long format with quantitation results for all 
     sum spectra of an mzXML file.
@@ -17,6 +18,8 @@ def build_quantitation_table(
         mass_spectra: A list with instances of MassSpectrum.
         analytes_ref: Analytes reference dataframe.
         output_params: A list with required output parameters.
+        use_peak_height: If True, use maximum intensity instead of trapezoidal
+            area for quantitation.
     
     Returns:
         A pandas dataframe with the following columns: `file`, `analyte`,
@@ -88,7 +91,7 @@ def build_quantitation_table(
     
     keep = {}  # (filename, analyte, charge): {parameters}
     for spectrum in mass_spectra:
-        analytes = spectrum.quantify_analytes(analytes_ref)
+        analytes = spectrum.quantify_analytes(analytes_ref, use_peak_height=use_peak_height)
         if not analytes:
             continue  # Uncalibrated, grid keeps blank row for it.
         for analyte in analytes:

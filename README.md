@@ -149,7 +149,7 @@ After analyte quantitation, an `xlsx` file is generated with results stored
 in the "Data" tab. The used settings are listed in separate tabs. 
 The "Data" tab contains for each file the following outputs per analyte and per charge state:
 - `isotopic_fraction`: <br>Fraction of the theoretical isotopic pattern that was integrated.
-- `total_area_background_subtracted`: <br>Summed background subtracted areas of all isotopic peaks.
+- `total_area_background_subtracted`: <br>Summed background-subtracted areas of all isotopic peaks (or summed background-subtracted peak heights when *Use peak heights* is enabled — see Advanced settings).
 - `mass_error_ppm`: <Br>Mass error in parts-per-million of the most abundant isotopic peak.
     Calculated as `(observed m/z - exact m/z) / (exact m/z) × 1e6`.
 - `isotopic_pattern_quality` (IPQ): <Br>A measure for the quality of the isotopic pattern.
@@ -157,9 +157,13 @@ The "Data" tab contains for each file the following outputs per analyte and per 
     relative area and the observed relative area is taken. The resulting
     absolute differences are then summed to yield the IPQ. 
 - `signal_to_noise`: <br>Signal-to-noise (S/N) of the most abundant isotopic peak.
-- `total_area`: <br>Summed total areas of all isotopic peaks without background subtraction.
+- `total_area`: <br>Summed total areas (or peak heights) of all isotopic peaks without background subtraction.
 - `total_background`: <br>Summed background values of all isotopic peaks.
 - `total_noise`: <br>Summed noise of all isotopic peaks.
+
+**Advanced settings** (accessible via the toolbar) provide additional quantitation options:
+- *Use quadratic quantitation m/z window* — applies a charge-state-dependent quadratic m/z window defined by user-supplied polynomial coefficients instead of the fixed global window.
+- *Use peak heights instead of areas for quantitation* — replaces trapezoidal integration with the maximum intensity in the quantitation m/z window for each isotopic peak. Background subtraction then uses the average background intensity instead of the background area.
 
 ## INSTALLATION
 **Microsoft Windows**

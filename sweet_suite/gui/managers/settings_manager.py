@@ -216,6 +216,9 @@ class SettingsManager:
             ),
             "quadratic_constant": float(
                 self.advanced_ui.doubleSpinBox_constant.value()
+            ),
+            "use_peak_height": bool(
+                self.advanced_ui.checkBox_peakHeights.isChecked()
             )
         }
     
@@ -275,3 +278,6 @@ class SettingsManager:
         self.advanced_ui.doubleSpinBox_constant.setValue(float(settings.get(
             "quadratic_constant", self.advanced_ui.doubleSpinBox_constant.value()
         )))
+        self.advanced_ui.checkBox_peakHeights.setChecked(bool(eval(str(settings.get(
+            "use_peak_height", self.advanced_ui.checkBox_peakHeights.isChecked()
+        )))))

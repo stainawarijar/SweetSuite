@@ -15,3 +15,4 @@ quadratic_mass_window,False
 quadratic_mz2,0.0
 quadratic_mz,0.0
 quadratic_constant,0.0
+use_peak_height,False
