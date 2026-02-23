@@ -94,7 +94,7 @@ class InputAnalyte:
         self.monoisotopic_mass = self.get_monoisotopic_mass()
         self.variable_composition = self.get_variable_composition()
         self.isotopologues = self.select_isotopologues(
-            self._compute_distribution(self.monoisotopic_mass, self.variable_composition)
+            self.compute_distribution(self.monoisotopic_mass, self.variable_composition)
         )
         self.reference_df = self.get_reference_df()
 
@@ -344,10 +344,10 @@ class InputAnalyte:
             isotopologues, sorted by increasing mass.
         """
         return self.select_isotopologues(
-            self._compute_distribution(self.monoisotopic_mass, self.variable_composition)
+            self.compute_distribution(self.monoisotopic_mass, self.variable_composition)
         )
 
-    def _compute_distribution(
+    def compute_distribution(
         self,
         base_mass: float,
         composition: dict[str, int]
@@ -457,7 +457,7 @@ class InputAnalyte:
 
             # Compute full ion isotopologue distribution and select peaks.
             per_charge_isotopologues = self.select_isotopologues(
-                self._compute_distribution(ion_mono_mass, ion_composition)
+                self.compute_distribution(ion_mono_mass, ion_composition)
             )
 
             # Determine index of most abundant isotopologue for calibrant flag.

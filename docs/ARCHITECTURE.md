@@ -168,7 +168,7 @@ described analyte object ready for quantitation.
   counts from the optional mass modifier block (if one is selected).
 - **Monoisotopic mass** (`get_monoisotopic_mass`) — sums the block masses,
   plus the mass modifier block mass if applicable.
-- **Isotopologue distribution** (`_compute_distribution`) — uses sequential
+- **Isotopologue distribution** (`compute_distribution`) — uses sequential
   convolution over elements rather than enumerating all combinations at once.
   Starting from a delta distribution at the monoisotopic mass, the method
   folds one element's heavy-isotope distribution at a time into the running
@@ -178,7 +178,7 @@ described analyte object ready for quantitation.
   such as potassium.
 - **Reference DataFrame** (`get_reference_df`) — for each charge state in
   `[charge_min, charge_max]`, builds the full ion composition (analyte +
-  modifier + n × carrier) and calls `_compute_distribution` with that
+  modifier + n × carrier) and calls `compute_distribution` with that
   composition. This ensures the isotopic contribution of the charge carrier
   (e.g. ⁴¹K for potassium) is correctly included per charge state. Produces
   one row per selected isotopologue with the expected m/z, relative abundance,
@@ -473,7 +473,7 @@ These files should not be edited by hand; re-generate them with
   during reference file generation. The selected modifier name is also recorded
   in the settings sheet of the output Excel file. When a pre-loaded reference
   DataFrame (`analytes_ref_df`) is available, the reference generation step is
-  skipped and the DataFrame is written directly to disk via `_write_ref_df()`.
+  skipped and the DataFrame is written directly to disk via `write_ref_df()`.
 
 ---
 

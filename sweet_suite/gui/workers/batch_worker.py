@@ -136,7 +136,7 @@ class BatchWorker(QObject):
             # the generation step.
             self.logger.info("Using pre-loaded analytes reference file")
             try:
-                analytes_ref_path = self._write_ref_df(self.analytes_ref_df)
+                analytes_ref_path = self.write_ref_df(self.analytes_ref_df)
                 self.logger.info(
                     f"Pre-loaded reference file written to: {analytes_ref_path}"
                 )
@@ -385,7 +385,7 @@ class BatchWorker(QObject):
         self.logger.info("BatchWorker finished successfully")
         self.finished.emit(True)
     
-    def _write_ref_df(self, ref_df: pd.DataFrame) -> str:
+    def write_ref_df(self, ref_df: pd.DataFrame) -> str:
         """Write a pre-loaded reference DataFrame to disk as an .xlsx file.
 
         Args:
