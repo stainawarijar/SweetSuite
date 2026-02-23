@@ -161,12 +161,13 @@ class BlockParser:
                 else:
                     options.append(f"{name} ({abs(charge)}-)")
             
-            # Move proton to the front if present. 
-            for option in options:
-                if option.startswith("proton"):
-                    options.remove(option)
-                    options.insert(0, option)
-                    break
+            # Move proton and/or sodium to the front, in that order.
+            for name in ("sodium", "proton"):
+                for option in options:
+                    if option.startswith(name):
+                        options.remove(option)
+                        options.insert(0, option)
+                        break
             
             self.ui.comboBox_charge_carrier.clear()
             self.ui.comboBox_charge_carrier.addItems(options)
