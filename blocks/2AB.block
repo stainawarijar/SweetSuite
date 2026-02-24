@@ -1,0 +1,10 @@
+# 2-aminobenzamide (label for released glycans)
+
+mass: 138.07931294986
+charge: 0
+mass_modifier: 1
+
+carbons: 7
+hydrogens: 10
+nitrogens: 2
+oxygens: 1

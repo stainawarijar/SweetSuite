@@ -62,12 +62,15 @@ class MainWindow(QMainWindow):
         UISetup.setup_menu_icons(self.ui)
         UISetup.setup_button_icons(self.ui)
         UISetup.setup_tooltips(self.ui)
+        self.setup_mode_indicator()
     
     def initialize_data_containers(self) -> None:
         """Initialize data container attributes."""
         self.alignment_list_df = None
         self.analytes_list_df = None
+        self.analytes_ref_df = None
         self.blocks = None
+        self.ms_only_mode = False  # Track whether in MS-only mode
     
     def initialize_dialogs(self) -> None:
         """Initialize all dialog instances."""
@@ -92,13 +95,95 @@ class MainWindow(QMainWindow):
         if os.path.isdir(blocks_try):
             self.ui.path_blocks.addItem(blocks_try)
             self.block_parser.update_charge_carriers()
+            self.block_parser.update_mass_modifiers()
+    
+    def setup_mode_indicator(self) -> None:
+        """Create and add mode indicator label to the GUI."""
+        from PyQt6.QtWidgets import QLabel
+        from PyQt6.QtCore import Qt
+        
+        # Create mode indicator label
+        self.mode_indicator_label = QLabel(self.ui.frame_calibration_quantitation)
+        self.mode_indicator_label.setGeometry(380, 10, 100, 20)
+        self.mode_indicator_label.setText("Mode: LC-MS")
+        self.mode_indicator_label.setStyleSheet(
+            "color: #00008B; font-weight: bold; font-size: 9pt;"
+        )
+        self.mode_indicator_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.mode_indicator_label.show()
+    
+    def set_ms_only_mode(self, enabled: bool) -> None:
+        """Enable or disable MS-only mode in the GUI.
+        
+        Args:
+            enabled: True to enable MS-only mode, False for LC-MS mode.
+        """
+        self.ms_only_mode = enabled
+        
+        if enabled:
+            # MS-only mode: disable all LC-related features
+            self.logger.info("Switching to MS-only mode")
+            
+            # Disable entire Alignment section with red text and hide spinbox values
+            self.ui.frame_alignment.setEnabled(False)
+            self.ui.frame_alignment.setStyleSheet(
+                "QLabel { color: #a0a0a0; }"
+                "QSpinBox, QDoubleSpinBox { color: transparent; }"
+            )
+            
+            # Disable sum spectrum resolution (LC-specific) and hide value
+            self.ui.sum_spectrum_resolution.setEnabled(False)
+            self.ui.sum_spectrum_resolution.setStyleSheet("color: transparent;")
+            self.ui.label_resolution.setEnabled(False)
+            self.ui.label_resolution.setStyleSheet("color: #a0a0a0;")
+            
+            # Hide calibration table (not applicable in MS-only mode)
+            self.ui.tableWidget_calibration.setVisible(False)
+            self.ui.pushButton_apply_sn.setEnabled(False)
+            
+            # Disable "Quantify aligned files only" checkbox
+            self.ui.quantify_aligned.setEnabled(False)
+            self.ui.quantify_aligned.setChecked(False)
+            self.ui.quantify_aligned.setStyleSheet("color: #a0a0a0;")
+            
+            # Update mode indicator
+            self.mode_indicator_label.setText("Mode: MS-only")
+            self.mode_indicator_label.setStyleSheet(
+                "color: #006400; font-weight: bold; font-size: 9pt;"
+            )
+        else:
+            # LC-MS mode: enable all features
+            self.logger.info("Switching to LC-MS mode")
+            
+            # Enable Alignment section and reset styling
+            self.ui.frame_alignment.setEnabled(True)
+            self.ui.frame_alignment.setStyleSheet("")
+            
+            # Enable sum spectrum resolution and reset styling
+            self.ui.sum_spectrum_resolution.setEnabled(True)
+            self.ui.sum_spectrum_resolution.setStyleSheet("")
+            self.ui.label_resolution.setEnabled(True)
+            self.ui.label_resolution.setStyleSheet("")
+            
+            # Show and enable calibration table
+            self.ui.tableWidget_calibration.setVisible(True)
+            self.ui.tableWidget_calibration.setEnabled(True)
+            self.ui.tableWidget_calibration.setStyleSheet("")
+            self.ui.pushButton_apply_sn.setEnabled(True)
+            
+            # Enable "Quantify aligned files only" checkbox and reset styling
+            self.ui.quantify_aligned.setEnabled(True)
+            self.ui.quantify_aligned.setStyleSheet("")
+            
+            # Update mode indicator
+            self.mode_indicator_label.setText("Mode: LC-MS")
+            self.mode_indicator_label.setStyleSheet(
+                "color: #00008B; font-weight: bold; font-size: 9pt;"
+            )
     
     def connect_signals(self) -> None:
         """Connect all UI signals to their handlers."""
         # File operation buttons.
-        self.ui.open_blocks_folder.clicked.connect(
-            self.file_handlers.open_blocks_folder
-        )
         self.ui.open_blocks_folder.clicked.connect(
             self.file_handlers.open_blocks_folder
         )

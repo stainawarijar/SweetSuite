@@ -7,7 +7,7 @@ import pandas as pd
 from .analyte import Analyte
 from .calibrant import Calibrant
 from .isotopic_peak import IsotopicPeak
-from .plotting import plot_polynomial
+from .plotting import plot_polynomial, plot_calibration_failure
 
 
 class MassSpectrum():
@@ -36,12 +36,17 @@ class MassSpectrum():
             `time` to create the sum spectrum. Only applicable to LC data.
         calibrants (list[Calibrant]): List with instances of the `Calibrant`
             class. The list is empty when no calibration is performed.
-        calibrated (tuple[]): ...
+        calibrated (tuple[np.ndarray, Figure] | tuple[None, Figure] | tuple[None, None]): Tuple
+            containing an array with calibrated data and a figure showing
+            the calibration. `(None, Figure)` if calibration failed due to
+            insufficient calibrants (the figure shows which calibrants were
+            found). `(None, None)` if no calibrants were provided.
         data_calibrated (np.ndarray | None): Array with calibrated MS data.
             If calibration failed, this is set to `None`. When no calibration 
             was performed (an empty `calibrants` list), this will be set to 
             `data_uncalibrated`.
-        calibration_plot: ...
+        calibration_plot: Figure showing calibration of the mass spectrum
+            (observed vs exact m/z fit).
     """
 
     def __init__(
@@ -117,7 +122,7 @@ class MassSpectrum():
         
         return calibrants
 
-    def calibrate(self) -> tuple[np.ndarray, Figure] | tuple[None, None]:
+    def calibrate(self) -> tuple[np.ndarray, Figure] | tuple[None, Figure] | tuple[None, None]:
         """Calibrate mass spectrum based on a specified list of calibrants.
 
         Calibration is performed based on a list of exact m/z values
@@ -134,8 +139,10 @@ class MassSpectrum():
             A tuple containing calibrated data and a figure visualizing the
             fitting. The calibrated data is a 2D array with adjusted m/z values 
             in one column and intensities in the second column. 
-            Returns `None` if the minimum number of  calibrants is not reached, 
-            or if the list with calibrants is empty.
+            Returns `(None, Figure)` if the minimum number of calibrants is 
+            not reached; the figure shows the calibrants that were found above 
+            the S/N cut-off.
+            Returns `(None, None)` if the list with calibrants is empty.
         """
         # Check if calibrants were provided.
         if len(self.calibrants) == 0:
@@ -160,7 +167,25 @@ class MassSpectrum():
 
         # Check against the minimum number of calibrants.
         if len(calibrants_above_cutoff) < self.min_calibrant_number:
-            return (None, None)
+            # Generate failure plot showing only calibrants above S/N cutoff.
+            # Collect m/z values for calibrants that passed the S/N threshold.
+            # Explicitly get the observed m/z (from spectrum) and exact m/z (theoretical).
+            mzs_observed = []
+            mzs_exact = []
+            for cal in calibrants_above_cutoff:
+                # cal.mz_observed: the peak m/z found in the spectrum via spline
+                # cal.mz_exact: the theoretical m/z value (inherited from IsotopicPeak)
+                observed_mz_value = float(cal.mz_observed)
+                expected_mz_value = float(cal.mz_exact)
+                mzs_observed.append(observed_mz_value)
+                mzs_exact.append(expected_mz_value)
+            
+            failure_plot = plot_calibration_failure(
+                title=self.name,
+                mzs_observed=mzs_observed,
+                mzs_exact=mzs_exact
+            )
+            return (None, failure_plot)
     
         # Fit 2nd degree polynomial through (observed, exact) m/z pairs.
         mzs_observed = [cal.mz_observed for cal in calibrants_above_cutoff]
@@ -183,7 +208,8 @@ class MassSpectrum():
         
     def quantify_analytes(
             self,
-            analytes_ref: pd.DataFrame
+            analytes_ref: pd.DataFrame,
+            use_peak_height: bool = False
     ) -> list[Analyte] | None:
         """Quantify analytes and calculate quality control parameters.
 
@@ -195,6 +221,8 @@ class MassSpectrum():
         
         Args:
             analytes_ref: A data frame with the following columns: ...
+            use_peak_height: If True, use maximum intensity of each isotopic
+                peak instead of the trapezoidal area for quantitation.
         
         Returns:
             A list with instances of the `Analyte` class.
@@ -256,7 +284,8 @@ class MassSpectrum():
                             "peak", "mz_exact", "relative_area_theoretical",
                             "area", "maximum_intensity", "mass_error_ppm"
                         ]), 
-                        background_and_noise=background_and_noise
+                        background_and_noise=background_and_noise,
+                        use_peak_height=use_peak_height
                     ))
                     # Reset peaks list.
                     peaks = []
@@ -287,7 +316,8 @@ class MassSpectrum():
                 "peak", "mz_exact", "relative_area_theoretical",
                 "area", "maximum_intensity", "mass_error_ppm"
             ]), 
-            background_and_noise=background_and_noise
+            background_and_noise=background_and_noise,
+            use_peak_height=use_peak_height
         ))
 
         return analytes

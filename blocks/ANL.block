@@ -3,6 +3,8 @@
 
 mass: 1218.639056658
 charge: 0
+mass_modifier: 0
+
 carbons: 50
 hydrogens: 90
 nitrogens: 16

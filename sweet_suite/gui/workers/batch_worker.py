@@ -6,6 +6,7 @@ import matplotlib
 matplotlib.use("Agg")
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -42,24 +43,29 @@ class BatchWorker(QObject):
     def __init__(
             self,
             blocks: dict[dict],
-            mzxml_folder_path: str | None,
+            raw_folder_path: str | None,
+            ms_only: bool,
             alignment_list_df: pd.DataFrame | None,
             alignment_time_window: float,
             alignment_mz_window: float,
             alignment_sn_cutoff: float,
             alignment_min_peaks: int,
             analytes_list_df: pd.DataFrame | None,
+            analytes_ref_df: pd.DataFrame | None,
             sum_spectra_calibration: dict,
             charge_carrier: str,
             sum_spectrum_resolution: int,
             background_mass_window: float,
             calibration_mass_window: float,
+            calibrant_sn_cutoff: float,  # Global value
             quantitation_mz_window: float,
             min_calibrant_number: int,
             min_isotopic_fraction: float,
             quantitate_aligned_only: bool,
             quadratic_mz_window: bool,
             quadratic_coeffs: tuple[float, float, float],
+            mass_modifier: str | None = None,
+            use_peak_height: bool = False,
             parent = None
     ):
         super().__init__(parent)
@@ -67,24 +73,29 @@ class BatchWorker(QObject):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info(f"\nBatchWorker initialized at {self.start_time}")
         self.blocks = blocks
-        self.mzxml_folder_path = mzxml_folder_path
+        self.raw_folder_path = raw_folder_path
+        self.ms_only = ms_only
         self.alignment_list_df = alignment_list_df
         self.alignment_time_window = alignment_time_window
         self.alignment_mz_window = alignment_mz_window
         self.alignment_sn_cutoff = alignment_sn_cutoff
         self.alignment_min_peaks = alignment_min_peaks
         self.analytes_list_df = analytes_list_df
+        self.analytes_ref_df = analytes_ref_df
         self.sum_spectra_calibration = sum_spectra_calibration
         self.charge_carrier = charge_carrier
+        self.mass_modifier = mass_modifier
         self.sum_spectrum_resolution = sum_spectrum_resolution
         self.background_mass_window = background_mass_window
         self.calibration_mass_window = calibration_mass_window
+        self.calibrant_sn_cutoff = calibrant_sn_cutoff
         self.quantitation_mz_window = quantitation_mz_window
         self.min_calibrant_number = min_calibrant_number
         self.min_isotopic_fraction = min_isotopic_fraction
         self.quantitate_aligned_only = quantitate_aligned_only
         self.quadratic_mz_window = quadratic_mz_window
         self.quadratic_coeffs = quadratic_coeffs
+        self.use_peak_height = use_peak_height
         self.excel_path = self.get_output_excel_path()
         self.stop_requested = False
 
@@ -92,14 +103,14 @@ class BatchWorker(QObject):
         """Set path to Excel file to which final results will be written.
         
         Returns:
-            The path as a string, or None if the mzXML folder path does
+            The path as a string, or None if the raw folder path does
             not exist (possible when only an analytes list is uploaded).
         """
-        if self.mzxml_folder_path is None:
+        if self.raw_folder_path is None:
             return
 
         excel_path = os.path.join(
-            self.mzxml_folder_path,
+            self.raw_folder_path,
             f"{self.start_time}_SweetSuite_results.xlsx"
         )
 
@@ -114,11 +125,35 @@ class BatchWorker(QObject):
         """Main execution method for batch processing."""
         self.logger.info("BatchWorker run started")
         # Generate analytes reference file if applicable.
-        if self.analytes_list_df is None:
+        if self.analytes_list_df is None and self.analytes_ref_df is None:
             self.logger.info(
-                "No analytes list provided, skipping reference file generation"
+                "No analytes provided, skipping reference file generation"
             )
             analytes_ref_path = None
+
+        elif self.analytes_ref_df is not None:
+            # Reference file was uploaded directly: write it to disk and skip
+            # the generation step.
+            self.logger.info("Using pre-loaded analytes reference file")
+            try:
+                analytes_ref_path = self.write_ref_df(self.analytes_ref_df)
+                self.logger.info(
+                    f"Pre-loaded reference file written to: {analytes_ref_path}"
+                )
+            except Exception as e:
+                self.logger.exception(
+                    f"Error writing pre-loaded reference file: {str(e)}"
+                )
+                self.error.emit(
+                    "Error",
+                    "Could not write the reference file to disk:",
+                    str(e),
+                    "Critical"
+                )
+                self.finished.emit(False)
+                return
+            self.ref_progress.emit(100)
+
         else:
             try:
                 # Write analytes reference file to batch folder,
@@ -172,7 +207,7 @@ class BatchWorker(QObject):
             return
         
         # Check if the mzXML folder path is missing.
-        if self.mzxml_folder_path is None:
+        if self.raw_folder_path is None:
             if analytes_ref_path is None:
                 message = ""
             else:
@@ -180,7 +215,7 @@ class BatchWorker(QObject):
             self.logger.warning("No batch directory selected")
             self.error.emit(
                     "Missing batch directory",
-                    "Select a folder containing mzXML files.",
+                    "Select a folder containing raw data files.",
                     message,
                     "Warning"
                 )
@@ -188,7 +223,11 @@ class BatchWorker(QObject):
             return
 
         # Retention time alignment.
-        if self.alignment_list_df is None:
+        # Skip alignment entirely if in MS-only mode.
+        if self.ms_only:
+            self.logger.info("MS-only mode: skipping alignment")
+            aligned_finished = None
+        elif self.alignment_list_df is None:
             aligned_finished = None
         else:
             try:
@@ -243,54 +282,80 @@ class BatchWorker(QObject):
             quantitation_results = None
         else:
             try:
-                # Create new list with mzXML file paths.
-                mzxml_file_paths = self.get_mzxml_file_paths()
+                if self.ms_only:
+                    # MS-only mode: process xy files
+                    xy_file_paths = self.get_xy_file_paths()
 
-                # Check if folder actually contained files.
-                if len(mzxml_file_paths) == 0:
-                    self.logger.warning(
-                        "Batch directory contained no mzXML files"
-                    )
-                    self.error.emit(
-                        "Empty directory",
-                        "The specified folder contains no mzMXL files.",
-                        "",
-                        "Warning"
-                    )
-                    self.finished.emit(False)
-                    return
-
-                if not self.quantitate_aligned_only:
-                    quantitation_results = self.quantitate_mzxml_files(
-                        analytes_ref_path, mzxml_file_paths
-                    )
-                    self.logger.info(
-                        f"Starting quantitation of {len(mzxml_file_paths)}"
-                        " mzXML files"
-                    )
-                else:
-                    aligned_mzxml_file_paths = [
-                        path for path in mzxml_file_paths
-                        if os.path.basename(path).startswith("aligned")
-                    ]
-                    if len(aligned_mzxml_file_paths) > 0:
-                        self.logger.info(
-                            f"Starting quantitation of {len(aligned_mzxml_file_paths)}"
-                            " aligned mzXML files"
+                    # Check if folder actually contained xy files.
+                    if len(xy_file_paths) == 0:
+                        self.logger.warning(
+                            "Batch directory contained no .xy files"
                         )
-                        quantitation_results = self.quantitate_mzxml_files(
-                            analytes_ref_path, aligned_mzxml_file_paths
-                        )
-                    else:
-                        self.logger.warning("No aligned files found for quantitation")
                         self.error.emit(
-                            "No aligned files",
-                            "No aligned files were detected for quantitation.",
+                            "Empty directory",
+                            "The specified folder contains no .xy files.",
                             "",
                             "Warning"
                         )
                         self.finished.emit(False)
                         return
+
+                    self.logger.info(
+                        f"Starting quantitation of {len(xy_file_paths)} .xy files"
+                    )
+                    quantitation_results = self.quantitate_xy_files(
+                        analytes_ref_path, xy_file_paths
+                    )
+                else:
+                    # LC-MS mode: process mzXML files
+                    # Create new list with mzXML file paths.
+                    mzxml_file_paths = self.get_mzxml_file_paths()
+
+                    # Check if folder actually contained files.
+                    if len(mzxml_file_paths) == 0:
+                        self.logger.warning(
+                            "Batch directory contained no mzXML files"
+                        )
+                        self.error.emit(
+                            "Empty directory",
+                            "The specified folder contains no mzXML files.",
+                            "",
+                            "Warning"
+                        )
+                        self.finished.emit(False)
+                        return
+
+                    if not self.quantitate_aligned_only:
+                        self.logger.info(
+                            f"Starting quantitation of {len(mzxml_file_paths)}"
+                            " mzXML files"
+                        )
+                        quantitation_results = self.quantitate_mzxml_files(
+                            analytes_ref_path, mzxml_file_paths
+                        )
+                    else:
+                        aligned_mzxml_file_paths = [
+                            path for path in mzxml_file_paths
+                            if os.path.basename(path).startswith("aligned")
+                        ]
+                        if len(aligned_mzxml_file_paths) > 0:
+                            self.logger.info(
+                                f"Starting quantitation of {len(aligned_mzxml_file_paths)}"
+                                " aligned mzXML files"
+                            )
+                            quantitation_results = self.quantitate_mzxml_files(
+                                analytes_ref_path, aligned_mzxml_file_paths
+                            )
+                        else:
+                            self.logger.warning("No aligned files found for quantitation")
+                            self.error.emit(
+                                "No aligned files",
+                                "No aligned files were detected for quantitation.",
+                                "",
+                                "Warning"
+                            )
+                            self.finished.emit(False)
+                            return
                 
                 # Check if batch processing was aborted during quantitation.
                 if quantitation_results is None:
@@ -320,11 +385,31 @@ class BatchWorker(QObject):
         self.logger.info("BatchWorker finished successfully")
         self.finished.emit(True)
     
+    def write_ref_df(self, ref_df: pd.DataFrame) -> str:
+        """Write a pre-loaded reference DataFrame to disk as an .xlsx file.
+
+        Args:
+            ref_df: Reference DataFrame in the standard reference file format.
+
+        Returns:
+            Absolute path to the written .xlsx file.
+        """
+        out_dir = (
+            os.getcwd() if self.raw_folder_path is None
+            else self.raw_folder_path
+        )
+        out_path = os.path.join(
+            out_dir,
+            f"{self.start_time}_analytes_ref.xlsx"
+        )
+        utils.write_to_excel(out_path, {"analytes": ref_df})
+        return out_path
+
     def make_ref_file(self) -> str:
         """Generate the analytes reference .xlsx file and return its path."""
-        mzxml_folder_path=(
-            os.getcwd() if self.mzxml_folder_path is None
-            else self.mzxml_folder_path
+        raw_folder_path=(
+            os.getcwd() if self.raw_folder_path is None
+            else self.raw_folder_path
         )
         # Keep track of percentage.
         n = len(list(self.analytes_list_df.itertuples()))
@@ -340,6 +425,16 @@ class BatchWorker(QObject):
             mz_window_coeffs = (float(0), float(0), self.quantitation_mz_window)
 
         for idx, line in enumerate(list(self.analytes_list_df.itertuples())):
+            # Handle time data based on mode (MS-only vs LC-MS)
+            if self.ms_only:
+                # MS-only mode: time and time_window should be None
+                time_val = None
+                time_window_val = None
+            else:
+                # LC-MS mode: convert to float
+                time_val = float(line.time)
+                time_window_val = float(line.time_window)
+            
             # Create instance of InputAnalyte.
             input_analyte = InputAnalyte(
                 blocks = self.blocks,
@@ -350,11 +445,12 @@ class BatchWorker(QObject):
                     mz_window_coeffs if pd.isnull(line.mz_window)
                     else (float(0), float(0), float(line.mz_window))
                 ),
-                time=float(line.time),
-                time_window=float(line.time_window),
+                time=time_val,
+                time_window=time_window_val,
                 calibrant=(not pd.isnull(line.calibrant)),
                 min_isotopic_fraction=self.min_isotopic_fraction,
-                charge_carrier=self.charge_carrier
+                charge_carrier=self.charge_carrier,
+                mass_modifier=self.mass_modifier
             )
 
             # Append to larger reference data frame.
@@ -372,7 +468,7 @@ class BatchWorker(QObject):
             
         # Write reference data frame to Excel file.
         out_path = os.path.join(
-            mzxml_folder_path,
+            raw_folder_path,
             f"{self.start_time}_analytes_ref.xlsx"
         )
         utils.write_to_excel(out_path, {"analytes": reference})
@@ -382,12 +478,63 @@ class BatchWorker(QObject):
     def get_mzxml_file_paths(self) -> list[str]:
         """Collect all mzXML file paths from the specified folder."""
         mzxml_file_paths = []
-        for file in os.listdir(self.mzxml_folder_path):
+        for file in os.listdir(self.raw_folder_path):
             if file.endswith(".mzXML"):
-                full_path = os.path.join(self.mzxml_folder_path, file)
+                full_path = os.path.join(self.raw_folder_path, file)
                 mzxml_file_paths.append(full_path)
         
         return mzxml_file_paths
+    
+    def get_xy_file_paths(self) -> list[str]:
+        """Collect all .xy file paths from the specified folder."""
+        xy_file_paths = []
+        for file in os.listdir(self.raw_folder_path):
+            if file.endswith(".xy"):
+                full_path = os.path.join(self.raw_folder_path, file)
+                xy_file_paths.append(full_path)
+        
+        return xy_file_paths
+    
+    def read_xy_file(self, file_path: str) -> np.ndarray:
+        """Read an xy file and return as a 2D numpy array.
+
+        If the intensity column contains negative values, all intensities are
+        shifted upward by the absolute value of the minimum so that the lowest
+        intensity becomes zero.
+        
+        Args:
+            file_path: Path to the .xy file.
+        
+        Returns:
+            2D numpy array with m/z values in first column and 
+            intensities in second column.
+        """
+        try:
+            # Read the xy file as space or tab-delimited data
+            data = np.loadtxt(file_path)
+            
+            # Ensure it's 2D with shape (n, 2)
+            if data.ndim == 1:
+                # If 1D, reshape to (1, 2) assuming single data point
+                data = data.reshape(1, -1)
+            
+            if data.shape[1] != 2:
+                raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
+            
+            # Shift intensities so the minimum is zero if any are negative.
+            min_intensity = data[:, 1].min()
+            if min_intensity < 0:
+                data[:, 1] -= min_intensity
+                self.logger.info(
+                    f"Negative intensities detected in {os.path.basename(file_path)}: "
+                    f"shifted all intensities by {-min_intensity:.6g} to baseline zero"
+                )
+            
+            return data
+            
+        except Exception as e:
+            self.logger.error(f"Error reading xy file {file_path}: {str(e)}")
+            raise
 
     def align_mzxml_files(self, mzxml_file_paths: list[str]) -> bool:
         """Align retention times of mzXML files in batch process.
@@ -421,7 +568,7 @@ class BatchWorker(QObject):
 
         # Set path to pdf with figures.
         pdf_path = os.path.join(
-            self.mzxml_folder_path,
+            self.raw_folder_path,
             f"{self.start_time}_alignment.pdf"
         )
 
@@ -509,14 +656,14 @@ class BatchWorker(QObject):
 
         # Set path to pdf file with calibration figures.
         pdf_path = os.path.join(
-            self.mzxml_folder_path,
+            self.raw_folder_path,
             f"{self.start_time}_calibration.pdf"
         )
 
         # Set path to temporary CSV file for accumulating results.
         # (Faster than writing to dataframes one-by-one to Excel).
         temp_csv_path = os.path.join(
-            self.mzxml_folder_path,
+            self.raw_folder_path,
             f"{self.start_time}_temp_results.csv"
         )
         # Delete existing CSV file if it exists.
@@ -536,7 +683,7 @@ class BatchWorker(QObject):
                 if self.stop_requested:
                     self.logger.info("BatchWorker stop requested during quantitation")
                     self.aborted.emit()
-                    return False
+                    return
 
                 # Read mzXML file.
                 mzxml = Mzxml(path)
@@ -600,24 +747,26 @@ class BatchWorker(QObject):
                     )
 
                     # Write calibration plot to pdf.
-                    if mass_spectrum.calibration_plot is not None:
-                        self.logger.info(
-                            f"Calibrated sum spectrum ({mass_spectrum.time}"
-                            f" ± {mass_spectrum.time_window} seconds) for "
-                            f"{os.path.basename(path)}"
-                        )
-                        pdf.savefig(mass_spectrum.calibration_plot)
-                        plt.close(mass_spectrum.calibration_plot)
-                        # Set plot to None to free up memory.
-                        mass_spectrum.calibration_plot = None
-
-                    elif len(calibrants_list) > 0:
-                        self.logger.info(
-                            f"Failed calibrating sum spectrum ({mass_spectrum.time}"
-                            f" ± {mass_spectrum.time_window} seconds) for "
-                            f"{os.path.basename(path)}"
-                        )
-                    
+                    if len(calibrants_list) > 0:
+                        # Calibration was attempted
+                        if mass_spectrum.data_calibrated is not None:
+                            self.logger.info(
+                                f"Calibrated sum spectrum ({mass_spectrum.time}"
+                                f" ± {mass_spectrum.time_window} seconds) for "
+                                f"{os.path.basename(path)}"
+                            )
+                        else:
+                            self.logger.info(
+                                f"Failed calibrating sum spectrum ({mass_spectrum.time}"
+                                f" ± {mass_spectrum.time_window} seconds) for "
+                                f"{os.path.basename(path)}"
+                            )
+                        # Save plot (success or failure) to PDF
+                        if mass_spectrum.calibration_plot is not None:
+                            pdf.savefig(mass_spectrum.calibration_plot)
+                            plt.close(mass_spectrum.calibration_plot)
+                            # Set plot to None to free up memory.
+                            mass_spectrum.calibration_plot = None
                     else:
                         self.logger.info(
                             f"Skipped calibration of sum spectrum ({mass_spectrum.time}"
@@ -633,7 +782,170 @@ class BatchWorker(QObject):
                     filename=mzxml.file_name,
                     mass_spectra=mass_spectra,
                     analytes_ref=analytes_ref,
-                    output_params=output_params
+                    output_params=output_params,
+                    use_peak_height=self.use_peak_height
+                )
+            
+                # Append output to temporary CSV file.
+                if idx > 0:
+                    output.to_csv(
+                        temp_csv_path, mode="a", index=False, header=False
+                    )
+                else:
+                    output.to_csv(
+                        temp_csv_path, mode="a", index=False, header=True
+                    )
+                
+                # Update percentage of processed files.
+                percent = round((idx + 1) / n * 100)
+                self.quantitation_progress.emit(percent)
+
+        # Read the accumulated CSV file and delete it.
+        quantitation_results = pd.read_csv(temp_csv_path)
+        os.remove(temp_csv_path)
+
+        return quantitation_results
+
+    def quantitate_xy_files(
+            self,
+            analytes_ref_path: str,
+            xy_file_paths: list[str]
+    ) -> pd.DataFrame | None:
+        """
+        Perform calibration and quantitation on .xy files (MS-only mode).
+
+        Args:
+            analytes_ref_path: Path to the analytes reference Excel file.
+            xy_file_paths: List of paths to .xy files.
+        
+        Returns:
+            Dataframe with quantitation results if processing finished for
+            all files. None if batch process was aborted during quantitation.
+        """
+        # Read in analytes reference Excel file.
+        # Then extract the data for the calibrants.
+        analytes_ref = pd.read_excel(analytes_ref_path)
+        ref_calibrants = analytes_ref[analytes_ref["calibrant"]]
+
+        # Create a list with required output parameters.
+        output_params = [
+            "total_area_background_subtracted",
+            "mass_error_ppm",
+            "isotopic_pattern_quality",
+            "signal_to_noise",
+            "total_area",
+            "total_background",
+            "total_noise"
+        ]
+
+        # Set path to pdf file with calibration figures.
+        pdf_path = os.path.join(
+            self.raw_folder_path,
+            f"{self.start_time}_calibration.pdf"
+        )
+
+        # Set path to temporary CSV file for accumulating results.
+        temp_csv_path = os.path.join(
+            self.raw_folder_path,
+            f"{self.start_time}_temp_results.csv"
+        )
+        # Delete existing CSV file if it exists.
+        if os.path.exists(temp_csv_path):
+            self.logger.info("Removing existing temporary results file")
+            os.remove(temp_csv_path)
+        # Ensure the temp CSV starts fresh.
+        with open(temp_csv_path, "w", newline="") as f:
+            pass
+
+        # Loop over xy file paths and create mass spectra.
+        # Keep track of number of processed files.
+        n = len(xy_file_paths)
+        with PdfPages(pdf_path) as pdf:
+            for idx, path in enumerate(xy_file_paths):
+                # Check if stop was requested.
+                if self.stop_requested:
+                    self.logger.info("BatchWorker stop requested during quantitation")
+                    self.aborted.emit()
+                    return None
+
+                # Read xy file.
+                file_name = os.path.splitext(os.path.basename(path))[0]
+                data_uncalibrated = self.read_xy_file(path)
+
+                # Determine calibration for MS-only mode.
+                # Calibrate if calibrants are specified in the analytes list.
+                if len(ref_calibrants) > 0:
+                    # All calibrants apply in MS-only mode (no time filtering).
+                    calibrants_df = (
+                        ref_calibrants
+                        .assign(
+                            # Extract charge number from peak name.
+                            charge = lambda x: (
+                                x["peak"].str.split("_").str[1].astype(int)
+                            )
+                        )
+                        # Select required columns.
+                        [["mz", "charge", "mz_window"]]
+                    )
+
+                    # Create a list with (m/z, charge, m/z window) tuples.
+                    calibrants_list = list(calibrants_df.itertuples(
+                        index=False, name=None
+                    ))
+
+                    # Use global calibrant S/N cutoff for MS-only calibration.
+                    calibration_sn_cutoff = self.calibrant_sn_cutoff
+
+                else:
+                    # No calibrants -> skip calibration.
+                    calibrants_list = []
+                    calibration_sn_cutoff = None
+                
+                # Create an instance of MassSpectrum.
+                # For MS-only mode, time and time_window are None.
+                mass_spectrum = MassSpectrum(
+                    name=file_name,
+                    file_raw=file_name,
+                    data_uncalibrated=data_uncalibrated,
+                    background_mass_window=self.background_mass_window,
+                    calibration_mass_window=self.calibration_mass_window,
+                    calibrants_list=calibrants_list,
+                    min_calibrant_number=self.min_calibrant_number,
+                    min_calibrant_sn=calibration_sn_cutoff,
+                    time=None,
+                    time_window=None
+                )
+
+                # Write calibration plot to pdf.
+                if len(calibrants_list) > 0:
+                    # Calibration was attempted
+                    if mass_spectrum.data_calibrated is not None:
+                        self.logger.info(
+                            f"Calibrated spectrum for {file_name}"
+                        )
+                    else:
+                        self.logger.info(
+                            f"Failed calibrating spectrum for {file_name}"
+                        )
+                    # Save plot (success or failure) to PDF
+                    if mass_spectrum.calibration_plot is not None:
+                        pdf.savefig(mass_spectrum.calibration_plot)
+                        plt.close(mass_spectrum.calibration_plot)
+                        # Set plot to None to free up memory.
+                        mass_spectrum.calibration_plot = None
+                else:
+                    self.logger.info(
+                        f"Skipped calibration of spectrum for {file_name}"
+                    )
+                
+                # Build a long table with quantitation results.
+                # For MS-only mode, we have a single mass spectrum per file.
+                output = ms_tables.build_quantitation_table(
+                    filename=file_name,
+                    mass_spectra=[mass_spectrum],
+                    analytes_ref=analytes_ref,
+                    output_params=output_params,
+                    use_peak_height=self.use_peak_height
                 )
             
                 # Append output to temporary CSV file.
@@ -672,7 +984,11 @@ class BatchWorker(QObject):
             "SweetSuite version": __version__,
             "Batch process start time": self.start_time,
             "Charge carrier": self.charge_carrier,
-            "Sum spectrum resolution": self.sum_spectrum_resolution,
+            "Mass modifier": self.mass_modifier if self.mass_modifier is not None else "None",
+            "Sum spectrum resolution": (
+                "N/A - MS-only mode" if self.ms_only
+                else self.sum_spectrum_resolution
+            ),
             "Background mass window": self.background_mass_window,
             "Calibration mass window": self.calibration_mass_window,
             "Quantitation m/z window": self.quantitation_mz_window,
@@ -682,10 +998,23 @@ class BatchWorker(QObject):
             "Quadratic coefficients": (
                 str(self.quadratic_coeffs) if self.quadratic_mz_window else "N/A"
             ),
-            "Alignment time window": self.alignment_time_window,
-            "Alignment m/z window": self.alignment_mz_window,
-            "Alignment S/N cutoff": self.alignment_sn_cutoff,
-            "Alignment min. peaks": self.alignment_min_peaks
+            "Use peak heights": self.use_peak_height,
+            "Alignment time window": (
+                "N/A - MS-only mode" if self.ms_only
+                else self.alignment_time_window
+            ),
+            "Alignment m/z window": (
+                "N/A - MS-only mode" if self.ms_only
+                else self.alignment_mz_window
+            ),
+            "Alignment S/N cutoff": (
+                "N/A - MS-only mode" if self.ms_only
+                else self.alignment_sn_cutoff
+            ),
+            "Alignment min. peaks": (
+                "N/A - MS-only mode" if self.ms_only
+                else self.alignment_min_peaks
+            )
         }
 
         global_settings = pd.DataFrame([
@@ -718,18 +1047,28 @@ class BatchWorker(QObject):
         if quantitation_results is None:
             calibration_settings = None
         else:
-            calibration_settings = pd.DataFrame([
-                {
-                    "time": time_window[0],
-                    "window": time_window[1],
-                    "calibrate": params["calibrate"],
-                    "sn_cutoff": (
-                        params["sn_cutoff"] if params["calibrate"]
-                        else "N/A"
-                    )
-                }
-                for time_window, params in self.sum_spectra_calibration.items()
-            ])
+            if self.ms_only:
+                # MS-only mode: Show N/A for time-based settings
+                calibration_settings = pd.DataFrame([{
+                    "time": "N/A - MS-only mode",
+                    "window": "N/A - MS-only mode",
+                    "calibrate": "N/A - MS-only mode",
+                    "sn_cutoff": "N/A - MS-only mode"
+                }])
+            else:
+                # LC-MS mode: Show actual calibration settings per retention time range
+                calibration_settings = pd.DataFrame([
+                    {
+                        "time": time_window[0],
+                        "window": time_window[1],
+                        "calibrate": params["calibrate"],
+                        "sn_cutoff": (
+                            params["sn_cutoff"] if params["calibrate"]
+                            else "N/A"
+                        )
+                    }
+                    for time_window, params in self.sum_spectra_calibration.items()
+                ])
 
         utils.write_to_excel(
             out_path=self.excel_path,

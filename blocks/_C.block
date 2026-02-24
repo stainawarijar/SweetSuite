@@ -1,4 +1,6 @@
 # Neutral carbon atom
 mass: 12.000000
 charge: 0
+mass_modifier: 0
+
 carbons: 1

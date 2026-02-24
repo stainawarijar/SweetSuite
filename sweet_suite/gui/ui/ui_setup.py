@@ -124,7 +124,7 @@ class UISetup:
         
         # Settings tooltips
         ui.sum_spectrum_resolution.setToolTip(
-            "Number of data points per m/z unit."
+            "Number of data points per m/z unit in an LC-MS spectrum."
         )
         ui.background_mass_window.setToolTip(
             "m/z window used around each analyte to determine " \
@@ -136,7 +136,8 @@ class UISetup:
         )
         ui.quantitation_mz_window.setToolTip(
             "m/z window used around the exact m/z of each isotopic peak" \
-            " for area integration.\n" \
+            " for area integration\n" \
+            "(or for determining peak height, if enabled under advanced settings).\n" \
             "Can be overwritten for individual analytes in the analytes list."
         )
         ui.min_isotopic_fraction.setToolTip(
@@ -157,9 +158,9 @@ class UISetup:
             "Can be overwritten for individual features in the alignment file."
         )
         ui.alignment_mz_window.setToolTip(
-            "m/z window used around the exact m/z of an alignment feature" \
-            "when creating an\nextracted ion chromatogram."
-            "Can be overwritten for individual features in the alignment file."
+            "m/z window used around the exact m/z of an alignment feature\n" \
+            "when creating an extracted ion chromatogram. "
+            "Can be overwritten\nfor individual features in the alignment file."
         )
         ui.alignment_min_peaks.setToolTip(
             "Minimum number of alignment features to use when aligning a\n" \

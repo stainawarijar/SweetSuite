@@ -1,30 +1,36 @@
 ![Experimental](https://img.shields.io/badge/status-experimental-yellow)
 
 # SweetSuite
-SweetSuite is a program for processing LC-MS glycoproteomics data. It is based
-on [LaCyTools](https://github.com/Tarskin/LaCyTools) and on
-[MassyTools](https://github.com/Tarskin/MassyTools).
-The software provides options for retention time alignment and for targeted
-quantitation of (glyco)peptides.
+SweetSuite is a program for processing LC-MS and MS-only 
+glycoproteomics data. It is based on [LaCyTools](https://github.com/Tarskin/LaCyTools) 
+and on [MassyTools](https://github.com/Tarskin/MassyTools).
+The software provides options for retention time alignment (LC-MS mode) and for 
+targeted quantitation of (glyco)peptides and glycans in both LC-MS and MS-only data.
 
 ***Note:*** *This software is still in an experimental stage.*
 
 - [USING SWEETSUITE](#using-sweetsuite)
-    - [Retention time alignment](#-retention-time-alignment)
-    - [Analyte quantitation](#-analyte-quantitation)
-- [INSTALLATION](#️-installation)
-- [SYSTEM REQUIREMENTS](#️-system-requirements)
-- [CREDITS](#-credits)
+    - [Retention time alignment](#retention-time-alignment)
+    - [LC-MS analyte quantitation](#lc-ms-analyte-quantitation)
+    - [MS-only analyte quantitation](#ms-only-analyte-quantitation)
+    - [Data output](#data-output)
+- [INSTALLATION](#installation)
+- [SYSTEM REQUIREMENTS](#system-requirements)
+- [CREDITS](#credits)
     - [Copyright notice](#copyright-notice)
     - [Third-party assets](#third-party-assets)
 
 ## USING SWEETSUITE
 ***Note:*** *A more extensive user guide may be written in the future.*
 
-Before using SweetSuite, raw data files should be converted to mzXML format
-using [ProteoWizard MSConvert](https://proteowizard.sourceforge.io/).
+For LC-MS data, raw data files should be converted to mzXML format using 
+[ProteoWizard MSConvert](https://proteowizard.sourceforge.io/).
 <br>(*Recommended settings: 32-bit encoding precision, use zlib compression,
 remove zero samples.*)
+
+For MS-only data, provide `.xy` files. These are simple text files 
+with two columns, the first column containing *m/z* values and the second
+column containing intensities. 
 
 SweetSuite offers options for retention time alignment and for quantitation of analytes. 
 Both are optional and can be skipped by simply not uploading an alignment file or an analytes file (see below).
@@ -66,7 +72,7 @@ Below is an example of a valid alignment file:
 | 593.827   | 310.8   |           |             |    9      |    x     |
 
 
-### Analyte quantitation
+### LC-MS analyte quantitation
 Download the analytes template `.xlsx` file from the Toolbar
 (`File → Templates → Analyte list`) and fill in at least the following columns: 
 `analyte`, `charge_min`, `charge_max`, `time`, and `time_window`.
@@ -82,6 +88,15 @@ for generating sum spectra, where the range is [`time` ± `time_window`].
 To specify potential calibrants, place an `x` in the calibrant column.
 You can override the *m/z* quantitation window for individual analytes by 
 entering a value in the `mz_window` column.
+
+In the GUI, select the appropriate **charge carrier** from the *Charge carrier* 
+dropdown (e.g. `proton`, `sodium`, `potassium`). You can optionally also select a 
+**mass modifier** from the *Mass modifier (optional)* dropdown. A mass modifier 
+represents a structural addition to the analyte — for example a water loss or a 
+derivatisation reagent. Any `.block` file that contains `mass_modifier: 1` will 
+appear in this list. Both the charge carrier's and the modifier's masses and 
+elemental compositions are taken into account when computing theoretical 
+isotopologue distributions.
 
 After you load the analyte list into SweetSuite, an interactive table appears 
 where you can adjust the calibrant S/N cut-off for each retention time range. 
@@ -102,12 +117,50 @@ Below is an example of a valid analytes list:
 | IgGIV1H5N4F1S1  |     2      |     3      |   0.04    |           | 109    |     10      |
 | IgGIV1H5N4F1S2  |     2      |     3      |   0.04    |           | 109    |     10      |
 
+### MS-only analyte quantitation
+SweetSuite also supports processing of MS-only data 
+without chromatographic separation (MS-only mode). In this mode, raw data should 
+be provided as `.xy` files.
+
+To activate MS-only mode, simply leave the `time` and `time_window` columns 
+**completely empty** for all analytes in your analytes list. SweetSuite will 
+automatically detect this and switch to MS-only mode. A green indicator 
+("Mode: MS-only") will appear in the GUI.
+
+In MS-only mode:
+- Retention time alignment is disabled (not applicable without chromatography).
+- The sum spectrum resolution setting is disabled.
+- The calibration table for time-based settings is hidden.
+- Calibration is still available: if you specify calibrants in your analyte list, 
+  they will be used for mass calibration across all analytes.
+
+Below is an example of a valid MS-only analytes list:
+
+|  analyte         | charge_min | charge_max | mz_window | calibrant |  time  | time_window |
+|:---------------:|:----------:|:----------:|:---------:|:---------:|:------:|:-----------:|
+| IgG1H3N4F1      |     2      |     3      |           |     x     |        |             |
+| IgG1H4N4F1      |     2      |     3      |           |     x     |        |             |
+| IgG1H5N4F1      |     2      |     3      |           |           |        |             |
+| IgG1H4N4F1S1    |     2      |     3      |           |           |        |             |
+| IgG1H5N4F1S1    |     2      |     3      |           |     x     |        |             |
+| IgG1H5N4F1S2    |     2      |     3      |           |     x     |        |             |
+
+**Note:** You cannot mix LC-MS and MS-only data within the same analyte list. 
+Either all rows must have retention time information, or all rows must have empty 
+`time` and `time_window` columns.
+
+**Advanced:** As an alternative to uploading an analytes list, it is also possible to 
+upload a reference file (the `*_analytes_ref.xlsx` file generated in a previous batch run) 
+directly. When a reference file is detected, the reference generation step is skipped. 
+The reference file contains a `charge_carrier` and a `mass_modifier` column that record 
+which carrier and modifier were used when the file was generated.
+
 ### Data output
 After analyte quantitation, an `xlsx` file is generated with results stored
 in the "Data" tab. The used settings are listed in separate tabs. 
 The "Data" tab contains for each file the following outputs per analyte and per charge state:
 - `isotopic_fraction`: <br>Fraction of the theoretical isotopic pattern that was integrated.
-- `total_area_background_subtracted`: <br>Summed background subtracted areas of all isotopic peaks.
+- `total_area_background_subtracted`: <br>Summed background-subtracted areas of all isotopic peaks (or summed background-subtracted peak heights when *Use peak heights* is enabled — see Advanced settings).
 - `mass_error_ppm`: <Br>Mass error in parts-per-million of the most abundant isotopic peak.
     Calculated as `(observed m/z - exact m/z) / (exact m/z) × 1e6`.
 - `isotopic_pattern_quality` (IPQ): <Br>A measure for the quality of the isotopic pattern.
@@ -115,9 +168,13 @@ The "Data" tab contains for each file the following outputs per analyte and per 
     relative area and the observed relative area is taken. The resulting
     absolute differences are then summed to yield the IPQ. 
 - `signal_to_noise`: <br>Signal-to-noise (S/N) of the most abundant isotopic peak.
-- `total_area`: <br>Summed total areas of all isotopic peaks without background subtraction.
+- `total_area`: <br>Summed total areas (or peak heights) of all isotopic peaks without background subtraction.
 - `total_background`: <br>Summed background values of all isotopic peaks.
 - `total_noise`: <br>Summed noise of all isotopic peaks.
+
+**Advanced settings** (accessible via the toolbar) provide additional quantitation options:
+- *Use quadratic quantitation m/z window* — applies a charge-state-dependent quadratic m/z window defined by user-supplied polynomial coefficients instead of the fixed global window.
+- *Use peak heights instead of areas for quantitation* — replaces trapezoidal integration with the maximum intensity in the quantitation m/z window for each isotopic peak. Background subtraction then uses the average background intensity instead of the background area.
 
 ## INSTALLATION
 **Microsoft Windows**

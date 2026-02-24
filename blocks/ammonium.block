@@ -1,0 +1,10 @@
+# Ammonium ion (NH4+), possible adduct
+# Mass = nitrogen + 3 hydrogen + proton
+
+mass: 18.03382556658
+charge: 1
+mass_modifier: 0
+
+nitrogens: 1
+hydrogens: 4
+

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>760</width>
+    <width>761</width>
     <height>572</height>
    </rect>
   </property>
@@ -68,7 +68,7 @@ QListWidget {
       <rect>
        <x>10</x>
        <y>40</y>
-       <width>131</width>
+       <width>221</width>
        <height>16</height>
       </rect>
      </property>
@@ -314,7 +314,7 @@ font-size: 10.5pt</string>
       <x>10</x>
       <y>10</y>
       <width>491</width>
-      <height>341</height>
+      <height>401</height>
      </rect>
     </property>
     <property name="frameShape">
@@ -356,7 +356,7 @@ font-size: 10.5pt</string>
       <rect>
        <x>10</x>
        <y>40</y>
-       <width>121</width>
+       <width>221</width>
        <height>16</height>
       </rect>
      </property>
@@ -367,7 +367,7 @@ font-size: 10.5pt</string>
       </font>
      </property>
      <property name="text">
-      <string>Upload analytes list:</string>
+      <string>Analytes list or reference file:</string>
      </property>
     </widget>
     <widget class="QToolButton" name="open_analytes_list">
@@ -390,8 +390,8 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>110</y>
-       <width>231</width>
+       <y>170</y>
+       <width>241</width>
        <height>16</height>
       </rect>
      </property>
@@ -409,7 +409,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>130</y>
+       <y>190</y>
        <width>221</width>
        <height>22</height>
       </rect>
@@ -428,8 +428,8 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>170</y>
-       <width>211</width>
+       <y>230</y>
+       <width>231</width>
        <height>16</height>
       </rect>
      </property>
@@ -448,7 +448,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>190</y>
+       <y>250</y>
        <width>221</width>
        <height>22</height>
       </rect>
@@ -464,10 +464,13 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>250</y>
+       <y>310</y>
        <width>221</width>
        <height>22</height>
       </rect>
+     </property>
+     <property name="decimals">
+      <number>3</number>
      </property>
      <property name="maximum">
       <double>100.000000000000000</double>
@@ -483,8 +486,8 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>230</y>
-       <width>211</width>
+       <y>290</y>
+       <width>221</width>
        <height>16</height>
       </rect>
      </property>
@@ -503,8 +506,8 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>290</y>
-       <width>211</width>
+       <y>350</y>
+       <width>221</width>
        <height>16</height>
       </rect>
      </property>
@@ -523,7 +526,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>310</y>
+       <y>370</y>
        <width>221</width>
        <height>22</height>
       </rect>
@@ -545,7 +548,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>250</y>
+       <y>310</y>
        <width>221</width>
        <height>22</height>
       </rect>
@@ -561,7 +564,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>230</y>
+       <y>290</y>
        <width>221</width>
        <height>16</height>
       </rect>
@@ -580,7 +583,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>310</y>
+       <y>370</y>
        <width>181</width>
        <height>22</height>
       </rect>
@@ -599,8 +602,8 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>290</y>
-       <width>201</width>
+       <y>350</y>
+       <width>211</width>
        <height>16</height>
       </rect>
      </property>
@@ -618,8 +621,8 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>170</y>
-       <width>201</width>
+       <y>230</y>
+       <width>211</width>
        <height>16</height>
       </rect>
      </property>
@@ -638,7 +641,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>190</y>
+       <y>250</y>
        <width>221</width>
        <height>22</height>
       </rect>
@@ -661,7 +664,7 @@ font-size: 10.5pt</string>
       <rect>
        <x>260</x>
        <y>40</y>
-       <width>201</width>
+       <width>221</width>
        <height>16</height>
       </rect>
      </property>
@@ -720,7 +723,7 @@ font-size: 10.5pt</string>
     <widget class="QLabel" name="label_charge_carrier">
      <property name="geometry">
       <rect>
-       <x>260</x>
+       <x>10</x>
        <y>110</y>
        <width>211</width>
        <height>16</height>
@@ -762,7 +765,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>449</x>
-       <y>311</y>
+       <y>371</y>
        <width>33</width>
        <height>20</height>
       </rect>
@@ -794,6 +797,35 @@ font-size: 10.5pt</string>
      </property>
     </widget>
     <widget class="QComboBox" name="comboBox_charge_carrier">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>130</y>
+       <width>221</width>
+       <height>22</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_mass_modifier">
+     <property name="geometry">
+      <rect>
+       <x>260</x>
+       <y>110</y>
+       <width>211</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <family>DejaVu Sans</family>
+       <pointsize>10</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>Mass modifier (optional):</string>
+     </property>
+    </widget>
+    <widget class="QComboBox" name="comboBox_mass_modifier">
      <property name="geometry">
       <rect>
        <x>260</x>
@@ -835,7 +867,7 @@ font-size: 10.5pt</string>
       </font>
      </property>
      <property name="text">
-      <string>Folder containing mzXML files:</string>
+      <string>Folder containing raw data:</string>
      </property>
     </widget>
     <widget class="QListWidget" name="path_mzxml">
@@ -898,14 +930,23 @@ font-weight: bold;</string>
     <widget class="QCheckBox" name="quantify_aligned">
      <property name="geometry">
       <rect>
-       <x>10</x>
+       <x>7</x>
        <y>110</y>
-       <width>221</width>
+       <width>231</width>
        <height>18</height>
       </rect>
      </property>
+     <property name="font">
+      <font>
+       <family>DejaVu Sans</family>
+       <pointsize>9</pointsize>
+      </font>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">font-size: 9pt</string>
+     </property>
      <property name="text">
-      <string>Quantify aligned mzXML files only</string>
+      <string>Quantify aligned files only</string>
      </property>
      <property name="checked">
       <bool>true</bool>
@@ -941,9 +982,9 @@ font-size: 10.5pt</string>
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>360</y>
+      <y>420</y>
       <width>491</width>
-      <height>181</height>
+      <height>121</height>
      </rect>
     </property>
     <property name="styleSheet">
@@ -1030,7 +1071,7 @@ border: 1px solid #b0b0b0;
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>760</width>
+     <width>761</width>
      <height>22</height>
     </rect>
    </property>

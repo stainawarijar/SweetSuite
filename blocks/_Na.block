@@ -1,3 +1,5 @@
 # Neutral sodium atom
 mass: 22.989769282
 charge: 0
+mass_modifier: 0
+

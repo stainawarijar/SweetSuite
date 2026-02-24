@@ -1,4 +1,6 @@
 # Neutral sulfur atom
 mass: 31.972071174
 charge: 0
+mass_modifier: 0
+
 sulfurs: 1

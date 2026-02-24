@@ -20,7 +20,32 @@ class AdvancedSettingsHandler:
         self.ui = Ui_advanced_settings()
         self.ui.setupUi(self.dialog)
         self.promote_to_scientific_spinbox()
-    
+        self.setup_quadratic_toggle()
+
+    def setup_quadratic_toggle(self) -> None:
+        """Disable coefficient inputs until the quadratic checkbox is checked."""
+        self._quadratic_widgets = [
+            self.ui.doubleSpinBox_mz2,
+            self.ui.doubleSpinBox_mz,
+            self.ui.doubleSpinBox_constant,
+            self.ui.label,
+            self.ui.label_mz2,
+            self.ui.label_mz2_2,
+            self.ui.label_2,
+            self.ui.label_3,
+        ]
+        # Set initial state based on checkbox
+        checked = self.ui.checkBox_quadratic.isChecked()
+        for widget in self._quadratic_widgets:
+            widget.setEnabled(checked)
+        # Connect checkbox to toggle handler
+        self.ui.checkBox_quadratic.toggled.connect(self._on_quadratic_toggled)
+
+    def _on_quadratic_toggled(self, checked: bool) -> None:
+        """Enable or disable coefficient inputs when checkbox changes."""
+        for widget in self._quadratic_widgets:
+            widget.setEnabled(checked)
+
     def show_dialog(self) -> None:
         """Show the advanced settings dialog."""
         self.dialog.exec()

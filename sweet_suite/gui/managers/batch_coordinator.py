@@ -55,6 +55,10 @@ class BatchCoordinator:
         blocks_dict = self.parent.block_parser.parse_blocks()
         self.parent.blocks = blocks_dict
         
+        if blocks_dict is None:
+            self.parent.setEnabled(True)
+            return
+        
         # Determine charge carrier
         selected = self.ui.comboBox_charge_carrier.currentText()
         if selected != "":
@@ -69,6 +73,29 @@ class BatchCoordinator:
             )
             self.parent.setEnabled(True)
             return
+
+        # Determine mass modifier (None if "None" is selected).
+        modifier_selected = self.ui.comboBox_mass_modifier.currentText()
+        if modifier_selected == "None" or modifier_selected == "":
+            mass_modifier = None
+        else:
+            mass_modifier = modifier_selected.split(" (")[0].strip()
+            if mass_modifier not in blocks_dict:
+                UIHelpers.show_message_box(
+                    self.parent,
+                    title="Invalid mass modifier",
+                    text=(
+                        f"The selected mass modifier '{mass_modifier}' is no "
+                        "longer available in the blocks folder."
+                    ),
+                    informative_text=(
+                        "Reload the blocks folder and reselect a valid "
+                        "mass modifier."
+                    ),
+                    icon="Critical"
+                )
+                self.parent.setEnabled(True)
+                return
         
         # Check if analytes and/or alignment file was uploaded
         analytes_list = self.ui.path_analytes_list.item(0)
@@ -99,14 +126,15 @@ class BatchCoordinator:
         
         # Check batch directory path
         try:
-            mzxml_folder_path = self.ui.path_mzxml.item(0).text()
+            raw_folder_path = self.ui.path_mzxml.item(0).text()
         except AttributeError:
-            mzxml_folder_path = None
+            raw_folder_path = None
         
         # Set up batch worker
         self.batch_worker = BatchWorker(
             blocks=self.parent.blocks,
-            mzxml_folder_path=mzxml_folder_path,
+            raw_folder_path=raw_folder_path,
+            ms_only=self.parent.ms_only_mode,
             # Alignment settings
             alignment_list_df=self.parent.alignment_list_df,
             alignment_time_window=float(self.ui.alignment_time_window.value()),
@@ -116,10 +144,13 @@ class BatchCoordinator:
             # Calibration & Quantitation settings
             sum_spectra_calibration=sum_spectra_calibration,
             charge_carrier=charge_carrier,
+            mass_modifier=mass_modifier,
             analytes_list_df=self.parent.analytes_list_df,
+            analytes_ref_df=self.parent.analytes_ref_df,
             sum_spectrum_resolution=int(self.ui.sum_spectrum_resolution.value()),
             background_mass_window=float(self.ui.background_mass_window.value()),
             calibration_mass_window=float(self.ui.calibration_mass_window.value()),
+            calibrant_sn_cutoff=float(self.ui.calibrant_sn_cutoff.value()),
             quantitation_mz_window=float(self.ui.quantitation_mz_window.value()),
             min_calibrant_number=int(self.ui.min_calibrant_number.value()),
             min_isotopic_fraction=float(self.ui.min_isotopic_fraction.value()),
@@ -130,7 +161,8 @@ class BatchCoordinator:
                 float(self.advanced_ui.doubleSpinBox_mz2.value()),
                 float(self.advanced_ui.doubleSpinBox_mz.value()),
                 float(self.advanced_ui.doubleSpinBox_constant.value())
-            )
+            ),
+            use_peak_height=bool(self.advanced_ui.checkBox_peakHeights.isChecked())
         )
         # Move batch worker to thread
         self.batch_thread = QThread()
@@ -173,7 +205,7 @@ class BatchCoordinator:
         box.setIcon(QMessageBox.Icon.Warning)
         box.setText("Do you want to abort the batch process?")
         box.setInformativeText(
-            "The batch process will stop after the current file has been" \
+            "The batch process will stop after the current file has been " \
             "fully processed."
         )
         yes_button = box.addButton("Yes, abort", QMessageBox.ButtonRole.YesRole)
@@ -240,17 +272,28 @@ class BatchCoordinator:
         """Setup the batch progress dialog with initial state."""
         self.batch_ui.pushButton.setEnabled(True)
         self.batch_ui.label_processing.setText("Processing files...")
-        
-        if self.parent.analytes_list_df is None:
+
+        has_analytes = (
+            self.parent.analytes_list_df is not None
+            or self.parent.analytes_ref_df is not None
+        )
+
+        if not has_analytes:
             self.batch_ui.progressBar_analytes_ref.setFormat("Not performed")
             self.batch_ui.progressBar_quantitation.setFormat("Not performed")
+        elif self.parent.analytes_ref_df is not None:
+            # Reference file uploaded directly: no generation step needed.
+            self.batch_ui.progressBar_analytes_ref.setValue(100)
+            self.batch_ui.progressBar_analytes_ref.setFormat("Pre-loaded")
+            self.batch_ui.progressBar_quantitation.setValue(0)
+            self.batch_ui.progressBar_quantitation.setFormat("%p%")
         else:
             self.batch_ui.progressBar_analytes_ref.setValue(0)
             self.batch_ui.progressBar_quantitation.setValue(0)
             self.batch_ui.progressBar_analytes_ref.setFormat("%p%")
             self.batch_ui.progressBar_quantitation.setFormat("%p%")
-        
-        if self.parent.alignment_list_df is None:
+
+        if self.parent.alignment_list_df is None or self.parent.ms_only_mode:
             self.batch_ui.progressBar_alignment.setFormat("Not performed")
         else:
             self.batch_ui.progressBar_alignment.setValue(0)
