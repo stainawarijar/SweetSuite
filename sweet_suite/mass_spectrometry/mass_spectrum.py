@@ -38,9 +38,9 @@ class MassSpectrum():
             class. The list is empty when no calibration is performed.
         calibrated (tuple[np.ndarray, Figure] | tuple[None, Figure] | tuple[None, None]): Tuple
             containing an array with calibrated data and a figure showing
-            the calibration. ``(None, Figure)`` if calibration failed due to
+            the calibration. `(None, Figure)` if calibration failed due to
             insufficient calibrants (the figure shows which calibrants were
-            found). ``(None, None)`` if no calibrants were provided.
+            found). `(None, None)` if no calibrants were provided.
         data_calibrated (np.ndarray | None): Array with calibrated MS data.
             If calibration failed, this is set to `None`. When no calibration 
             was performed (an empty `calibrants` list), this will be set to 
@@ -139,10 +139,10 @@ class MassSpectrum():
             A tuple containing calibrated data and a figure visualizing the
             fitting. The calibrated data is a 2D array with adjusted m/z values 
             in one column and intensities in the second column. 
-            Returns ``(None, Figure)`` if the minimum number of calibrants is 
+            Returns `(None, Figure)` if the minimum number of calibrants is 
             not reached; the figure shows the calibrants that were found above 
             the S/N cut-off.
-            Returns ``(None, None)`` if the list with calibrants is empty.
+            Returns `(None, None)` if the list with calibrants is empty.
         """
         # Check if calibrants were provided.
         if len(self.calibrants) == 0:
