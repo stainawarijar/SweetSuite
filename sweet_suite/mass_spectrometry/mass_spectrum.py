@@ -36,9 +36,11 @@ class MassSpectrum():
             `time` to create the sum spectrum. Only applicable to LC data.
         calibrants (list[Calibrant]): List with instances of the `Calibrant`
             class. The list is empty when no calibration is performed.
-        calibrated (tuple[np.ndarray, Figure] | tuple[None, None]): Tuple
+        calibrated (tuple[np.ndarray, Figure] | tuple[None, Figure] | tuple[None, None]): Tuple
             containing an array with calibrated data and a figure showing
-            the calibration. (None, None) if calibration failed.
+            the calibration. `(None, Figure)` if calibration failed due to
+            insufficient calibrants (the figure shows which calibrants were
+            found). `(None, None)` if no calibrants were provided.
         data_calibrated (np.ndarray | None): Array with calibrated MS data.
             If calibration failed, this is set to `None`. When no calibration 
             was performed (an empty `calibrants` list), this will be set to 
@@ -120,7 +122,7 @@ class MassSpectrum():
         
         return calibrants
 
-    def calibrate(self) -> tuple[np.ndarray, Figure] | tuple[None, None]:
+    def calibrate(self) -> tuple[np.ndarray, Figure] | tuple[None, Figure] | tuple[None, None]:
         """Calibrate mass spectrum based on a specified list of calibrants.
 
         Calibration is performed based on a list of exact m/z values
@@ -137,8 +139,10 @@ class MassSpectrum():
             A tuple containing calibrated data and a figure visualizing the
             fitting. The calibrated data is a 2D array with adjusted m/z values 
             in one column and intensities in the second column. 
-            Returns `None` if the minimum number of  calibrants is not reached, 
-            or if the list with calibrants is empty.
+            Returns `(None, Figure)` if the minimum number of calibrants is 
+            not reached; the figure shows the calibrants that were found above 
+            the S/N cut-off.
+            Returns `(None, None)` if the list with calibrants is empty.
         """
         # Check if calibrants were provided.
         if len(self.calibrants) == 0:
