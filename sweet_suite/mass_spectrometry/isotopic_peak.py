@@ -80,8 +80,8 @@ class IsotopicPeak:
         a point whose intensity is strictly greater than both its immediate
         neighbours. Among all local maxima, the one with the highest
         intensity is selected. If no local maximum is found (e.g. the
-        window captures only a monotone slope), the intensity corresponding
-        to the m/z value nearest to `mz_exact` is returned as a fallback.
+        window captures only a monotone slope), the global maximum intensity
+        is returned as a fallback.
         """
         if len(self.data) == 0:
             return 0.0
