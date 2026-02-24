@@ -101,11 +101,11 @@ class IsotopicPeak:
             return float(intensities[max_idx])
 
         # Fallback: no interior local max → use highest intensity point.
-        self.logger.info(
-            f"No local maximum found for m/z {self.mz_exact:.4f} "
-            f"(window={self.integration_mz_window:.4f} Th). "
-            f"Using highest intensity point as fallback."
-        )
+        # self.logger.info(
+        #     f"No local maximum found for m/z {self.mz_exact:.4f} "
+        #     f"(window={self.integration_mz_window:.4f} Th). "
+        #     f"Using highest intensity point as fallback."
+        # )
         return float(np.max(intensities))
 
     def get_background_and_noise(
