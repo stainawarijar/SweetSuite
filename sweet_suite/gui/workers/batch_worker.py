@@ -901,13 +901,13 @@ class BatchWorker(QObject):
                     return None
 
                 # Read xy file.
-                # If empty, show warning and continue to next file.
+                # If reading fails, show warning and continue to next file.
                 try:
                     file_name = os.path.splitext(os.path.basename(path))[0]
                     data_uncalibrated = self.read_xy_file(path)
-                except ValueError:
+                except ValueError as exc:
                     self.logger.warning(
-                        f"{file_name}.xy contains no data. "
+                        f"Failed to read {file_name}.xy: {exc}. "
                         "Continuing with the next file."
                     )
                     percent = round((idx + 1) / n * 100)
