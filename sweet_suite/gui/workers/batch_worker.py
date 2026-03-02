@@ -820,6 +820,15 @@ class BatchWorker(QObject):
                 percent = round((idx + 1) / n * 100)
                 self.quantitation_progress.emit(percent)
 
+        # If no files produced output, the temp CSV is empty.
+        # Avoid pd.read_csv raising EmptyDataError; return None instead.
+        if header:
+            self.logger.warning(
+                "No mzXML files contained data. Quantitation produced no results."
+            )
+            os.remove(temp_csv_path)
+            return None
+
         # Read the accumulated CSV file and delete it.
         quantitation_results = pd.read_csv(temp_csv_path)
         os.remove(temp_csv_path)
@@ -991,6 +1000,15 @@ class BatchWorker(QObject):
                 # Update percentage of processed files.
                 percent = round((idx + 1) / n * 100)
                 self.quantitation_progress.emit(percent)
+
+        # If no files produced output, the temp CSV is empty.
+        # Avoid pd.read_csv raising EmptyDataError; return None instead.
+        if header:
+            self.logger.warning(
+                "No xy files contained data. Quantitation produced no results."
+            )
+            os.remove(temp_csv_path)
+            return None
 
         # Read the accumulated CSV file and delete it.
         quantitation_results = pd.read_csv(temp_csv_path)
