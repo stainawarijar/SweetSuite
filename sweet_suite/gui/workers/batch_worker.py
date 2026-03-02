@@ -686,7 +686,7 @@ class BatchWorker(QObject):
         # Loop over mzXML file paths and create mass spectra.
         # Keep track of number of processed files.
         n = len(mzxml_file_paths)
-        header = True  # Set to `false` after first non-empty mzXML file is processed.
+        header = True  # Set to False after first non-empty mzXML file is processed.
         with PdfPages(pdf_path) as pdf:
             for idx, path in enumerate(mzxml_file_paths):
 
@@ -891,7 +891,7 @@ class BatchWorker(QObject):
         # Loop over xy file paths and create mass spectra.
         # Keep track of number of processed files.
         n = len(xy_file_paths)
-        header = True  # Set to false after first non-empty file is processed.
+        header = True  # Set to False after first non-empty file is processed.
         with PdfPages(pdf_path) as pdf:
             for idx, path in enumerate(xy_file_paths):
                 # Check if stop was requested.
