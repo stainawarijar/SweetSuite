@@ -705,6 +705,8 @@ class BatchWorker(QObject):
                         f"{mzxml.file_name}.mzXML contains no data. " 
                         "Continuing with the next file." 
                     )
+                    percent = round((idx + 1) / n * 100)
+                    self.quantitation_progress.emit(percent)
                     continue
 
                 # List to collect `MassSpectrum` instances.
@@ -908,6 +910,8 @@ class BatchWorker(QObject):
                         f"{file_name}.xy contains no data. "
                         "Continuing with the next file."
                     )
+                    percent = round((idx + 1) / n * 100)
+                    self.quantitation_progress.emit(percent)
                     continue
 
                 # Determine calibration for MS-only mode.
