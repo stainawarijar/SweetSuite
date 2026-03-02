@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Charge carrier isotopes are now considered when calculating theoretical relative isotopologue distributions.
 
 ### Changed
-- The method for determining peak heights (used for S/N determination and optionally for quantitation) now reports the highest-intensity local maximum within the specified quantitation window, insteadof the global maximum. If no local maximum is detected, the global maximum is still reported as a fallback.
+- The method for determining peak heights (used for S/N determination and optionally for quantitation) now reports the highest-intensity local maximum within the specified quantitation window, instead of the global maximum. If no local maximum is detected, the global maximum is still reported as a fallback.
 - The `InputAnalyte.get_isotopologues()` method was replaced. Previously it used `itertools.product` to enumerate all combinations of heavy isotopes (combinatorial explosion). It now delegates to a new `compute_distribution()` method that uses sequential convolution, which is algorithmically more efficient.
   
 ### Fixed
