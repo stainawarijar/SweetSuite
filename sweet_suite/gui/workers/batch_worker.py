@@ -1,6 +1,7 @@
 from datetime import datetime
 import logging
 import os
+import warnings
 
 import matplotlib
 matplotlib.use("Agg")
@@ -511,30 +512,38 @@ class BatchWorker(QObject):
         """
         try:
             # Read the xy file as space or tab-delimited data
-            data = np.loadtxt(file_path)
-            
-            # Ensure it's 2D with shape (n, 2)
-            if data.ndim == 1:
-                # If 1D, reshape to (1, 2) assuming single data point
-                data = data.reshape(1, -1)
-            
-            if data.shape[1] != 2:
-                raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
-            
-            # Shift intensities so the minimum is zero if any are negative.
-            min_intensity = data[:, 1].min()
-            if min_intensity < 0:
-                data[:, 1] -= min_intensity
-                self.logger.info(
-                    f"Negative intensities detected in {os.path.basename(file_path)}: "
-                    f"shifted all intensities by {-min_intensity:.6g} to baseline zero"
-                )
-            
-            return data
-            
+            # Suppress the UserWarning numpy emits for empty files; we handle
+            # that case ourselves via the size check below.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                data = np.loadtxt(file_path)
         except Exception as e:
             self.logger.error(f"Error reading xy file {file_path}: {str(e)}")
             raise
+
+        # Validate shape outside the try/except so that ValueError propagates
+        # to the caller without being logged as an error here.
+        if data.size == 0:
+            raise ValueError(f"Expected 2 columns, got 0")
+
+        # Ensure it's 2D with shape (n, 2)
+        if data.ndim == 1:
+            # If 1D, reshape to (1, 2) assuming single data point
+            data = data.reshape(1, -1)
+
+        if data.shape[1] != 2:
+            raise ValueError(f"Expected 2 columns, got {data.shape[1]}")
+
+        # Shift intensities so the minimum is zero if any are negative.
+        min_intensity = data[:, 1].min()
+        if min_intensity < 0:
+            data[:, 1] -= min_intensity
+            self.logger.info(
+                f"Negative intensities detected in {os.path.basename(file_path)}: "
+                f"shifted all intensities by {-min_intensity:.6g} to baseline zero"
+            )
+
+        return data
 
     def align_mzxml_files(self, mzxml_file_paths: list[str]) -> bool:
         """Align retention times of mzXML files in batch process.
@@ -677,8 +686,10 @@ class BatchWorker(QObject):
         # Loop over mzXML file paths and create mass spectra.
         # Keep track of number of processed files.
         n = len(mzxml_file_paths)
+        header = True  # Set to False after first non-empty mzXML file is processed.
         with PdfPages(pdf_path) as pdf:
             for idx, path in enumerate(mzxml_file_paths):
+
                 # Check if stop was requested.
                 if self.stop_requested:
                     self.logger.info("BatchWorker stop requested during quantitation")
@@ -687,6 +698,16 @@ class BatchWorker(QObject):
 
                 # Read mzXML file.
                 mzxml = Mzxml(path)
+
+                # If the mzXML file is empty, continue with next file.
+                if mzxml.retention_times.size == 0:
+                    self.logger.warning(
+                        f"{mzxml.file_name}.mzXML contains no data. " 
+                        "Continuing with the next file." 
+                    )
+                    percent = round((idx + 1) / n * 100)
+                    self.quantitation_progress.emit(percent)
+                    continue
 
                 # List to collect `MassSpectrum` instances.
                 mass_spectra = []
@@ -787,7 +808,7 @@ class BatchWorker(QObject):
                 )
             
                 # Append output to temporary CSV file.
-                if idx > 0:
+                if not header:
                     output.to_csv(
                         temp_csv_path, mode="a", index=False, header=False
                     )
@@ -795,10 +816,20 @@ class BatchWorker(QObject):
                     output.to_csv(
                         temp_csv_path, mode="a", index=False, header=True
                     )
+                    header = False  # Only a header for the first processed file.
                 
                 # Update percentage of processed files.
                 percent = round((idx + 1) / n * 100)
                 self.quantitation_progress.emit(percent)
+
+        # If no files produced output, the temp CSV is empty.
+        # Avoid pd.read_csv raising EmptyDataError; return None instead.
+        if header:
+            self.logger.warning(
+                "No mzXML files contained data. Quantitation produced no results."
+            )
+            os.remove(temp_csv_path)
+            return None
 
         # Read the accumulated CSV file and delete it.
         quantitation_results = pd.read_csv(temp_csv_path)
@@ -860,6 +891,7 @@ class BatchWorker(QObject):
         # Loop over xy file paths and create mass spectra.
         # Keep track of number of processed files.
         n = len(xy_file_paths)
+        header = True  # Set to False after first non-empty file is processed.
         with PdfPages(pdf_path) as pdf:
             for idx, path in enumerate(xy_file_paths):
                 # Check if stop was requested.
@@ -869,8 +901,18 @@ class BatchWorker(QObject):
                     return None
 
                 # Read xy file.
-                file_name = os.path.splitext(os.path.basename(path))[0]
-                data_uncalibrated = self.read_xy_file(path)
+                # If reading fails, show warning and continue to next file.
+                try:
+                    file_name = os.path.splitext(os.path.basename(path))[0]
+                    data_uncalibrated = self.read_xy_file(path)
+                except ValueError as exc:
+                    self.logger.warning(
+                        f"Failed to read {file_name}.xy: {exc}. "
+                        "Continuing with the next file."
+                    )
+                    percent = round((idx + 1) / n * 100)
+                    self.quantitation_progress.emit(percent)
+                    continue
 
                 # Determine calibration for MS-only mode.
                 # Calibrate if calibrants are specified in the analytes list.
@@ -949,7 +991,7 @@ class BatchWorker(QObject):
                 )
             
                 # Append output to temporary CSV file.
-                if idx > 0:
+                if not header:
                     output.to_csv(
                         temp_csv_path, mode="a", index=False, header=False
                     )
@@ -957,10 +999,20 @@ class BatchWorker(QObject):
                     output.to_csv(
                         temp_csv_path, mode="a", index=False, header=True
                     )
+                    header = False
                 
                 # Update percentage of processed files.
                 percent = round((idx + 1) / n * 100)
                 self.quantitation_progress.emit(percent)
+
+        # If no files produced output, the temp CSV is empty.
+        # Avoid pd.read_csv raising EmptyDataError; return None instead.
+        if header:
+            self.logger.warning(
+                "No xy files contained data. Quantitation produced no results."
+            )
+            os.remove(temp_csv_path)
+            return None
 
         # Read the accumulated CSV file and delete it.
         quantitation_results = pd.read_csv(temp_csv_path)
