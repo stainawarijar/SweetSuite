@@ -66,8 +66,8 @@ def fit_power(
 
 
 def plot_fit(
-        times_observed: list[float],
-        times_required: list[float],
+        times_observed: np.ndarray,
+        times_required: np.ndarray,
         fit_coeffs: np.ndarray,
         title: str
 ) -> Figure:
@@ -82,9 +82,9 @@ def plot_fit(
     more accurate the retention time alignment.
 
     Args:
-        times_observed: A list with observed retention times for each 
+        times_observed: 1D NumPy array with observed retention times for each 
             alignment feature.
-        times_required: A list with required retention times for each
+        times_required: 1D NumPy array with required retention times for each
             alignment feature.
         fit_coeffs: An array with fit coefficients ([a, b, c] or [a, b]).
         title: Title for the plot.
@@ -97,13 +97,15 @@ def plot_fit(
     if len(fit_coeffs) == 3:
         a, b, c = fit_coeffs[0], fit_coeffs[1], fit_coeffs[2]
         ar, br, cr = np.round(a, 2), np.round(b, 2), np.round(c, 2)
-        function = fr"Power fit: $y = {ar}x^{{{br}}} + {cr}$"
+        sign_c = "-" if cr < 0 else "+"
+        function = fr"Power fit: $y = {ar}x^{{{br}}} {sign_c} {abs(cr)}$"
         times_adjusted = a * times_observed**b + c
         y_fit = a * x_fit **b + c
     else:
         a, b = fit_coeffs[0], fit_coeffs[1]
         ar, br = np.round(a, 2), np.round(b, 2)
-        function = fr"Linear fit: $y = {ar}x + {br}$"
+        sign_b = "-" if br < 0 else "+"
+        function = fr"Linear fit: $y = {ar}x {sign_b} {abs(br)}$"
         times_adjusted = a * times_observed + b
         y_fit = a * x_fit + b
     

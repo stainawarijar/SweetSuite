@@ -281,8 +281,8 @@ class Mzxml:
             return
 
         # Create the plot
-        times_observed = [eic.maximum[0] for eic in eics]
-        times_required = [eic.time_required for eic in eics]
+        times_observed = np.array([eic.maximum[0] for eic in eics])
+        times_required = np.array([eic.time_required for eic in eics])
         plot = alignment.plot_fit(
             times_observed=times_observed,
             times_required=times_required,
