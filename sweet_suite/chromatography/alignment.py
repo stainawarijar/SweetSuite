@@ -97,13 +97,15 @@ def plot_fit(
     if len(fit_coeffs) == 3:
         a, b, c = fit_coeffs[0], fit_coeffs[1], fit_coeffs[2]
         ar, br, cr = np.round(a, 2), np.round(b, 2), np.round(c, 2)
-        function = fr"Power fit: $y = {ar}x^{{{br}}} + {cr}$"
+        sign_c = "-" if cr < 0 else "+"
+        function = fr"Power fit: $y = {ar}x^{{{br}}} {sign_c} {abs(cr)}$"
         times_adjusted = a * times_observed**b + c
         y_fit = a * x_fit **b + c
     else:
         a, b = fit_coeffs[0], fit_coeffs[1]
         ar, br = np.round(a, 2), np.round(b, 2)
-        function = fr"Linear fit: $y = {ar}x + {br}$"
+        sign_b = "-" if br < 0 else "+"
+        function = fr"Linear fit: $y = {ar}x {sign_b} {abs(br)}$"
         times_adjusted = a * times_observed + b
         y_fit = a * x_fit + b
     

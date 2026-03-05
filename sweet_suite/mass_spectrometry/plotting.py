@@ -38,9 +38,11 @@ def plot_polynomial(
     # Unrounded and rounded polynomial coefficients.
     a, b, c = poly_func[0], poly_func[1], poly_func[2]
     ar, br, cr = np.round(a, 3), np.round(b, 3), np.round(c, 3)
+    sign_b = "-" if b < 0 else "+"
+    sign_c = "-" if c < 0 else "+"
     
     # Function to show in plot.
-    function = fr"Fit: $y = {ar}x^{{{2}}} + {br}x + {cr}$"
+    function = fr"Fit: $y = {ar}x^{{{2}}} {sign_b} {abs(br)}x {sign_c} {abs(cr)}$"
     x_fit = np.linspace(np.min(mzs_observed), np.max(mzs_observed), 100) 
     y_fit = poly_func(x_fit)
 
