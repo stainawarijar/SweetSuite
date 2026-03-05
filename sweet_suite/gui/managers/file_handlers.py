@@ -115,14 +115,10 @@ class FileHandlers:
             df["required"].astype(str)
             .str.replace(r"\s+", "", regex=True)
         )
-        # Infer appropriate data type after replacement.
-        # infer_objects() attempts to convert object dtype to a more specific type.
-        # copy=False modifies in-place and suppresses pandas FutureWarning
-        # about automatic downcasting.
-        df["required"] = (
-            df["required"].replace(["", "nan"], np.nan)
-            .infer_objects(copy=False)
-        )
+        # Replace empty strings and "nan" strings with actual NaN.
+        # Using mask() avoids the pandas FutureWarning about deprecated
+        # downcasting behavior in replace().
+        df["required"] = df["required"].mask(df["required"].isin(["", "nan"]))
         
         # Update data container.
         self.parent.alignment_list_df = df
