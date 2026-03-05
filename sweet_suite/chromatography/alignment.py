@@ -66,8 +66,8 @@ def fit_power(
 
 
 def plot_fit(
-        times_observed: list[float],
-        times_required: list[float],
+        times_observed: np.ndarray,
+        times_required: np.ndarray,
         fit_coeffs: np.ndarray,
         title: str
 ) -> Figure:
