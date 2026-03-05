@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.2]
 ### Fixed
 - Fixed a bug where aligning a chromatogram based on a linear fit caused
-the program to give an error message.
+  the program to give an error message.
 
 
 ## [0.2.1]
