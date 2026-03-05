@@ -82,9 +82,9 @@ def plot_fit(
     more accurate the retention time alignment.
 
     Args:
-        times_observed: A list with observed retention times for each 
+        times_observed: 1D NumPy array with observed retention times for each 
             alignment feature.
-        times_required: A list with required retention times for each
+        times_required: 1D NumPy array with required retention times for each
             alignment feature.
         fit_coeffs: An array with fit coefficients ([a, b, c] or [a, b]).
         title: Title for the plot.
