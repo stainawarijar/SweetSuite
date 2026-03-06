@@ -67,6 +67,7 @@ class BatchWorker(QObject):
             quadratic_coeffs: tuple[float, float, float],
             mass_modifier: str | None = None,
             use_peak_height: bool = False,
+            save_xy: bool = False,
             parent = None
     ):
         super().__init__(parent)
@@ -97,6 +98,7 @@ class BatchWorker(QObject):
         self.quadratic_mz_window = quadratic_mz_window
         self.quadratic_coeffs = quadratic_coeffs
         self.use_peak_height = use_peak_height
+        self.save_xy = save_xy
         self.excel_path = self.get_output_excel_path()
         self.stop_requested = False
 
@@ -683,6 +685,13 @@ class BatchWorker(QObject):
         with open(temp_csv_path, "w", newline="") as f:
             pass
 
+        # Create output folder for .xy files when requested.
+        if self.save_xy:
+            xy_folder = os.path.join(
+                self.raw_folder_path, f"xy_{self.start_time}"
+            )
+            os.makedirs(xy_folder, exist_ok=True)
+
         # Loop over mzXML file paths and create mass spectra.
         # Keep track of number of processed files.
         n = len(mzxml_file_paths)
@@ -794,7 +803,17 @@ class BatchWorker(QObject):
                             f" ± {mass_spectrum.time_window} seconds) for "
                             f"{os.path.basename(path)}"
                         )
-                    
+
+                    # Write .xy file when requested.
+                    if self.save_xy:
+                        mass_spectrum.write_xy(
+                            folder=xy_folder,
+                            calibration_enabled=len(calibrants_list) > 0
+                        )
+                        self.logger.info(
+                            f"Saved .xy file for {mass_spectrum.name}"
+                        )
+
                     # Add mass spectrum to list.
                     mass_spectra.append(mass_spectrum)
                 
@@ -888,6 +907,13 @@ class BatchWorker(QObject):
         with open(temp_csv_path, "w", newline="") as f:
             pass
 
+        # Create output folder for .xy files when requested.
+        if self.save_xy:
+            xy_folder = os.path.join(
+                self.raw_folder_path, f"xy_{self.start_time}"
+            )
+            os.makedirs(xy_folder, exist_ok=True)
+
         # Loop over xy file paths and create mass spectra.
         # Keep track of number of processed files.
         n = len(xy_file_paths)
@@ -979,7 +1005,19 @@ class BatchWorker(QObject):
                     self.logger.info(
                         f"Skipped calibration of spectrum for {file_name}"
                     )
-                
+
+                # Write calibrated .xy file when requested and calibration succeeded.
+                if self.save_xy and len(calibrants_list) > 0:
+                    mass_spectrum.write_xy(
+                        folder=xy_folder,
+                        calibration_enabled=True,
+                        write_on_failure=False
+                    )
+                    if mass_spectrum.data_calibrated is not None:
+                        self.logger.info(
+                            f"Saved calibrated .xy file for {file_name}"
+                        )
+
                 # Build a long table with quantitation results.
                 # For MS-only mode, we have a single mass spectrum per file.
                 output = ms_tables.build_quantitation_table(

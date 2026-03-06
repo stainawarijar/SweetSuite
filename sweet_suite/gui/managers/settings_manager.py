@@ -219,6 +219,9 @@ class SettingsManager:
             ),
             "use_peak_height": bool(
                 self.advanced_ui.checkBox_peakHeights.isChecked()
+            ),
+            "save_xy": bool(
+                self.advanced_ui.checkBox_save_xy.isChecked()
             )
         }
     
@@ -280,4 +283,7 @@ class SettingsManager:
         )))
         self.advanced_ui.checkBox_peakHeights.setChecked(bool(eval(str(settings.get(
             "use_peak_height", self.advanced_ui.checkBox_peakHeights.isChecked()
+        )))))
+        self.advanced_ui.checkBox_save_xy.setChecked(bool(eval(str(settings.get(
+            "save_xy", self.advanced_ui.checkBox_save_xy.isChecked()
         )))))
