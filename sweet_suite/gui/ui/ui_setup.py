@@ -57,6 +57,9 @@ class UISetup:
         ui.actionAdvanced_settings.setIcon(QIcon(os.path.join(
             icon_path, "actionAdvanced_settings.svg"
         )))
+        ui.actionVisualize_mass_spectrum.setIcon(QIcon(os.path.join(
+            icon_path, "actionVisualize_mass_spectrum.svg"
+        )))
         
         # Help menu
         ui.actionDocumentation.setIcon(QIcon(os.path.join(
