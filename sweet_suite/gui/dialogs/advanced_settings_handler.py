@@ -22,10 +22,10 @@ class AdvancedSettingsHandler:
         self.ui.setupUi(self.dialog)
         self.promote_to_scientific_spinbox()
         self.setup_quadratic_toggle()
-        self._setup_window_flags()
-        self._connect_buttons()
+        self.setup_window_flags()
+        self.connect_buttons()
 
-    def _setup_window_flags(self) -> None:
+    def setup_window_flags(self) -> None:
         """Remove the X close button from the dialog."""
         self.dialog.setWindowFlags(
             Qt.WindowType.Dialog |
@@ -33,12 +33,12 @@ class AdvancedSettingsHandler:
             Qt.WindowType.WindowTitleHint
         )
 
-    def _connect_buttons(self) -> None:
+    def connect_buttons(self) -> None:
         """Connect OK and Cancel buttons to accept/reject."""
         self.ui.pushButton_apply_advanced_settings.clicked.connect(self.dialog.accept)
         self.ui.pushButton_cancel_advanced_settings.clicked.connect(self.dialog.reject)
 
-    def _snapshot_settings(self) -> dict:
+    def snapshot_settings(self) -> dict:
         """Capture current settings values for cancel/revert."""
         return {
             "quadratic": self.ui.checkBox_quadratic.isChecked(),
@@ -49,7 +49,7 @@ class AdvancedSettingsHandler:
             "save_xy": self.ui.checkBox_save_xy.isChecked(),
         }
 
-    def _restore_settings(self, snapshot: dict) -> None:
+    def restore_settings(self, snapshot: dict) -> None:
         """Restore settings from a snapshot."""
         self.ui.checkBox_quadratic.setChecked(snapshot["quadratic"])
         self.ui.doubleSpinBox_mz2.setValue(snapshot["mz2"])
@@ -60,7 +60,7 @@ class AdvancedSettingsHandler:
 
     def setup_quadratic_toggle(self) -> None:
         """Disable coefficient inputs until the quadratic checkbox is checked."""
-        self._quadratic_widgets = [
+        self.quadratic_widgets = [
             self.ui.doubleSpinBox_mz2,
             self.ui.doubleSpinBox_mz,
             self.ui.doubleSpinBox_constant,
@@ -72,22 +72,22 @@ class AdvancedSettingsHandler:
         ]
         # Set initial state based on checkbox
         checked = self.ui.checkBox_quadratic.isChecked()
-        for widget in self._quadratic_widgets:
+        for widget in self.quadratic_widgets:
             widget.setEnabled(checked)
         # Connect checkbox to toggle handler
-        self.ui.checkBox_quadratic.toggled.connect(self._on_quadratic_toggled)
+        self.ui.checkBox_quadratic.toggled.connect(self.on_quadratic_toggled)
 
-    def _on_quadratic_toggled(self, checked: bool) -> None:
+    def on_quadratic_toggled(self, checked: bool) -> None:
         """Enable or disable coefficient inputs when checkbox changes."""
-        for widget in self._quadratic_widgets:
+        for widget in self.quadratic_widgets:
             widget.setEnabled(checked)
 
     def show_dialog(self) -> None:
         """Show the advanced settings dialog."""
-        snapshot = self._snapshot_settings()
+        snapshot = self.snapshot_settings()
         result = self.dialog.exec()
         if result == QDialog.DialogCode.Rejected:
-            self._restore_settings(snapshot)
+            self.restore_settings(snapshot)
     
     def promote_to_scientific_spinbox(self) -> None:
         """Enable scientific notation for the spinboxes inside 
