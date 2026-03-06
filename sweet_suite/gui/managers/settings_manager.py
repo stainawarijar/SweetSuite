@@ -10,6 +10,26 @@ from ...utils import utils
 
 class SettingsManager:
     """Handles settings import, export, and reset operations."""
+
+    _BOOL_TRUE  = {"true",  "1", "yes"}
+    _BOOL_FALSE = {"false", "0", "no"}
+
+    @staticmethod
+    def parse_bool(value, default: bool) -> bool:
+        """Safely parse a boolean setting from a CSV value.
+
+        Accepts True/False Python bools directly, or the strings
+        'true'/'false'/'1'/'0'/'yes'/'no' (case-insensitive).
+        Returns `default` for any unrecognised value.
+        """
+        if isinstance(value, bool):
+            return value
+        lowered = str(value).strip().lower()
+        if lowered in SettingsManager._BOOL_TRUE:
+            return True
+        if lowered in SettingsManager._BOOL_FALSE:
+            return False
+        return default
     
     def __init__(self, parent, ui, advanced_ui):
         """Initialize settings manager.
@@ -219,6 +239,9 @@ class SettingsManager:
             ),
             "use_peak_height": bool(
                 self.advanced_ui.checkBox_peakHeights.isChecked()
+            ),
+            "save_xy": bool(
+                self.advanced_ui.checkBox_save_xy.isChecked()
             )
         }
     
@@ -261,14 +284,16 @@ class SettingsManager:
         self.ui.min_isotopic_fraction.setValue(float(settings.get(
             "min_isotopic_fraction", self.ui.min_isotopic_fraction.value()
         )))
-        self.ui.quantify_aligned.setChecked(bool(eval(str(settings.get(
-            "quantitate_aligned_only", self.ui.quantify_aligned.isChecked()
-        )))))
+        self.ui.quantify_aligned.setChecked(self.parse_bool(
+            settings.get("quantitate_aligned_only", self.ui.quantify_aligned.isChecked()),
+            default=self.ui.quantify_aligned.isChecked()
+        ))
         
         # Advanced settings
-        self.advanced_ui.checkBox_quadratic.setChecked(bool(eval(str(settings.get(
-            "quadratic_mass_window", self.advanced_ui.checkBox_quadratic.isChecked()
-        )))))
+        self.advanced_ui.checkBox_quadratic.setChecked(self.parse_bool(
+            settings.get("quadratic_mass_window", self.advanced_ui.checkBox_quadratic.isChecked()),
+            default=self.advanced_ui.checkBox_quadratic.isChecked()
+        ))
         self.advanced_ui.doubleSpinBox_mz2.setValue(float(settings.get(
             "quadratic_mz2", self.advanced_ui.doubleSpinBox_mz2.value()
         )))
@@ -278,6 +303,12 @@ class SettingsManager:
         self.advanced_ui.doubleSpinBox_constant.setValue(float(settings.get(
             "quadratic_constant", self.advanced_ui.doubleSpinBox_constant.value()
         )))
-        self.advanced_ui.checkBox_peakHeights.setChecked(bool(eval(str(settings.get(
-            "use_peak_height", self.advanced_ui.checkBox_peakHeights.isChecked()
-        )))))
+        self.advanced_ui.checkBox_peakHeights.setChecked(self.parse_bool(
+            settings.get("use_peak_height", self.advanced_ui.checkBox_peakHeights.isChecked()),
+            default=self.advanced_ui.checkBox_peakHeights.isChecked()
+        ))
+        self.advanced_ui.checkBox_save_xy.setChecked(self.parse_bool(
+            settings.get("save_xy", self.advanced_ui.checkBox_save_xy.isChecked()),
+            default=self.advanced_ui.checkBox_save_xy.isChecked()
+        ))
+

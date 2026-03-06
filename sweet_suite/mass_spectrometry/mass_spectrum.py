@@ -322,27 +322,51 @@ class MassSpectrum():
 
         return analytes
 
-    def write_xy(self, path: str) -> None:
+    def write_xy(
+            self,
+            folder: str,
+            calibration_enabled: bool = True,
+            write_on_failure: bool = True
+    ) -> None:
         """Write m/z values and intensities to a '.xy' file.
 
-        When the spectrum was calibrated, the calibrated data is written
-        to a '.xy' file. If the spectrum was not calibrated, the uncalibrated
-        data is written to a '.xy' file. 
+        The filename and data written depend on whether calibration was
+        performed and whether it succeeded:
+
+        - Calibration disabled (`calibration_enabled=False`): writes
+        uncalibrated data to `{name}.xy` (no prefix).
+        - Calibration enabled and successful: writes calibrated data to
+        `calibrated_{name}.xy`.
+        - Calibration enabled but failed: writes uncalibrated data to
+        `uncalibrated_{name}.xy`, unless `write_on_failure` is
+        `False`, in which case nothing is written.
 
         m/z values and intensities are rounded to 8 decimals.
 
         Args:
-            path (str): Path to directory in which the '.xy' file is saved.
+            folder: Path to directory in which the '.xy' file is saved.
+            calibration_enabled: Whether calibration was attempted for this
+                spectrum. When `False`, uncalibrated data is written
+                without a prefix.
+            write_on_failure: When calibration was enabled but failed,
+                write the uncalibrated data with an `uncalibrated_` prefix.
+                When `False`, nothing is written on failure.
         """
-        if self.data_calibrated is None:
+        if not calibration_enabled:
             np.savetxt(
-                os.path.join(path, f"uncalibrated_{self.name}.xy"),
+                os.path.join(folder, f"{self.name}.xy"),
                 self.data_uncalibrated,
                 delimiter="\t", fmt="%.8f"
             )
-        else:
+        elif self.data_calibrated is not None:
             np.savetxt(
-                os.path.join(path, f"calibrated_{self.name}.xy"),
+                os.path.join(folder, f"calibrated_{self.name}.xy"),
                 self.data_calibrated,
                 delimiter="\t", fmt="%.8f"
-            )            
+            )
+        elif write_on_failure:
+            np.savetxt(
+                os.path.join(folder, f"uncalibrated_{self.name}.xy"),
+                self.data_uncalibrated,
+                delimiter="\t", fmt="%.8f"
+            )
