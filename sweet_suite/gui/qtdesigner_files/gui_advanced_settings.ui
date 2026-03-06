@@ -236,7 +236,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Save calibrated mass spectra in '.xy' format</string>
+     <string>Save mass spectra in '.xy' format</string>
     </property>
    </widget>
   </widget>

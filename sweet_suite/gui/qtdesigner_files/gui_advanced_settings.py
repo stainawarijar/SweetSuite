@@ -112,6 +112,6 @@ class Ui_advanced_settings(object):
         self.label_2.setText(_translate("advanced_settings", "+"))
         self.label_3.setText(_translate("advanced_settings", "+"))
         self.checkBox_peakHeights.setText(_translate("advanced_settings", "Report peak heights instead of areas"))
-        self.checkBox_save_xy.setText(_translate("advanced_settings", "Save calibrated mass spectra in \'.xy\' format"))
+        self.checkBox_save_xy.setText(_translate("advanced_settings", "Save mass spectra in '.xy' format"))
         self.pushButton_apply_advanced_settings.setText(_translate("advanced_settings", "OK"))
         self.pushButton_cancel_advanced_settings.setText(_translate("advanced_settings", "Cancel"))
