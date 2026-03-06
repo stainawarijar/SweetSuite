@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>401</width>
-    <height>279</height>
+    <height>319</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -239,6 +239,38 @@
      <string>Save calibrated mass spectra in '.xy' format</string>
     </property>
    </widget>
+  </widget>
+  <widget class="QPushButton" name="pushButton_apply_advanced_settings">
+   <property name="geometry">
+    <rect>
+     <x>300</x>
+     <y>280</y>
+     <width>91</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>OK</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_cancel_advanced_settings">
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>280</y>
+     <width>91</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">background-color: #8B0000;
+font-weight: bold;
+color: white;
+font-size: 10.5pt;</string>
+   </property>
+   <property name="text">
+    <string>Cancel</string>
+   </property>
   </widget>
  </widget>
  <resources/>

@@ -12,7 +12,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 class Ui_advanced_settings(object):
     def setupUi(self, advanced_settings):
         advanced_settings.setObjectName("advanced_settings")
-        advanced_settings.resize(401, 279)
+        advanced_settings.resize(401, 319)
         advanced_settings.setStyleSheet("* {\n"
 "    font-family: \'DejaVu Sans\';\n"
 "    font-size: 10pt; \n"
@@ -88,6 +88,16 @@ class Ui_advanced_settings(object):
         self.checkBox_save_xy = QtWidgets.QCheckBox(parent=self.frame_3)
         self.checkBox_save_xy.setGeometry(QtCore.QRect(10, 10, 351, 21))
         self.checkBox_save_xy.setObjectName("checkBox_save_xy")
+        self.pushButton_apply_advanced_settings = QtWidgets.QPushButton(parent=advanced_settings)
+        self.pushButton_apply_advanced_settings.setGeometry(QtCore.QRect(300, 280, 91, 31))
+        self.pushButton_apply_advanced_settings.setObjectName("pushButton_apply_advanced_settings")
+        self.pushButton_cancel_advanced_settings = QtWidgets.QPushButton(parent=advanced_settings)
+        self.pushButton_cancel_advanced_settings.setGeometry(QtCore.QRect(200, 280, 91, 31))
+        self.pushButton_cancel_advanced_settings.setStyleSheet("background-color: #8B0000;\n"
+"font-weight: bold;\n"
+"color: white;\n"
+"font-size: 10.5pt;")
+        self.pushButton_cancel_advanced_settings.setObjectName("pushButton_cancel_advanced_settings")
 
         self.retranslateUi(advanced_settings)
         QtCore.QMetaObject.connectSlotsByName(advanced_settings)
@@ -103,3 +113,5 @@ class Ui_advanced_settings(object):
         self.label_3.setText(_translate("advanced_settings", "+"))
         self.checkBox_peakHeights.setText(_translate("advanced_settings", "Report peak heights instead of areas"))
         self.checkBox_save_xy.setText(_translate("advanced_settings", "Save calibrated mass spectra in \'.xy\' format"))
+        self.pushButton_apply_advanced_settings.setText(_translate("advanced_settings", "OK"))
+        self.pushButton_cancel_advanced_settings.setText(_translate("advanced_settings", "Cancel"))

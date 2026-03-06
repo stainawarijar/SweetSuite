@@ -1,3 +1,4 @@
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog
 
 from ..widgets.scientific_spin_box import ScientificSpinBox
@@ -21,6 +22,41 @@ class AdvancedSettingsHandler:
         self.ui.setupUi(self.dialog)
         self.promote_to_scientific_spinbox()
         self.setup_quadratic_toggle()
+        self._setup_window_flags()
+        self._connect_buttons()
+
+    def _setup_window_flags(self) -> None:
+        """Remove the X close button from the dialog."""
+        self.dialog.setWindowFlags(
+            Qt.WindowType.Dialog |
+            Qt.WindowType.CustomizeWindowHint |
+            Qt.WindowType.WindowTitleHint
+        )
+
+    def _connect_buttons(self) -> None:
+        """Connect OK and Cancel buttons to accept/reject."""
+        self.ui.pushButton_apply_advanced_settings.clicked.connect(self.dialog.accept)
+        self.ui.pushButton_cancel_advanced_settings.clicked.connect(self.dialog.reject)
+
+    def _snapshot_settings(self) -> dict:
+        """Capture current settings values for cancel/revert."""
+        return {
+            "quadratic": self.ui.checkBox_quadratic.isChecked(),
+            "mz2": self.ui.doubleSpinBox_mz2.value(),
+            "mz": self.ui.doubleSpinBox_mz.value(),
+            "constant": self.ui.doubleSpinBox_constant.value(),
+            "peak_heights": self.ui.checkBox_peakHeights.isChecked(),
+            "save_xy": self.ui.checkBox_save_xy.isChecked(),
+        }
+
+    def _restore_settings(self, snapshot: dict) -> None:
+        """Restore settings from a snapshot."""
+        self.ui.checkBox_quadratic.setChecked(snapshot["quadratic"])
+        self.ui.doubleSpinBox_mz2.setValue(snapshot["mz2"])
+        self.ui.doubleSpinBox_mz.setValue(snapshot["mz"])
+        self.ui.doubleSpinBox_constant.setValue(snapshot["constant"])
+        self.ui.checkBox_peakHeights.setChecked(snapshot["peak_heights"])
+        self.ui.checkBox_save_xy.setChecked(snapshot["save_xy"])
 
     def setup_quadratic_toggle(self) -> None:
         """Disable coefficient inputs until the quadratic checkbox is checked."""
@@ -48,7 +84,10 @@ class AdvancedSettingsHandler:
 
     def show_dialog(self) -> None:
         """Show the advanced settings dialog."""
-        self.dialog.exec()
+        snapshot = self._snapshot_settings()
+        result = self.dialog.exec()
+        if result == QDialog.DialogCode.Rejected:
+            self._restore_settings(snapshot)
     
     def promote_to_scientific_spinbox(self) -> None:
         """Enable scientific notation for the spinboxes inside 

@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Option to save calibrated mass spectra as `.xy` files.
 
+### Changed
+- Added `OK` and `Cancel` buttons to the `Advanced settings` window.
+
 
 ## [0.2.2]
 ### Fixed
@@ -18,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.1]
 ### Fixed
-- Implemented a check against empty mzXML and `.xy` files to prevent crashes.
+- Implemented a check against empty `.mzXML` and `.xy` files to prevent crashes.
 
 
 ## [0.2.0]
