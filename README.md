@@ -176,7 +176,7 @@ The "Data" tab contains for each file the following outputs per analyte and per 
 **Advanced settings** (accessible via the toolbar) provide additional quantitation options:
 - *Use quadratic quantitation m/z window* — applies a charge-state-dependent quadratic m/z window defined by user-supplied polynomial coefficients instead of the fixed global window.
 - *Use peak heights instead of areas for quantitation* — replaces trapezoidal integration with the maximum intensity in the quantitation m/z window for each isotopic peak. Background subtraction then uses the average background intensity instead of the background area.
-- *Save sum spectra as .xy files* — writes each generated sum spectrum to disk as a `.xy` text file alongside the other output files.
+- *Save sum spectra as .xy files* — writes each quantitated (and, where applicable, calibrated) mass spectrum to a tab-delimited `.xy` file inside a dedicated `xy_<timestamp>/` subdirectory in the batch folder. In MS-only mode, files are only written when at least one calibrant is present.
 
 ### Viewing .xy spectra
 A built-in spectrum viewer is available under `Tools → View '.xy' mass spectrum`. After selecting a `.xy` file, an interactive plot opens inside the application. Large files are handled efficiently by dynamically resampling the displayed data as you zoom in. The standard toolbar provides zoom, pan, and save-figure controls.

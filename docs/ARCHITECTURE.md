@@ -121,6 +121,8 @@ SweetSuite/
         │   └── scientific_spin_box.py
         ├── workers/               # Background thread workers
         │   └── batch_worker.py
+        ├── viewers/               # In-app data viewers
+        │   └── xy_spectrum_viewer.py
         └── assets/                # SVG icons (Google Material Icons)
 ```
 
@@ -198,14 +200,17 @@ Interface for reading, processing, and aligning mzXML files.
   and creates one `MzxmlDataBlock` per scan.
 - **Spectrum construction** — `create_mass_spectra()` decompresses zlib data
   and unpacks interleaved m/z–intensity float arrays into 2D NumPy arrays.
-- **Sum spectra** — `get_sum_spectra()` accumulates all scans within
-  `[time ± time_window]` into a `SumSpectrum`.
-- **Retention time alignment** — `align()` orchestrates the full alignment
+- **Sum spectra** — `create_sum_spectrum(time, time_window, resolution)` accumulates
+  all scans within `[time ± time_window]` into a `SumSpectrum`, merging data
+  points within the given resolution tolerance.
+- **Retention time alignment** — three methods orchestrate the full alignment
   workflow for one file:
-  1. Extracts EICs for each `AlignmentFeature`.
-  2. Calls `alignment.fit_power()` to obtain a time-mapping function.
-  3. Rewrites the mzXML XML with adjusted `retentionTime` attributes.
-  4. Returns a `matplotlib` figure for the PDF alignment report.
+  1. `get_alignment_fit_eics(alignment_features, min_peaks)` — extracts EICs for
+     each `AlignmentFeature` and returns those that pass the S/N cut-off.
+  2. `plot_alignment_fit(fit_eics)` — fits the time-mapping function and returns a
+     `matplotlib` figure for the PDF alignment report.
+  3. `align_retention_times(fit_eics)` — rewrites the mzXML XML with adjusted
+     `retentionTime` attributes.
 
 ---
 
@@ -311,6 +316,7 @@ at one charge state into high-level metrics:
 |---|---|
 | `total_area` | Sum of per-peak trapezoidal areas (or maximum intensities when `use_peak_height=True`) |
 | `total_background` | Sum of background areas (or average background intensities when `use_peak_height=True`) |
+| `total_noise` | Sum of per-peak noise values |
 | `total_area_background_subtracted` | `total_area − total_background` |
 | `signal_to_noise` | S/N of the most abundant isotopologue |
 | `mass_error_ppm` | ppm error of the most abundant isotopologue |
@@ -438,8 +444,14 @@ UI object(s) it needs, making them independently testable.
   Promotes the three quadratic m/z-window coefficient spinboxes to the custom
   `ScientificSpinBox` widget (supports scientific-notation entry). Also manages
   the *Use peak heights instead of areas for quantitation* checkbox
-  (`checkBox_peakHeights`), whose state is read by `BatchCoordinator` at
-  batch start and persisted via `SettingsManager`.
+  (`checkBox_peakHeights`) and the *Save sum spectra as .xy files* checkbox
+  (`checkBox_save_xy`), both of which are read by `BatchCoordinator` at
+  batch start and persisted via `SettingsManager`. When `save_xy` is enabled,
+  `BatchWorker` calls `MassSpectrum.write_xy()` after quantitation, writing
+  tab-delimited `.xy` files into a dedicated `xy_<timestamp>/` subdirectory
+  inside the batch folder. The written data is the (potentially calibrated)
+  `MassSpectrum` content. In MS-only mode the file is only written when at
+  least one calibrant is present.
 
 #### ui/
 
@@ -462,18 +474,34 @@ Python classes (`Ui_MainWindow`, `Ui_advanced_settings`, `Ui_batch_status`).
 These files should not be edited by hand; re-generate them with
 `pyuic6 <file>.ui -o <file>.py` after modifying layouts in Qt Designer.
 
+#### viewers/
+
+- **`xy_spectrum_viewer.py`** — `launch_xy_viewer(parent)` opens a
+  `QFileDialog` to select a `.xy` file, loads it with `numpy.loadtxt`, and
+  shows a non-modal `QDialog` (`_XYSpectrumDialog`) with an embedded
+  `FigureCanvasQTAgg` (matplotlib Qt backend). Large files remain interactive
+  through dynamic resampling: an `xlim_changed` callback triggers
+  `_minmax_downsample` on every zoom or pan event, capping the number of
+  rendered points at `MAX_POINTS` (5 000) while always preserving per-bucket
+  min and max so no peaks are dropped. Memory is freed immediately on window
+  close via `WA_DeleteOnClose`. Triggered by `Tools → View '.xy' mass
+  spectrum` in `MainWindow.connect_signals()`.
+
 #### workers/
 
 - **`BatchWorker(QObject)`** — the core processing engine. Instantiated and
   moved to a `QThread` by `BatchCoordinator`. The `run()` method executes the
   full pipeline sequentially and emits `ref_progress`, `alignment_progress`,
   and `quantitation_progress` signals to drive the progress bar in the UI.
-  Accepts `charge_carrier` and `mass_modifier` parameters (the latter defaults
-  to `None` when no modifier is selected) and forwards them to `InputAnalyte`
-  during reference file generation. The selected modifier name is also recorded
-  in the settings sheet of the output Excel file. When a pre-loaded reference
-  DataFrame (`analytes_ref_df`) is available, the reference generation step is
-  skipped and the DataFrame is written directly to disk via `write_ref_df()`.
+  Accepts `charge_carrier`, `mass_modifier`, and `save_xy` parameters.
+  `mass_modifier` defaults to `None` when no modifier is selected.
+  `save_xy` (default `False`) triggers `MassSpectrum.write_xy()` after
+  quantitation of each spectrum, writing the (potentially calibrated) spectrum
+  as a tab-delimited `.xy` file into a `xy_<timestamp>/` subdirectory. In
+  MS-only mode this only fires when calibrants are present.
+  When a pre-loaded reference DataFrame (`analytes_ref_df`) is available,
+  the reference generation step is skipped and the DataFrame is written
+  directly to disk via `write_ref_df()`.
 
 ---
 
@@ -540,12 +568,12 @@ BatchCoordinator.start_batch_process()
      b. Retention time alignment  [if alignment list provided]
         AlignmentFeature.create_eic(Mzxml) → Eic
         Eic: compute maximum, S/N
-        alignment.fit_power(eics)   → fit coefficients
-        Mzxml.align()               → rewrite RT values in XML
-                                    → alignment PDF (matplotlib)
+        Mzxml.get_alignment_fit_eics(features, min_peaks) → fit_eics
+        Mzxml.plot_alignment_fit(fit_eics)  → alignment PDF (matplotlib)
+        Mzxml.align_retention_times(fit_eics) → rewrite RT values in XML
 
      c. Sum spectra generation  [if analytes list provided]
-        Mzxml.get_sum_spectra(time, time_window)
+        Mzxml.create_sum_spectrum(time, time_window, resolution)
           └─ SumSpectrum (per RT window)
 
      d. Calibration + quantitation  [per SumSpectrum]
