@@ -16,6 +16,7 @@ from .managers.template_manager import TemplateManager
 from .qtdesigner_files.gui_main import Ui_MainWindow
 from .ui.ui_helpers import UIHelpers
 from .ui.ui_setup import UISetup
+from .viewers.xy_spectrum_viewer import launch_xy_viewer
 
 
 class MainWindow(QMainWindow):
@@ -241,6 +242,9 @@ class MainWindow(QMainWindow):
         )
         self.ui.actionBlock_file.triggered.connect(
             self.download_block_template
+        )
+        self.ui.actionVisualize_mass_spectrum.triggered.connect(
+            lambda: launch_xy_viewer(self)
         )
 
     # --- Functions connected to signals ---

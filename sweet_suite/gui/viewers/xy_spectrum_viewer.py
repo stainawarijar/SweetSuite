@@ -1,0 +1,151 @@
+"""
+Viewer for .xy mass spectrum files.
+
+Opens a non-modal Qt dialog with an embedded matplotlib canvas.
+The dialog (and all its data) is freed as soon as it is closed.
+On zoom/pan the displayed data is resampled so large files stay fast.
+"""
+
+import logging
+import os
+
+import numpy as np
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
+from matplotlib.figure import Figure
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QDialog, QFileDialog, QVBoxLayout
+
+logger = logging.getLogger(__name__)
+
+MAX_POINTS = 5000  # max data points rendered at any zoom level
+
+
+class _Toolbar(NavigationToolbar2QT):
+    """Standard navigation toolbar with the 'Figure options' button removed."""
+    toolitems = [t for t in NavigationToolbar2QT.toolitems if t[0] not in ("Customize", "Subplots")]
+
+
+# ---------------------------------------------------------------------------
+# Downsampling — min/max per bucket (never misses a peak)
+# ---------------------------------------------------------------------------
+
+def _minmax_downsample(x: np.ndarray, y: np.ndarray, n_out: int):
+    n = len(x)
+    if n <= n_out:
+        return x, y
+
+    n_buckets = n_out // 2
+    bucket_size = n / n_buckets
+
+    out_x = np.empty(n_buckets * 2, dtype=x.dtype)
+    out_y = np.empty(n_buckets * 2, dtype=y.dtype)
+
+    for i in range(n_buckets):
+        start = int(i * bucket_size)
+        end = int((i + 1) * bucket_size)
+        if end > n:
+            end = n
+        seg_y = y[start:end]
+        i_min = start + int(np.argmin(seg_y))
+        i_max = start + int(np.argmax(seg_y))
+        if i_min <= i_max:
+            out_x[2 * i],     out_y[2 * i]     = x[i_min], y[i_min]
+            out_x[2 * i + 1], out_y[2 * i + 1] = x[i_max], y[i_max]
+        else:
+            out_x[2 * i],     out_y[2 * i]     = x[i_max], y[i_max]
+            out_x[2 * i + 1], out_y[2 * i + 1] = x[i_min], y[i_min]
+
+    return out_x, out_y
+
+
+def _get_display_data(mz, intensity, xmin, xmax):
+    mask = (mz >= xmin) & (mz <= xmax)
+    mx, my = mz[mask], intensity[mask]
+    if len(mx) > MAX_POINTS:
+        mx, my = _minmax_downsample(mx, my, MAX_POINTS)
+    return mx, my
+
+
+# ---------------------------------------------------------------------------
+# Qt dialog with embedded matplotlib canvas
+# ---------------------------------------------------------------------------
+
+class _XYSpectrumDialog(QDialog):
+    """Non-modal dialog showing one .xy spectrum. Frees data on close."""
+
+    def __init__(self, mz: np.ndarray, intensity: np.ndarray, title: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        # Delete C++ object (and Python referents) when the window is closed.
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.resize(1100, 600)
+
+        self._mz = mz
+        self._intensity = intensity
+        self._updating = False  # re-entrancy guard for xlim_changed
+
+        # --- matplotlib figure ---
+        fig = Figure(facecolor="white", tight_layout=True)
+        self._ax = fig.add_subplot(111)
+        canvas = FigureCanvasQTAgg(fig)
+        toolbar = _Toolbar(canvas, self)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(toolbar)
+        layout.addWidget(canvas)
+
+        # Initial draw with full range downsampled
+        mx, my = _get_display_data(mz, intensity, float(mz[0]), float(mz[-1]))
+        (self._line,) = self._ax.plot(mx, my, color="#003d8f", linewidth=1.5)
+        self._ax.set_xlabel("m/z", fontsize=16)
+        self._ax.set_ylabel("Intensity", fontsize=16)
+        self._ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+
+        # Resample whenever the x-axis range changes (zoom / pan / home)
+        self._ax.callbacks.connect("xlim_changed", self._on_xlim_changed)
+        canvas.draw()
+
+    def _on_xlim_changed(self, ax) -> None:
+        if self._updating:
+            return
+        self._updating = True
+        try:
+            xmin, xmax = ax.get_xlim()
+            mx, my = _get_display_data(self._mz, self._intensity, xmin, xmax)
+            self._line.set_data(mx, my)
+            ax.relim()
+            ax.autoscale_view(scalex=False)  # auto-scale Y to visible data
+            ax.figure.canvas.draw_idle()
+        finally:
+            self._updating = False
+
+
+# ---------------------------------------------------------------------------
+# Public entry point
+# ---------------------------------------------------------------------------
+
+def launch_xy_viewer(parent=None) -> None:
+    """Open a file dialog then display the spectrum in a Qt dialog window."""
+    filepath, _ = QFileDialog.getOpenFileName(
+        parent,
+        "Open mass spectrum",
+        "",
+        "XY files (*.xy);;All files (*.*)",
+    )
+    if not filepath:
+        return
+
+    logger.info("Opening XY spectrum viewer for: %s", filepath)
+
+    data = np.loadtxt(filepath, dtype=np.float64)
+    mz = data[:, 0]
+    intensity = data[:, 1]
+
+    # Ensure sorted by m/z for correct range slicing
+    if not np.all(mz[:-1] <= mz[1:]):
+        order = np.argsort(mz)
+        mz, intensity = mz[order], intensity[order]
+
+    title = f"{os.path.basename(filepath)}  ({len(mz):,} points)"
+    dialog = _XYSpectrumDialog(mz, intensity, title, parent)
+    dialog.show()  # non-modal: multiple spectra can be open simultaneously
