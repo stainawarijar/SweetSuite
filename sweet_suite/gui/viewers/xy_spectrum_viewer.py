@@ -83,6 +83,7 @@ class _XYSpectrumDialog(QDialog):
         self._mz = mz
         self._intensity = intensity
         self._updating = False  # re-entrancy guard for xlim_changed
+        self._full_xlim = (float(mz[0]), float(mz[-1]))  # original full range for zoom reset
 
         # --- matplotlib figure ---
         fig = Figure(facecolor="white", tight_layout=True)
@@ -103,7 +104,36 @@ class _XYSpectrumDialog(QDialog):
 
         # Resample whenever the x-axis range changes (zoom / pan / home)
         self._ax.callbacks.connect("xlim_changed", self._on_xlim_changed)
+        # Mouse-wheel zoom and double-click reset
+        canvas.mpl_connect("scroll_event", self._on_scroll)
+        canvas.mpl_connect("button_press_event", self._on_button_press)
         canvas.draw()
+
+    _ZOOM_FACTOR = 1.35  # factor applied per scroll tick
+
+    def _on_scroll(self, event) -> None:
+        """Zoom in/out on the x-axis centred on the mouse cursor."""
+        if event.inaxes is not self._ax or event.xdata is None:
+            return
+        xmin, xmax = self._ax.get_xlim()
+        scale = 1 / self._ZOOM_FACTOR if event.button == "up" else self._ZOOM_FACTOR
+        new_width = (xmax - xmin) * scale
+        # Keep the data-coordinate under the cursor stationary
+        rel = (event.xdata - xmin) / (xmax - xmin)
+        new_xmin = event.xdata - rel * new_width
+        new_xmax = event.xdata + (1.0 - rel) * new_width
+        # Clamp to data bounds
+        data_xmin, data_xmax = self._full_xlim
+        new_xmin = max(new_xmin, data_xmin)
+        new_xmax = min(new_xmax, data_xmax)
+        self._ax.set_xlim(new_xmin, new_xmax)
+        self._ax.figure.canvas.draw_idle()
+
+    def _on_button_press(self, event) -> None:
+        """Reset zoom to the full spectrum on double-click."""
+        if event.dblclick and event.inaxes is self._ax:
+            self._ax.set_xlim(self._full_xlim)
+            self._ax.figure.canvas.draw_idle()
 
     def _on_xlim_changed(self, ax) -> None:
         if self._updating:
