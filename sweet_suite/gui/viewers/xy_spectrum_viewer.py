@@ -22,7 +22,18 @@ MAX_POINTS = 5000  # max data points rendered at any zoom level
 
 class _Toolbar(NavigationToolbar2QT):
     """Standard navigation toolbar with the 'Figure options' button removed."""
-    toolitems = [t for t in NavigationToolbar2QT.toolitems if t[0] not in ("Customize", "Subplots")]
+    toolitems = [t for t in NavigationToolbar2QT.toolitems if t[0] in ("Home", "Save")]
+
+    def set_home_callback(self, callback) -> None:
+        """Register a callable that is invoked when the Home button is pressed."""
+        self._home_callback = callback
+
+    def home(self, *args) -> None:
+        """Reset the view to the full spectrum range."""
+        if hasattr(self, "_home_callback"):
+            self._home_callback()
+        else:
+            super().home(*args)
 
 
 # ---------------------------------------------------------------------------
@@ -92,10 +103,10 @@ class _XYSpectrumDialog(QDialog):
         fig = Figure(facecolor="white", tight_layout=True)
         self._ax = fig.add_subplot(111)
         canvas = FigureCanvasQTAgg(fig)
-        toolbar = _Toolbar(canvas, self)
+        self._toolbar = _Toolbar(canvas, self)
 
         layout = QVBoxLayout(self)
-        layout.addWidget(toolbar)
+        layout.addWidget(self._toolbar)
         layout.addWidget(canvas)
 
         # Initial draw with full range downsampled
@@ -105,11 +116,19 @@ class _XYSpectrumDialog(QDialog):
         self._ax.set_ylabel("Intensity", fontsize=16)
         self._ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
 
+        self._pan_x_press: float | None = None   # pixel x at drag start
+        self._pan_xlim_start: tuple | None = None  # xlim at drag start
+
+        # Wire the Home button to restore the full spectrum range.
+        self._toolbar.set_home_callback(lambda: self._ax.set_xlim(self._full_xlim))
+
         # Resample whenever the x-axis range changes (zoom / pan / home)
         self._ax.callbacks.connect("xlim_changed", self._on_xlim_changed)
-        # Mouse-wheel zoom and double-click reset
+        # Mouse-wheel zoom and click-drag pan
         canvas.mpl_connect("scroll_event", self._on_scroll)
         canvas.mpl_connect("button_press_event", self._on_button_press)
+        canvas.mpl_connect("motion_notify_event", self._on_mouse_motion)
+        canvas.mpl_connect("button_release_event", self._on_mouse_release)
         canvas.draw()
 
     _ZOOM_FACTOR = 1.35  # factor applied per scroll tick
@@ -126,7 +145,7 @@ class _XYSpectrumDialog(QDialog):
             self._ax.set_xlim(self._full_xlim)
             self._ax.figure.canvas.draw_idle()
             return
-        scale = 1 / self._ZOOM_FACTOR if event.button == "up" else self._ZOOM_FACTOR
+        scale = 1 / self._ZOOM_FACTOR if event.button == "down" else self._ZOOM_FACTOR
         new_width = width * scale
         # Keep the data-coordinate under the cursor stationary
         rel = (event.xdata - xmin) / width
@@ -139,9 +158,43 @@ class _XYSpectrumDialog(QDialog):
         self._ax.set_xlim(new_xmin, new_xmax)
 
     def _on_button_press(self, event) -> None:
-        """Reset zoom to the full spectrum on double-click."""
-        if event.dblclick and event.inaxes is self._ax:
-            self._ax.set_xlim(self._full_xlim)
+        """Start a pan drag on left-click."""
+        if event.button != 1 or event.dblclick or event.inaxes is not self._ax:
+            return
+        self._pan_x_press = event.x
+        self._pan_xlim_start = self._ax.get_xlim()
+
+    def _on_mouse_motion(self, event) -> None:
+        """Pan the spectrum while the left mouse button is held."""
+        if self._pan_x_press is None or self._pan_xlim_start is None:
+            return
+        if event.x is None:
+            return
+        ax = self._ax
+        xlim = self._pan_xlim_start
+        ax_width_px = ax.get_window_extent().width
+        if ax_width_px == 0:
+            return
+        data_range = xlim[1] - xlim[0]
+        # Dragging right shifts the view left (negative shift in data coords)
+        dx_data = -(event.x - self._pan_x_press) / ax_width_px * data_range
+        new_xmin = xlim[0] + dx_data
+        new_xmax = xlim[1] + dx_data
+        # Clamp to data bounds while preserving the window width
+        data_xmin, data_xmax = self._full_xlim
+        if new_xmin < data_xmin:
+            new_xmax += data_xmin - new_xmin
+            new_xmin = data_xmin
+        if new_xmax > data_xmax:
+            new_xmin -= new_xmax - data_xmax
+            new_xmax = data_xmax
+        ax.set_xlim(new_xmin, new_xmax)
+
+    def _on_mouse_release(self, event) -> None:
+        """End a pan drag."""
+        if event.button == 1:
+            self._pan_x_press = None
+            self._pan_xlim_start = None
 
     def _on_xlim_changed(self, ax) -> None:
         if self._updating:
@@ -213,4 +266,14 @@ def launch_xy_viewer(parent=None) -> None:
 
     title = f"{os.path.basename(filepath)}  ({len(mz):,} points)"
     dialog = _XYSpectrumDialog(mz, intensity, title, parent)
+
+    # Keep a strong reference on the parent so the GC cannot collect the
+    # dialog while it is still open (non-modal dialogs are otherwise only
+    # referenced by a local variable that disappears when this function returns).
+    if parent is not None:
+        if not hasattr(parent, "_xy_viewers"):
+            parent._xy_viewers = []
+        parent._xy_viewers.append(dialog)
+        dialog.destroyed.connect(lambda: parent._xy_viewers.remove(dialog))
+
     dialog.show()  # non-modal: multiple spectra can be open simultaneously
