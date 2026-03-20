@@ -119,10 +119,17 @@ class _XYSpectrumDialog(QDialog):
         if event.inaxes is not self._ax or event.xdata is None:
             return
         xmin, xmax = self._ax.get_xlim()
+        width = xmax - xmin
+        # Guard against zero or negative width to avoid division by zero / NaNs
+        if width <= 0:
+            # Reset to the full spectrum range if we end up in a degenerate state
+            self._ax.set_xlim(self._full_xlim)
+            self._ax.figure.canvas.draw_idle()
+            return
         scale = 1 / self._ZOOM_FACTOR if event.button == "up" else self._ZOOM_FACTOR
-        new_width = (xmax - xmin) * scale
+        new_width = width * scale
         # Keep the data-coordinate under the cursor stationary
-        rel = (event.xdata - xmin) / (xmax - xmin)
+        rel = (event.xdata - xmin) / width
         new_xmin = event.xdata - rel * new_width
         new_xmax = event.xdata + (1.0 - rel) * new_width
         # Clamp to data bounds
