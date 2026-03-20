@@ -21,7 +21,7 @@ MAX_POINTS = 5000  # max data points rendered at any zoom level
 
 
 class _Toolbar(NavigationToolbar2QT):
-    """Standard navigation toolbar with the 'Figure options' button removed."""
+    """Minimal navigation toolbar showing only the 'Home' and 'Save' buttons."""
     toolitems = [t for t in NavigationToolbar2QT.toolitems if t[0] in ("Home", "Save")]
 
     def set_home_callback(self, callback) -> None:
