@@ -179,7 +179,7 @@ The "Data" tab contains for each file the following outputs per analyte and per 
 - *Save sum spectra as .xy files* — writes each quantitated (and, where applicable, calibrated) mass spectrum to a tab-delimited `.xy` file inside a dedicated `xy_<timestamp>/` subdirectory in the batch folder. In MS-only mode, files are only written when at least one calibrant is present.
 
 ### Viewing .xy spectra
-A built-in spectrum viewer is available under `Tools → View '.xy' mass spectrum`. After selecting a `.xy` file, an interactive plot opens inside the application. Large files are handled efficiently by dynamically resampling the displayed data as you zoom in. The standard toolbar provides zoom, pan, and save-figure controls.
+A built-in spectrum viewer is available under `Tools → View '.xy' mass spectrum`. After selecting a `.xy` file, an interactive plot opens inside the application. Large files are handled efficiently by dynamically resampling the displayed data as you zoom in. The viewer toolbar provides `Home` (reset view) and `Save` (export figure) buttons; zooming is done with the mouse wheel and panning by click-dragging inside the plot.
 
 ## INSTALLATION
 **Microsoft Windows**
