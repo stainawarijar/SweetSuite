@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0]
 ### Added
 - Option to save calibrated mass spectra as `.xy` files.
+- Built-in `.xy` spectrum viewer: opens an interactive plot with zoom, pan, and save controls.
 
 ### Changed
 - Added `OK` and `Cancel` buttons to the `Advanced settings` window.

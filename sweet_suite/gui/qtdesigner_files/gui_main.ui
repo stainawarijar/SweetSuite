@@ -1102,6 +1102,7 @@ border: 1px solid #b0b0b0;
      <string>Tools</string>
     </property>
     <addaction name="actionAdvanced_settings"/>
+    <addaction name="actionVisualize_mass_spectrum"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -1170,6 +1171,11 @@ border: 1px solid #b0b0b0;
   <action name="actionBlock_file">
    <property name="text">
     <string>Block file</string>
+   </property>
+  </action>
+  <action name="actionVisualize_mass_spectrum">
+   <property name="text">
+    <string>View '.xy' mass spectrum</string>
    </property>
   </action>
  </widget>
