@@ -16,9 +16,17 @@ from .managers.template_manager import TemplateManager
 from .qtdesigner_files.gui_main import Ui_MainWindow
 from .ui.ui_helpers import UIHelpers
 from .ui.ui_setup import UISetup
-from .viewers.xy_spectrum_viewer import launch_xy_viewer
 
 
+def launch_xy_viewer(*args, **kwargs):
+    """Lazily import and launch the XY spectrum viewer.
+
+    Importing the underlying viewer module pulls in NumPy and the matplotlib
+    Qt backend. To avoid slowing and potentially breaking application startup,
+    defer that import until the viewer is actually requested.
+    """
+    from .viewers.xy_spectrum_viewer import launch_xy_viewer as _launch_xy_viewer
+    return _launch_xy_viewer(*args, **kwargs)
 class MainWindow(QMainWindow):
     """Main application window coordinating all GUI components. 
     
