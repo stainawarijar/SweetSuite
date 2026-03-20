@@ -13,7 +13,7 @@ import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QDialog, QFileDialog, QVBoxLayout
+from PyQt6.QtWidgets import QDialog, QFileDialog, QVBoxLayout, QMessageBox
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +167,34 @@ def launch_xy_viewer(parent=None) -> None:
 
     logger.info("Opening XY spectrum viewer for: %s", filepath)
 
-    data = np.loadtxt(filepath, dtype=np.float64)
+    try:
+        data = np.loadtxt(filepath, dtype=np.float64)
+    except Exception as exc:  # noqa: BLE001 - show user-facing error dialog
+        logger.exception("Failed to load XY spectrum file: %s", filepath)
+        QMessageBox.critical(
+            parent,
+            "Error opening spectrum",
+            f"Could not read file:\n{filepath}\n\n{exc}",
+        )
+        return
+
+    # Validate that the loaded data looks like an XY spectrum:
+    # at least two columns (m/z and intensity) and more than one data point.
+    if data.ndim != 2 or data.shape[1] < 2 or data.shape[0] < 2:
+        logger.error(
+            "XY spectrum file has invalid shape %s; expected at least two columns "
+            "and more than one row.",
+            getattr(data, "shape", None),
+        )
+        QMessageBox.warning(
+            parent,
+            "Invalid spectrum file",
+            "The selected file does not contain a valid XY spectrum.\n\n"
+            "Expected at least two columns (m/z and intensity) and more than one "
+            "data point.",
+        )
+        return
+
     mz = data[:, 0]
     intensity = data[:, 1]
 
