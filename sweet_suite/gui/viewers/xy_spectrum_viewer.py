@@ -59,8 +59,11 @@ def _minmax_downsample(x: np.ndarray, y: np.ndarray, n_out: int):
 
 
 def _get_display_data(mz, intensity, xmin, xmax):
-    mask = (mz >= xmin) & (mz <= xmax)
-    mx, my = mz[mask], intensity[mask]
+    # mz is guaranteed sorted on load; use searchsorted to avoid O(n) masking
+    start_idx = int(np.searchsorted(mz, xmin, side="left"))
+    end_idx = int(np.searchsorted(mz, xmax, side="right"))
+    mx = mz[start_idx:end_idx]
+    my = intensity[start_idx:end_idx]
     if len(mx) > MAX_POINTS:
         mx, my = _minmax_downsample(mx, my, MAX_POINTS)
     return mx, my
