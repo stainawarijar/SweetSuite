@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Added `OK` and `Cancel` buttons to the `Advanced settings` window.
 
-## Fixed
+### Fixed
 - Allow a reference `xlsx` file to contain `None` entries in the `mass_modifier` column.
 
 
