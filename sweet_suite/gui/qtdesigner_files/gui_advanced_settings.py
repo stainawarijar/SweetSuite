@@ -12,7 +12,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 class Ui_advanced_settings(object):
     def setupUi(self, advanced_settings):
         advanced_settings.setObjectName("advanced_settings")
-        advanced_settings.resize(401, 233)
+        advanced_settings.resize(401, 319)
         advanced_settings.setStyleSheet("* {\n"
 "    font-family: \'DejaVu Sans\';\n"
 "    font-size: 10pt; \n"
@@ -25,7 +25,10 @@ class Ui_advanced_settings(object):
 "#frame_2 {\n"
 "    border: 1px solid #b0b0b0;\n"
 "}\n"
-"")
+"\n"
+"#frame_3 {\n"
+"    border: 1px solid #b0b0b0;\n"
+"}")
         self.frame = QtWidgets.QFrame(parent=advanced_settings)
         self.frame.setGeometry(QtCore.QRect(10, 10, 381, 161))
         self.frame.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
@@ -76,6 +79,25 @@ class Ui_advanced_settings(object):
         self.checkBox_peakHeights = QtWidgets.QCheckBox(parent=self.frame_2)
         self.checkBox_peakHeights.setGeometry(QtCore.QRect(10, 10, 351, 21))
         self.checkBox_peakHeights.setObjectName("checkBox_peakHeights")
+        self.frame_3 = QtWidgets.QFrame(parent=advanced_settings)
+        self.frame_3.setGeometry(QtCore.QRect(10, 230, 381, 41))
+        self.frame_3.setStyleSheet("")
+        self.frame_3.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
+        self.frame_3.setFrameShadow(QtWidgets.QFrame.Shadow.Raised)
+        self.frame_3.setObjectName("frame_3")
+        self.checkBox_save_xy = QtWidgets.QCheckBox(parent=self.frame_3)
+        self.checkBox_save_xy.setGeometry(QtCore.QRect(10, 10, 351, 21))
+        self.checkBox_save_xy.setObjectName("checkBox_save_xy")
+        self.pushButton_apply_advanced_settings = QtWidgets.QPushButton(parent=advanced_settings)
+        self.pushButton_apply_advanced_settings.setGeometry(QtCore.QRect(300, 280, 91, 31))
+        self.pushButton_apply_advanced_settings.setObjectName("pushButton_apply_advanced_settings")
+        self.pushButton_cancel_advanced_settings = QtWidgets.QPushButton(parent=advanced_settings)
+        self.pushButton_cancel_advanced_settings.setGeometry(QtCore.QRect(200, 280, 91, 31))
+        self.pushButton_cancel_advanced_settings.setStyleSheet("background-color: #8B0000;\n"
+"font-weight: bold;\n"
+"color: white;\n"
+"font-size: 10.5pt;")
+        self.pushButton_cancel_advanced_settings.setObjectName("pushButton_cancel_advanced_settings")
 
         self.retranslateUi(advanced_settings)
         QtCore.QMetaObject.connectSlotsByName(advanced_settings)
@@ -90,3 +112,6 @@ class Ui_advanced_settings(object):
         self.label_2.setText(_translate("advanced_settings", "+"))
         self.label_3.setText(_translate("advanced_settings", "+"))
         self.checkBox_peakHeights.setText(_translate("advanced_settings", "Report peak heights instead of areas"))
+        self.checkBox_save_xy.setText(_translate("advanced_settings", "Save mass spectra in '.xy' format"))
+        self.pushButton_apply_advanced_settings.setText(_translate("advanced_settings", "OK"))
+        self.pushButton_cancel_advanced_settings.setText(_translate("advanced_settings", "Cancel"))

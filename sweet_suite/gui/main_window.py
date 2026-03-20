@@ -18,6 +18,16 @@ from .ui.ui_helpers import UIHelpers
 from .ui.ui_setup import UISetup
 
 
+def launch_xy_viewer(*args, **kwargs):
+    """Lazily import and launch the XY spectrum viewer.
+
+    Importing the underlying viewer module pulls in NumPy and the
+    matplotlib Qt backend. To avoid slowing and potentially breaking
+    application startup, defer that import until the viewer is actually
+    requested.
+    """
+    from .viewers.xy_spectrum_viewer import launch_xy_viewer as _launch_xy_viewer
+    return _launch_xy_viewer(*args, **kwargs)
 class MainWindow(QMainWindow):
     """Main application window coordinating all GUI components. 
     
@@ -241,6 +251,9 @@ class MainWindow(QMainWindow):
         )
         self.ui.actionBlock_file.triggered.connect(
             self.download_block_template
+        )
+        self.ui.actionVisualize_mass_spectrum.triggered.connect(
+            lambda: launch_xy_viewer(self)
         )
 
     # --- Functions connected to signals ---

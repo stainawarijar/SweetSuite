@@ -6,15 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.3.0]
+### Added
+- Option to save calibrated mass spectra as `.xy` files.
+- Built-in `.xy` spectrum viewer: opens an interactive plot with zoom, pan, and save controls.
+
+### Changed
+- Added `OK` and `Cancel` buttons to the `Advanced settings` window.
+
+### Fixed
+- Allow a reference `xlsx` file to contain `None` entries in the `mass_modifier` column.
+
+
 ## [0.2.2]
 ### Fixed
-- Fixed a bug where aligning a chromatogram based on a linear fit caused
-  the program to give an error message.
+- Fixed a bug where aligning a chromatogram based on a linear fit caused the program to give an error message.
 
 
 ## [0.2.1]
 ### Fixed
-- Implemented a check against empty mzXML and `.xy` files to prevent crashes.
+- Implemented a check against empty `.mzXML` and `.xy` files to prevent crashes.
 
 
 ## [0.2.0]

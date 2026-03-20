@@ -162,7 +162,8 @@ class BatchCoordinator:
                 float(self.advanced_ui.doubleSpinBox_mz.value()),
                 float(self.advanced_ui.doubleSpinBox_constant.value())
             ),
-            use_peak_height=bool(self.advanced_ui.checkBox_peakHeights.isChecked())
+            use_peak_height=bool(self.advanced_ui.checkBox_peakHeights.isChecked()),
+            save_xy=bool(self.advanced_ui.checkBox_save_xy.isChecked())
         )
         # Move batch worker to thread
         self.batch_thread = QThread()
