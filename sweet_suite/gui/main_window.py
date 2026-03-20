@@ -21,23 +21,11 @@ from .ui.ui_setup import UISetup
 def launch_xy_viewer(*args, **kwargs):
     """Lazily import and launch the XY spectrum viewer.
 
-    Importing the underlying viewer module pulls in NumPy and the matplotlib
-    Qt backend. To avoid slowing and potentially breaking application startup,
-    defer that import until the viewer is actually requested.
-
-    This function also ensures that a Qt-compatible matplotlib backend is
-    selected before importing the viewer. This mitigates cases where other
-    parts of the application (e.g., batch workers) may have previously set
-    a non-GUI backend such as "Agg".
+    Importing the underlying viewer module pulls in NumPy and the
+    matplotlib Qt backend. To avoid slowing and potentially breaking
+    application startup, defer that import until the viewer is actually
+    requested.
     """
-    # Ensure a Qt backend is active before importing the Qt-based viewer.
-    import matplotlib
-    try:
-        matplotlib.use("QtAgg", force=True)
-    except TypeError:
-        # Fallback for older matplotlib versions without the 'force' argument.
-        matplotlib.use("QtAgg")
-
     from .viewers.xy_spectrum_viewer import launch_xy_viewer as _launch_xy_viewer
     return _launch_xy_viewer(*args, **kwargs)
 class MainWindow(QMainWindow):
