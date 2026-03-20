@@ -139,7 +139,12 @@ class FileHandlers:
         self.ui.path_analytes_list.addItem(file_path)
 
         # Read in the Excel file.
+        # pandas converts the literal string "None" to NaN by default, and
+        # blank cells are also NaN. Both are valid, they mean no modifier was
+        # used, so fill them back to the string "None" before validation.
         df = pd.read_excel(file_path)
+        if "mass_modifier" in df.columns:
+            df["mass_modifier"] = df["mass_modifier"].fillna("None")
 
         # Determine which format the file matches by inspecting its columns.
         _ANALYTES_COLS = {
