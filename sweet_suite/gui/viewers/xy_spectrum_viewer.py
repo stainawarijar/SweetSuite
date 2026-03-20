@@ -137,13 +137,11 @@ class _XYSpectrumDialog(QDialog):
         new_xmin = max(new_xmin, data_xmin)
         new_xmax = min(new_xmax, data_xmax)
         self._ax.set_xlim(new_xmin, new_xmax)
-        self._ax.figure.canvas.draw_idle()
 
     def _on_button_press(self, event) -> None:
         """Reset zoom to the full spectrum on double-click."""
         if event.dblclick and event.inaxes is self._ax:
             self._ax.set_xlim(self._full_xlim)
-            self._ax.figure.canvas.draw_idle()
 
     def _on_xlim_changed(self, ax) -> None:
         if self._updating:
