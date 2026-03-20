@@ -274,6 +274,11 @@ def launch_xy_viewer(parent=None) -> None:
         if not hasattr(parent, "_xy_viewers"):
             parent._xy_viewers = []
         parent._xy_viewers.append(dialog)
-        dialog.destroyed.connect(lambda: parent._xy_viewers.remove(dialog))
 
+        def _on_dialog_destroyed(*_):
+            # Remove the dialog from the tracking list if it is still present.
+            if hasattr(parent, "_xy_viewers") and dialog in parent._xy_viewers:
+                parent._xy_viewers.remove(dialog)
+
+        dialog.destroyed.connect(_on_dialog_destroyed)
     dialog.show()  # non-modal: multiple spectra can be open simultaneously
