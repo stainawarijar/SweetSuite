@@ -21,7 +21,7 @@ class MassSpectrum():
             the first column containing m/z values and the second column
             containing intensities.
         background_mass_window (float): The mass window (Da) to be used
-            for background determination around the monoisotopic peak.
+            for background determination around the lowest-mass peak.
         calibration_mass_window (float): Mass window (Da) used to compute the 
                 calibration m/z window for each calibrant.
         calibrants_list (list[tuple[float, float, float]]): List with tuples 
@@ -73,7 +73,7 @@ class MassSpectrum():
                 column containing m/z values and the second column containing 
                 intensities.
             background_mass_window: The mass window (Da) to be used for 
-                background determination around the monoisotopic peak.
+                background determination around the lowest-mass peak.
             calibration_mass_window: Mass window (Da) used to compute the 
                 calibration m/z window for each calibrant.
             calibrants_list: List with tuples of the form 
@@ -291,7 +291,7 @@ class MassSpectrum():
                     peaks = []
                 
                 # Update analyte name plus background and noise.
-                # (Background and noise are based on the monoisotopic peak)
+                # (Background and noise are based on the lowest-mass peak)
                 current_analyte = analyte_name
                 background_and_noise = peak.get_background_and_noise(
                     target_mz=peak.mz_exact,

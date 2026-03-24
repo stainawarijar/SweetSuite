@@ -13,7 +13,7 @@ class Analyte:
             `mz_exact`, `relative_area_theoretical`, `area`, `maximum_intensity`
             and `mass_error_ppm`.
         background_and_noise (tuple): Tuple containing the following 
-            information for the monoisotopic peak of the analyte: 
+            information for the lowest-mass peak of the analyte: 
             `(average background intensity, background area, noise)`.
         use_peak_height (bool): If True, use maximum intensity instead of
             trapezoidal area for quantitation.
@@ -52,7 +52,7 @@ class Analyte:
                 `relative_area_theoretical`, `area`, `maximum_intensity`,
                 `mass_error_ppm`.
             background_and_noise: A tuple containing the following information
-                for the monoisotopic peak of the analyte:
+                for the lowest-mass peak of the analyte:
                 `(average background intensity, background area, noise)`.
             use_peak_height: If True, use the maximum intensity of each
                 isotopic peak instead of the trapezoidal area for quantitation.
@@ -122,7 +122,7 @@ class Analyte:
     def get_total_noise(self) -> float:
         """Return the total noise for the analyte.
         
-        The noise of analyte is calculated as the noise of the monoisotopic
+        The noise of analyte is calculated as the noise of the lowest-mass
         peak multiplied by the total number of isotopic peaks.
         """
         total_noise = self.background_and_noise[2] * len(self.peaks)
@@ -135,7 +135,7 @@ class Analyte:
     def get_total_area_background_subtracted(self) -> float:
         """Return the background subtracted total area (or peak heights).
         
-        In area mode: the monoisotopic background area is subtracted from the
+        In area mode: the lowest-mass background area is subtracted from the
         area of each isotopic peak.
         In peak-height mode: the average background intensity is subtracted
         from the maximum intensity of each isotopic peak.
