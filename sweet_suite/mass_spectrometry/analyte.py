@@ -17,7 +17,6 @@ class Analyte:
             `(average background intensity, background area, noise)`.
         use_peak_height (bool): If True, use maximum intensity instead of
             trapezoidal area for quantitation.
-        mz_monoisotopic (float): Monoisotopic m/z value.
         isotopic_fraction (float): Theoretical fraction of the isotopic 
             pattern that was integrated.
         mass_error_ppm (float): Mass error in parts per million (ppm), based on 
@@ -65,7 +64,6 @@ class Analyte:
         self.peaks = peaks
         self.background_and_noise = background_and_noise
         self.use_peak_height = use_peak_height
-        self.mz_monoisotopic = self.get_mz_monoisotopic()
         self.isotopic_fraction = self.get_isotopic_fraction()
         self.mass_error_ppm = self.get_mass_error_ppm()
         self.total_area = self.get_total_area()
@@ -74,10 +72,6 @@ class Analyte:
         self.total_area_background_subtracted = self.get_total_area_background_subtracted()
         self.signal_to_noise = self.get_signal_to_noise()
         self.isotopic_pattern_quality = self.get_isotopic_pattern_quality()
-
-    def get_mz_monoisotopic(self) -> float:
-        """Return the exact m/z value of the monoisotopic peak."""
-        return self.peaks.iloc[0]["mz_exact"]
 
     def get_isotopic_fraction(self) -> float:
         """Return the fraction of the isotopic pattern that was integrated."""
