@@ -14,6 +14,4 @@ python.exe -m pip install --upgrade pip
 pip install -r requirements.txt
 
 echo(
-@echo Launching SweetSuite...
-echo.
 python main.py

@@ -3,6 +3,12 @@ import logging
 import os
 import sys
 
+print("Launching SweetSuite...", flush=True)
+
+# Must be set before any matplotlib import so the pre-built cache is used in frozen builds.
+if getattr(sys, "frozen", False):
+    os.environ.setdefault("MPLCONFIGDIR", os.path.join(os.path.dirname(sys.executable), "_mpl_cache"))
+
 from PyQt6.QtGui import QPalette, QColor
 from PyQt6.QtWidgets import QApplication, QStyleFactory
 from PyQt6.QtCore import qInstallMessageHandler
@@ -63,9 +69,6 @@ def apply_light_palette(app: QApplication) -> None:
 def main():
     # Install Qt message handler to suppress warnings.
     qInstallMessageHandler(suppress_qt_warnings)
-    # Show loading screen in case of .exe file.
-    if getattr(sys, "frozen", False):
-        import pyi_splash
     # Setup global logging.
     setup_logging()
     logging.info("SweetSuite application started\n")
@@ -76,9 +79,6 @@ def main():
     # Create and show the main window.
     main_window = MainWindow()
     main_window.show()
-    # Close loading screen in case of .exe file.
-    if getattr(sys, "frozen", False):
-        pyi_splash.close()
     # Start application's event loop, exit when loop ends.
     sys.exit(app.exec())
 

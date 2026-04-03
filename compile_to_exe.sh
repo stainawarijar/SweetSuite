@@ -14,10 +14,10 @@ pip install -r requirements.txt
 pip install pyinstaller
 
 echo -e "${GREEN}\nRunning PyInstaller...${RESET}\n"
-VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' sweet_suite/__init__.py)  # SweetSuite version number
+VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' sweet_suite/__init__.py)
 APP_NAME="SweetSuite_v$VERSION"
 
-if [ -d "dist/$APP_NAME" ]; then
+if [ -d "dist/$APP_NAME" ] || [ -f "dist/$APP_NAME.exe" ]; then
   read -p "$(echo -e "${RED}dist/$APP_NAME already exists. Overwrite? (y/N): ${RESET}")" confirm
   if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
     echo -e "${GREEN}\nAborting. No files were changed.${RESET}\n"
@@ -28,18 +28,17 @@ if [ -d "dist/$APP_NAME" ]; then
 fi
 
 pyinstaller \
-  --onedir \
+  --onefile \
   --name "$APP_NAME" \
+  --distpath "dist/$APP_NAME" \
   --noconfirm \
   --clean \
-  --windowed \
-  --add-data "blocks;blocks" \
   --add-data "sweet_suite\gui\assets\google-material-icons\*.svg;sweet_suite\gui\assets\google-material-icons" \
   --add-data "sweet_suite\resources\templates\*.xlsx;sweet_suite\resources\templates" \
   --add-data "sweet_suite\resources\templates\*.block;sweet_suite\resources\templates" \
   --add-data "sweet_suite\resources\templates\*.csv;sweet_suite\resources\templates" \
   main.py
-  
+
 echo -e "${GREEN}\nCopying blocks folder...${RESET}\n"
 cp -r blocks "dist/$APP_NAME/"
 
