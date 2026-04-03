@@ -82,8 +82,9 @@ class FileHandlers:
             self.parent.analytes_list_df = None
             self.parent.analytes_ref_df = None
             self.ui.tableWidget_calibration.setRowCount(0)
-            # Reset to LC-MS mode when analyte file is cleared
+            # Reset to LC-MS mode and normal quantitation controls when analyte file is cleared
             self.parent.set_ms_only_mode(False)
+            self.parent.set_ref_file_mode(False)
     
     def open_alignment_list(self) -> None:
         """Open file dialog for selecting an alignment list."""
@@ -164,6 +165,7 @@ class FileHandlers:
                 self.parent.analytes_list_df = None
                 self.parent.analytes_ref_df = None
                 self.ui.tableWidget_calibration.setRowCount(0)
+                self.parent.set_ref_file_mode(False)
                 return
             # Store and populate calibration table.
             self.parent.analytes_list_df = df
@@ -177,6 +179,7 @@ class FileHandlers:
                 self.parent.analytes_list_df = None
                 self.parent.analytes_ref_df = None
                 self.ui.tableWidget_calibration.setRowCount(0)
+                self.parent.set_ref_file_mode(False)
                 return
             self._apply_ref_file(df)
 
@@ -201,6 +204,7 @@ class FileHandlers:
             self.parent.analytes_ref_df = None
             self.ui.tableWidget_calibration.setRowCount(0)
             self.parent.set_ms_only_mode(False)
+            self.parent.set_ref_file_mode(False)
 
     def check_ref_file(self, df: pd.DataFrame) -> bool:
         """Check the structure of an analytes reference file.
@@ -362,6 +366,8 @@ class FileHandlers:
         else:
             self.parent.set_ms_only_mode(False)
             self.parent.calibration_table_manager.update_table(df)
+
+        self.parent.set_ref_file_mode(True)
 
         UIHelpers.show_message_box(
             self.parent,
@@ -636,7 +642,10 @@ class FileHandlers:
         else:
             # LC-MS mode (has retention time data)
             self.parent.set_ms_only_mode(False)
-        
+
+        # A regular analytes list was loaded; re-enable ref-file-locked controls.
+        self.parent.set_ref_file_mode(False)
+
         return True
 
     def open_blocks_folder(self) -> None:
