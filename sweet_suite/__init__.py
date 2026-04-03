@@ -3,7 +3,7 @@
 from datetime import datetime
 
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __year__ = datetime.now().year
 __authors__ = ["Steinar Gijze"]
 __organization__ = (

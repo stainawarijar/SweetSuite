@@ -149,7 +149,17 @@ class MainWindow(QMainWindow):
             
             # Hide calibration table (not applicable in MS-only mode)
             self.ui.tableWidget_calibration.setVisible(False)
-            self.ui.pushButton_apply_sn.setEnabled(False)
+            self.ui.pushButton_apply_sn.setVisible(False)
+            self.ui.calibrant_sn_cutoff.setGeometry(
+                self.ui.calibrant_sn_cutoff.x(),
+                self.ui.calibrant_sn_cutoff.y(),
+                221,
+                self.ui.calibrant_sn_cutoff.height()
+            )
+            self.ui.label_calibrant_sn_cutoff.setText("Calibrant S/N cut-off")
+            self.ui.calibrant_sn_cutoff.setToolTip(
+                "Minimum signal-to-noise required for a calibrant to be used."
+            )
             
             # Disable "Quantify aligned files only" checkbox
             self.ui.quantify_aligned.setEnabled(False)
@@ -179,7 +189,18 @@ class MainWindow(QMainWindow):
             self.ui.tableWidget_calibration.setVisible(True)
             self.ui.tableWidget_calibration.setEnabled(True)
             self.ui.tableWidget_calibration.setStyleSheet("")
-            self.ui.pushButton_apply_sn.setEnabled(True)
+            self.ui.pushButton_apply_sn.setVisible(True)
+            self.ui.calibrant_sn_cutoff.setGeometry(
+                self.ui.calibrant_sn_cutoff.x(),
+                self.ui.calibrant_sn_cutoff.y(),
+                73,
+                self.ui.calibrant_sn_cutoff.height()
+            )
+            self.ui.label_calibrant_sn_cutoff.setText("Set all S/N cut-offs to:")
+            self.ui.calibrant_sn_cutoff.setToolTip(
+                "Minimum signal-to-noise required for a calibrant to be used.\n"
+                "Can be modified per retention time window in the table below."
+            )
             
             # Enable "Quantify aligned files only" checkbox and reset styling
             self.ui.quantify_aligned.setEnabled(True)

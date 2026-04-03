@@ -1,5 +1,5 @@
 import os
-from PyQt6.QtCore import QSize
+from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QHeaderView
 
@@ -86,6 +86,8 @@ class UISetup:
             icon_path, "apply_sn_cutoff.svg"
         )))
         ui.pushButton_apply_sn.setIconSize(QSize(18, 18))
+        ui.pushButton_apply_sn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        ui.pushButton_apply_sn.setText("Apply to all rows   ")
         
         # Open file buttons
         ui.open_analytes_list.setIcon(QIcon(os.path.join(
