@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.1]
 ### Changed
 - Small GUI improvements.
+- Add the used analytes list and/or alignment list to separate sheets in the
+output `xlsx` file.
 
 ### Fixed
 - Handle cases where the quantitation calibration/background window 
