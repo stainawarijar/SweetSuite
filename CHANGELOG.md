@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Small GUI improvements.
 
+### Fixed
+- Handle cases where the quantitation calibration/background window 
+around the theoretical m/z value of an isotopic peak falls outside the m/z range of the mass spectrum. 
+Calibrants for which this occurs are not used for calibration. Analytes for which this occurs are not quantified. 
+In both cases a warning message is logged.
+
+
 ## [0.3.0]
 ### Added
 - Option to save calibrated mass spectra as `.xy` files.
