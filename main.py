@@ -1,13 +1,9 @@
+print("Launching SweetSuite...", flush=True)
+
 from datetime import datetime
 import logging
 import os
 import sys
-
-print("Launching SweetSuite...", flush=True)
-
-# Must be set before any matplotlib import so the pre-built cache is used in frozen builds.
-if getattr(sys, "frozen", False):
-    os.environ.setdefault("MPLCONFIGDIR", os.path.join(os.path.dirname(sys.executable), "_mpl_cache"))
 
 from PyQt6.QtGui import QPalette, QColor
 from PyQt6.QtWidgets import QApplication, QStyleFactory
