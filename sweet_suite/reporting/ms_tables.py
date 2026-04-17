@@ -121,10 +121,16 @@ def build_quantitation_table(
         if found_rows else pd.DataFrame(columns=cols)
     )
 
-    # Remove analytes that were out of range in every spectrum.
+    # Remove analytes that were out of range in every spectrum (i.e. skipped
+    # but never successfully quantified in any spectrum).
     if skipped_labels:
-        label_col = base["analyte"].astype(str) + "_" + base["charge"].astype(str)
-        base = base[~label_col.isin(skipped_labels)].reset_index(drop=True)
+        found_labels = set(
+            (found["analyte"].astype(str) + "_" + found["charge"].astype(str)).tolist()
+        )
+        labels_to_remove = skipped_labels - found_labels
+        if labels_to_remove:
+            label_col = base["analyte"].astype(str) + "_" + base["charge"].astype(str)
+            base = base[~label_col.isin(labels_to_remove)].reset_index(drop=True)
 
     # Left-join output parameters onto the base grid.
     out = base.merge(
