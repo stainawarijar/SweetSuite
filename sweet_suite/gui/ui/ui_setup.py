@@ -87,7 +87,7 @@ class UISetup:
         )))
         ui.pushButton_apply_sn.setIconSize(QSize(18, 18))
         ui.pushButton_apply_sn.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        ui.pushButton_apply_sn.setText("Apply to all rows   ")
+        ui.pushButton_apply_sn.setText("Apply to all rows\t\t")
         
         # Open file buttons
         ui.open_analytes_list.setIcon(QIcon(os.path.join(
