@@ -111,8 +111,8 @@ class MassSpectrum():
         When no calibrants are provided in `self.calibrants_list`,
         an empty list is returned.
         """
-        mz_min = self.data_uncalibrated[0, 0]
-        mz_max = self.data_uncalibrated[-1, 0]
+        mz_min = np.min(self.data_uncalibrated[:, 0])
+        mz_max = np.max(self.data_uncalibrated[:, 0])
         calibrants = []
         for mz, charge, mz_window in self.calibrants_list:
             half_span = max(
@@ -268,8 +268,8 @@ class MassSpectrum():
         # spectrum range. For every peak the integration window is checked;
         # for the first (lowest-mass) peak per analyte the background window is
         # also checked, because background is determined from that peak.
-        mz_min = spectrum[0, 0]
-        mz_max = spectrum[-1, 0]
+        mz_min = np.min(spectrum[:, 0])
+        mz_max = np.max(spectrum[:, 0])
         analytes_to_skip = set()
         prev_analyte_label = None
         for _, row in reference.iterrows():
