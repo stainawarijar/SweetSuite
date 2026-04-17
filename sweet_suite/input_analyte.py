@@ -38,8 +38,6 @@ class InputAnalyte:
         variable_composition (dict[str, int]): Number of atoms of each element
             whose isotopes can vary (carbons, hydrogens, nitrogens, oxygens, 
             sulfurs).
-        isotopologues (list[tuple[float, float, int]]): Selected isotopologues,
-            each as a tuple of (mass, probability, index).
         reference_df (pd.DataFrame): Reference DataFrame with expected peaks,
             m/z values, abundances, retention times, and calibration flags.
     """
