@@ -140,16 +140,31 @@ class MainWindow(QMainWindow):
                 "QLabel { color: #a0a0a0; }"
                 "QSpinBox, QDoubleSpinBox { color: transparent; }"
             )
+            self.ui.alignment_time_window.setToolTip("")
+            self.ui.alignment_mz_window.setToolTip("")
+            self.ui.alignment_min_peaks.setToolTip("")
+            self.ui.alignment_sn_cutoff.setToolTip("")
             
             # Disable sum spectrum resolution (LC-specific) and hide value
             self.ui.sum_spectrum_resolution.setEnabled(False)
             self.ui.sum_spectrum_resolution.setStyleSheet("color: transparent;")
+            self.ui.sum_spectrum_resolution.setToolTip("")
             self.ui.label_resolution.setEnabled(False)
             self.ui.label_resolution.setStyleSheet("color: #a0a0a0;")
             
             # Hide calibration table (not applicable in MS-only mode)
             self.ui.tableWidget_calibration.setVisible(False)
-            self.ui.pushButton_apply_sn.setEnabled(False)
+            self.ui.pushButton_apply_sn.setVisible(False)
+            self.ui.calibrant_sn_cutoff.setGeometry(
+                self.ui.calibrant_sn_cutoff.x(),
+                self.ui.calibrant_sn_cutoff.y(),
+                221,
+                self.ui.calibrant_sn_cutoff.height()
+            )
+            self.ui.label_calibrant_sn_cutoff.setText("Calibrant S/N cut-off")
+            self.ui.calibrant_sn_cutoff.setToolTip(
+                "Minimum signal-to-noise required for a calibrant to be used."
+            )
             
             # Disable "Quantify aligned files only" checkbox
             self.ui.quantify_aligned.setEnabled(False)
@@ -168,10 +183,32 @@ class MainWindow(QMainWindow):
             # Enable Alignment section and reset styling
             self.ui.frame_alignment.setEnabled(True)
             self.ui.frame_alignment.setStyleSheet("")
+            self.ui.alignment_time_window.setToolTip(
+                "Time window used around each alignment feature to determine its "
+                "observed \nretention time. "
+                "Can be overwritten for individual features in the alignment file."
+            )
+            self.ui.alignment_mz_window.setToolTip(
+                "m/z window used around the exact m/z of an alignment feature\n"
+                "when creating an extracted ion chromatogram. "
+                "Can be overwritten\nfor individual features in the alignment file."
+            )
+            self.ui.alignment_min_peaks.setToolTip(
+                "Minimum number of alignment features to use when aligning a\n"
+                "chromatogram. When less features have a S/N above the cut-off,\n"
+                "alignment fails for the corresponding sample."
+            )
+            self.ui.alignment_sn_cutoff.setToolTip(
+                "Minimum signal-to-noise required for an alignment feature to be used.\n"
+                "Can be overwritten for individual features in the alignment file."
+            )
             
             # Enable sum spectrum resolution and reset styling
             self.ui.sum_spectrum_resolution.setEnabled(True)
             self.ui.sum_spectrum_resolution.setStyleSheet("")
+            self.ui.sum_spectrum_resolution.setToolTip(
+                "Number of data points per m/z unit in an LC-MS spectrum."
+            )
             self.ui.label_resolution.setEnabled(True)
             self.ui.label_resolution.setStyleSheet("")
             
@@ -179,7 +216,18 @@ class MainWindow(QMainWindow):
             self.ui.tableWidget_calibration.setVisible(True)
             self.ui.tableWidget_calibration.setEnabled(True)
             self.ui.tableWidget_calibration.setStyleSheet("")
-            self.ui.pushButton_apply_sn.setEnabled(True)
+            self.ui.pushButton_apply_sn.setVisible(True)
+            self.ui.calibrant_sn_cutoff.setGeometry(
+                self.ui.calibrant_sn_cutoff.x(),
+                self.ui.calibrant_sn_cutoff.y(),
+                73,
+                self.ui.calibrant_sn_cutoff.height()
+            )
+            self.ui.label_calibrant_sn_cutoff.setText("Set all S/N cut-offs to:")
+            self.ui.calibrant_sn_cutoff.setToolTip(
+                "Minimum signal-to-noise required for a calibrant to be used.\n"
+                "Can be modified per retention time window in the table below."
+            )
             
             # Enable "Quantify aligned files only" checkbox and reset styling
             self.ui.quantify_aligned.setEnabled(True)
@@ -190,7 +238,52 @@ class MainWindow(QMainWindow):
             self.mode_indicator_label.setStyleSheet(
                 "color: #00008B; font-weight: bold; font-size: 9pt;"
             )
-    
+
+    def set_ref_file_mode(self, enabled: bool) -> None:
+        """Disable or enable the quantitation m/z window and minimum isotopic
+        fraction controls when a reference file is loaded.
+
+        When a reference file is uploaded these values are already encoded in
+        the file's `mz_window` column, so the corresponding GUI controls
+        should be greyed out (same visual treatment as LC elements in
+        MS-only mode).  Restoring them when a regular analytes list is
+        loaded or the file is cleared.
+
+        Args:
+            enabled: True to enter ref-file mode (controls disabled),
+                False to restore normal mode (controls enabled).
+        """
+        if enabled:
+            self.ui.quantitation_mz_window.setEnabled(False)
+            self.ui.quantitation_mz_window.setStyleSheet("color: transparent;")
+            self.ui.quantitation_mz_window.setToolTip("")
+            self.ui.label_quantitation_mz_window.setEnabled(False)
+            self.ui.label_quantitation_mz_window.setStyleSheet("color: #a0a0a0;")
+            self.ui.min_isotopic_fraction.setEnabled(False)
+            self.ui.min_isotopic_fraction.setStyleSheet("color: transparent;")
+            self.ui.min_isotopic_fraction.setToolTip("")
+            self.ui.label_isotopic_fraction.setEnabled(False)
+            self.ui.label_isotopic_fraction.setStyleSheet("color: #a0a0a0;")
+        else:
+            self.ui.quantitation_mz_window.setEnabled(True)
+            self.ui.quantitation_mz_window.setStyleSheet("")
+            self.ui.quantitation_mz_window.setToolTip(
+                "m/z window used around the exact m/z of each isotopic peak"
+                " for area integration\n"
+                "(or for determining peak height, if enabled under advanced settings).\n"
+                "Can be overwritten for individual analytes in the analytes list."
+            )
+            self.ui.label_quantitation_mz_window.setEnabled(True)
+            self.ui.label_quantitation_mz_window.setStyleSheet("")
+            self.ui.min_isotopic_fraction.setEnabled(True)
+            self.ui.min_isotopic_fraction.setStyleSheet("")
+            self.ui.min_isotopic_fraction.setToolTip(
+                "Minimum fraction of the total isotopic pattern that should\n"
+                "be integrated per analyte and charge state."
+            )
+            self.ui.label_isotopic_fraction.setEnabled(True)
+            self.ui.label_isotopic_fraction.setStyleSheet("")
+
     def connect_signals(self) -> None:
         """Connect all UI signals to their handlers."""
         # File operation buttons.

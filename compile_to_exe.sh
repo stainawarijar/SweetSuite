@@ -1,25 +1,52 @@
 # For use with Git Bash (MinGW) in Windows.
 # Bundles the program and all its dependencies into a single executable file.
+GREEN="\e[32m"
+RED="\e[31m"
+RESET="\e[0m"
 
-echo -e "\nCreating virtual environment...\n"
+echo -e "${GREEN}\nCreating virtual environment...${RESET}\n"
 py -3.14 -m venv venv
 source venv/Scripts/activate
 
-echo -e "\nChecking required dependencies...\n"
+echo -e "${GREEN}\nChecking required dependencies...${RESET}\n"
 python.exe -m pip install --upgrade pip
 pip install -r requirements.txt
 pip install pyinstaller
 
-echo -e "\nRunning PyInstaller...\n"
-pyinstaller --onefile \
-  --splash "sweet_suite\gui\assets\sweetsuite_loading.png" \
+echo -e "${GREEN}\nRunning PyInstaller...${RESET}\n"
+VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' sweet_suite/__init__.py)
+APP_NAME="SweetSuite_v$VERSION"
+
+if [ -d "dist/$APP_NAME" ] || [ -f "dist/$APP_NAME.exe" ]; then
+  read -p "$(echo -e "${RED}dist/$APP_NAME already exists. Overwrite? (y/N): ${RESET}")" confirm
+  if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+    echo -e "${GREEN}\nAborting. No files were changed.${RESET}\n"
+    deactivate
+    read -p "Press Enter to close..."
+    exit 1
+  fi
+fi
+
+pyinstaller \
+  --onefile \
+  --name "$APP_NAME" \
+  --distpath "dist/$APP_NAME" \
+  --noconfirm \
+  --clean \
   --add-data "sweet_suite\gui\assets\google-material-icons\*.svg;sweet_suite\gui\assets\google-material-icons" \
   --add-data "sweet_suite\resources\templates\*.xlsx;sweet_suite\resources\templates" \
   --add-data "sweet_suite\resources\templates\*.block;sweet_suite\resources\templates" \
   --add-data "sweet_suite\resources\templates\*.csv;sweet_suite\resources\templates" \
   main.py
 
-echo -e "\nDeactivating virtual environment...\n"
+echo -e "${GREEN}\nCopying blocks folder...${RESET}\n"
+cp -r blocks "dist/$APP_NAME/"
+
+echo -e "${GREEN}\nDeactivating virtual environment...${RESET}\n"
 deactivate
 
+# Clean up unused files
+rm -f *.spec
+
 read -p "Press Enter to close..."
+

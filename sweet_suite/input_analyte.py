@@ -33,12 +33,11 @@ class InputAnalyte:
             required when selecting isotopologues.
         charge_carrier (str): Name of the block representing the charge carrier
             (e.g. 'proton').
-        monoisotopic_mass (float): Theoretical monoisotopic mass (amu).
+        monoisotopic_mass (float): Theoretical monoisotopic mass (amu) of the
+            neutral analyte, including the mass modifier if specified.
         variable_composition (dict[str, int]): Number of atoms of each element
             whose isotopes can vary (carbons, hydrogens, nitrogens, oxygens, 
             sulfurs).
-        isotopologues (list[tuple[float, float, int]]): Selected isotopologues,
-            each as a tuple of (mass, probability, index).
         reference_df (pd.DataFrame): Reference DataFrame with expected peaks,
             m/z values, abundances, retention times, and calibration flags.
     """
@@ -93,9 +92,6 @@ class InputAnalyte:
         self.mass_modifier = mass_modifier
         self.monoisotopic_mass = self.get_monoisotopic_mass()
         self.variable_composition = self.get_variable_composition()
-        self.isotopologues = self.select_isotopologues(
-            self.compute_distribution(self.monoisotopic_mass, self.variable_composition)
-        )
         self.reference_df = self.get_reference_df()
 
     @staticmethod
@@ -222,7 +218,8 @@ class InputAnalyte:
         return merged
 
     def get_monoisotopic_mass(self) -> float:
-        """Return monoisotopic mass (amu) based on block composition.
+        """Return monoisotopic mass (amu) of the neutral analyte based on 
+        the block composition.
         
         Includes the mass modifier if one is specified.
         """
@@ -303,8 +300,6 @@ class InputAnalyte:
         """Select most probable isotopologues until a cumulative threshold 
             is met.
 
-        This function is called from `get_isotopologues`.
-
         Args:
             merged_mass_probs: List of (mass, probability) tuples, 
                 sorted from low to high mass.
@@ -312,8 +307,10 @@ class InputAnalyte:
         Returns:
             A reduced list of isotopologues as (mass, probability, index) 
             tuples, sorted by increasing mass. The index represents the 
-            isotopologue number (0 being monoisotopic, 1 meaning one extra 
-            neutron, etc.).
+            isotopologue number (0 being lowest-mass, 1 meaning one extra 
+            neutron, etc.). Note that the lowest-mass is not necessarily
+            the monoisotopic one, as this depends on its theoretical 
+            relative abundance which may be very low for large analytes.
         """
         # Create list with tuples (mass, prob, idx).
         masses_probs_idxs = []
@@ -335,17 +332,6 @@ class InputAnalyte:
 
         # Return final selection sorted by mass.
         return sorted(selected, key=lambda x: x[0])
-
-    def get_isotopologues(self) -> list[tuple[float, float, int]]:
-        """Generate the selected isotopologue distribution of the neutral analyte.
-
-        Returns:
-            A list of (mass, probability, index) tuples for the selected
-            isotopologues, sorted by increasing mass.
-        """
-        return self.select_isotopologues(
-            self.compute_distribution(self.monoisotopic_mass, self.variable_composition)
-        )
 
     def compute_distribution(
         self,

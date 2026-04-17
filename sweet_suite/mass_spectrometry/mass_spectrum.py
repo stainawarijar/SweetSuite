@@ -1,3 +1,4 @@
+import logging
 import os
 
 from matplotlib.figure import Figure
@@ -21,7 +22,7 @@ class MassSpectrum():
             the first column containing m/z values and the second column
             containing intensities.
         background_mass_window (float): The mass window (Da) to be used
-            for background determination around the monoisotopic peak.
+            for background determination around the lowest-mass peak.
         calibration_mass_window (float): Mass window (Da) used to compute the 
                 calibration m/z window for each calibrant.
         calibrants_list (list[tuple[float, float, float]]): List with tuples 
@@ -73,7 +74,7 @@ class MassSpectrum():
                 column containing m/z values and the second column containing 
                 intensities.
             background_mass_window: The mass window (Da) to be used for 
-                background determination around the monoisotopic peak.
+                background determination around the lowest-mass peak.
             calibration_mass_window: Mass window (Da) used to compute the 
                 calibration m/z window for each calibrant.
             calibrants_list: List with tuples of the form 
@@ -98,6 +99,7 @@ class MassSpectrum():
         self.min_calibrant_sn = min_calibrant_sn        
         self.time = time
         self.time_window = time_window
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.calibrants = self.get_calibrants()
         self.calibrated = self.calibrate()
         self.data_calibrated = self.calibrated[0]
@@ -109,8 +111,20 @@ class MassSpectrum():
         When no calibrants are provided in `self.calibrants_list`,
         an empty list is returned.
         """
+        mz_min = np.min(self.data_uncalibrated[:, 0])
+        mz_max = np.max(self.data_uncalibrated[:, 0])
         calibrants = []
         for mz, charge, mz_window in self.calibrants_list:
+            half_span = max(
+                self.calibration_mass_window / charge,
+                self.background_mass_window / charge + mz_window
+            )
+            if mz - half_span < mz_min or mz + half_span > mz_max:
+                self.logger.warning(
+                    f"Calibrant m/z {mz} is outside the spectrum m/z range "
+                    "and will not be used."
+                )
+                continue
             calibrant = Calibrant(
                 mz_exact=mz,
                 charge=charge,
@@ -250,6 +264,44 @@ class MassSpectrum():
         else:
             reference = analytes_ref
 
+        # Check that all required m/z windows for each analyte fit within the
+        # spectrum range. For every peak the integration window is checked;
+        # for the first (lowest-mass) peak per analyte the background window is
+        # also checked, because background is determined from that peak.
+        mz_min = np.min(spectrum[:, 0])
+        mz_max = np.max(spectrum[:, 0])
+        analytes_to_skip = set()
+        prev_analyte_label = None
+        for _, row in reference.iterrows():
+            peak_name = str(row["peak"])
+            mz_val = row["mz"]
+            mz_window = row["mz_window"]
+            charge = int(peak_name.split("_")[-2])
+            analyte_label = "_".join(peak_name.split("_")[:-1])
+            if analyte_label in analytes_to_skip:
+                continue
+            # Check that the integration window fits within the spectrum range.
+            if mz_val - mz_window < mz_min or mz_val + mz_window > mz_max:
+                analytes_to_skip.add(analyte_label)
+                continue
+            # For the first peak of each analyte, also check the background window.
+            if analyte_label != prev_analyte_label:
+                background_half_span = self.background_mass_window / charge + mz_window
+                if mz_val - background_half_span < mz_min or mz_val + background_half_span > mz_max:
+                    analytes_to_skip.add(analyte_label)
+            prev_analyte_label = analyte_label
+        for label in analytes_to_skip:
+            self.logger.warning(
+                f"Analyte {label} falls outside the spectrum m/z range and will not be quantified."
+            )
+        self.skipped_analytes = analytes_to_skip
+        if analytes_to_skip:
+            reference = reference[
+                ~reference["peak"].apply(
+                    lambda p: "_".join(str(p).split("_")[:-1]) in analytes_to_skip
+                )
+            ]
+
         # Initialize list to which instances of Analyte will be added.
         analytes = []
 
@@ -291,7 +343,7 @@ class MassSpectrum():
                     peaks = []
                 
                 # Update analyte name plus background and noise.
-                # (Background and noise are based on the monoisotopic peak)
+                # (Background and noise are based on the lowest-mass peak)
                 current_analyte = analyte_name
                 background_and_noise = peak.get_background_and_noise(
                     target_mz=peak.mz_exact,
@@ -370,3 +422,4 @@ class MassSpectrum():
                 self.data_uncalibrated,
                 delimiter="\t", fmt="%.8f"
             )
+

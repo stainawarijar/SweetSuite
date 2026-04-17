@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1]
+### Changed
+- Small GUI improvements.
+- Add the used analytes list and/or alignment list to separate sheets in the
+output `xlsx` file.
+
+### Fixed
+- Handle cases where the quantitation calibration/background window 
+around the theoretical m/z value of an isotopic peak falls outside the m/z range of the mass spectrum. 
+Calibrants for which this occurs are not used for calibration. Analytes for which this occurs are not quantified. 
+In both cases a warning message is logged.
+
 
 ## [0.3.0]
 ### Added

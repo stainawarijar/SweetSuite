@@ -90,8 +90,10 @@ def build_quantitation_table(
                 d[key] = val
     
     keep = {}  # (filename, analyte, charge): {parameters}
+    skipped_labels: set[str] = set()
     for spectrum in mass_spectra:
         analytes = spectrum.quantify_analytes(analytes_ref, use_peak_height=use_peak_height)
+        skipped_labels.update(getattr(spectrum, "skipped_analytes", set()))
         if not analytes:
             continue  # Uncalibrated, grid keeps blank row for it.
         for analyte in analytes:
@@ -118,6 +120,17 @@ def build_quantitation_table(
         pd.DataFrame(found_rows, columns=cols)
         if found_rows else pd.DataFrame(columns=cols)
     )
+
+    # Remove analytes that were out of range in every spectrum (i.e. skipped
+    # but never successfully quantified in any spectrum).
+    if skipped_labels:
+        found_labels = set(
+            (found["analyte"].astype(str) + "_" + found["charge"].astype(str)).tolist()
+        )
+        labels_to_remove = skipped_labels - found_labels
+        if labels_to_remove:
+            label_col = base["analyte"].astype(str) + "_" + base["charge"].astype(str)
+            base = base[~label_col.isin(labels_to_remove)].reset_index(drop=True)
 
     # Left-join output parameters onto the base grid.
     out = base.merge(

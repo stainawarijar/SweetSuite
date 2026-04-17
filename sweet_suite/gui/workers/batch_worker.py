@@ -1166,7 +1166,10 @@ class BatchWorker(QObject):
                 "Data": quantitation_results,
                 "Global settings": global_settings,
                 "Alignment features": alignment_features,
-                "Sum spectrum settings": calibration_settings
+                "Sum spectrum settings": calibration_settings,
+                "Analytes list": self.analytes_list_df,
+                "Alignment list": self.alignment_list_df,
+                "Analyte ref (user-provided)": self.analytes_ref_df
             }
         )
 
