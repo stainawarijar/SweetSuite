@@ -52,8 +52,8 @@ def plot_polynomial(
 
     # Calculate pre- and post-calibration mass errors (ppm).
     mzs_exact_array = np.array(mzs_exact)
-    pre_cal_errors = (mzs_exact_array - mz_array) / mzs_exact_array * 1e6
-    post_cal_errors = (mzs_exact_array - mzs_adjusted) / mzs_exact_array * 1e6
+    pre_cal_errors = (mz_array - mzs_exact_array) / mzs_exact_array * 1e6
+    post_cal_errors = (mzs_adjusted - mzs_exact_array) / mzs_exact_array * 1e6
 
     # Sort data by m/z (high to low) for table.
     sort_indices = np.argsort(mzs_exact_array)[::-1]
@@ -169,7 +169,7 @@ def plot_calibration_failure(
     
     if has_calibrants:
         # Calculate pre-calibration mass errors (ppm).
-        pre_cal_errors = (mzs_exact_array - mz_array) / mzs_exact_array * 1e6
+        pre_cal_errors = (mz_array - mzs_exact_array) / mzs_exact_array * 1e6
         
         # Sort data by m/z (high to low) for table.
         sort_indices = np.argsort(mzs_exact_array)[::-1]
