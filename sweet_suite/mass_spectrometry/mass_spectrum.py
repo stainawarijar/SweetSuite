@@ -121,7 +121,7 @@ class MassSpectrum():
             )
             if mz - half_span < mz_min or mz + half_span > mz_max:
                 self.logger.warning(
-                    f"Calibrant m/z {mz} is outside the spectrum m/z range "
+                    f"Calibrant m/z {mz:.4f} is outside the spectrum m/z range "
                     "and will not be used."
                 )
                 continue

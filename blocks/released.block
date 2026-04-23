@@ -1,0 +1,10 @@
+# Dummy block file for released glycans.
+# Use the format: `released1<glycan_composition>`.
+#
+# This is useful for using released glycan data to GlycoDash,
+# because with only a glycan composition it will fail to assign "glycosylation sites".
+
+
+mass: 0.0
+charge: 0
+mass_modifier: 0
