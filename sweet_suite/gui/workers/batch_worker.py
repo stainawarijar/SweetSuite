@@ -176,7 +176,18 @@ class BatchWorker(QObject):
                 self.finished.emit(False)
                 return
             
-            except OSError:
+            except ValueError as e:
+                self.logger.error(f"Invalid analyte name: {str(e)}")
+                self.error.emit(
+                    "Invalid analyte name",
+                    str(e),
+                    "",
+                    "Critical"
+                )
+                self.finished.emit(False)
+                return
+            
+            except OSError as e:
                 self.logger.error(f"Batch directory missing: {str(e)}")
                 self.error.emit(
                     "Non-existing directory",

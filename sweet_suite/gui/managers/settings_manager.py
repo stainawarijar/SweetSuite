@@ -228,14 +228,23 @@ class SettingsManager:
             "quadratic_mass_window": bool(
                 self.advanced_ui.checkBox_quadratic.isChecked()
             ),
-            "quadratic_mz2": float(
-                self.advanced_ui.doubleSpinBox_mz2.value()
+            "quadratic_mz2_coeff": float(
+                self.advanced_ui.mz2_coeff.value()
             ),
-            "quadratic_mz": float(
-                self.advanced_ui.doubleSpinBox_mz.value()
+            "quadratic_mz2_exp": int(
+                self.advanced_ui.mz2_exponent.value()
             ),
-            "quadratic_constant": float(
-                self.advanced_ui.doubleSpinBox_constant.value()
+            "quadratic_mz_coeff": float(
+                self.advanced_ui.mz_coeff.value()
+            ),
+            "quadratic_mz_exp": int(
+                self.advanced_ui.mz_exponent.value()
+            ),
+            "quadratic_constant_coeff": float(
+                self.advanced_ui.constant_coeff.value()
+            ),
+            "quadratic_constant_exp": int(
+                self.advanced_ui.constant_exponent.value()
             ),
             "use_peak_height": bool(
                 self.advanced_ui.checkBox_peakHeights.isChecked()
@@ -294,14 +303,23 @@ class SettingsManager:
             settings.get("quadratic_mass_window", self.advanced_ui.checkBox_quadratic.isChecked()),
             default=self.advanced_ui.checkBox_quadratic.isChecked()
         ))
-        self.advanced_ui.doubleSpinBox_mz2.setValue(float(settings.get(
-            "quadratic_mz2", self.advanced_ui.doubleSpinBox_mz2.value()
+        self.advanced_ui.mz2_coeff.setValue(float(settings.get(
+            "quadratic_mz2_coeff", self.advanced_ui.mz2_coeff.value()
         )))
-        self.advanced_ui.doubleSpinBox_mz.setValue(float(settings.get(
-            "quadratic_mz", self.advanced_ui.doubleSpinBox_mz.value()
+        self.advanced_ui.mz2_exponent.setValue(float(settings.get(
+            "quadratic_mz2_exp", self.advanced_ui.mz2_exponent.value()
         )))
-        self.advanced_ui.doubleSpinBox_constant.setValue(float(settings.get(
-            "quadratic_constant", self.advanced_ui.doubleSpinBox_constant.value()
+        self.advanced_ui.mz_coeff.setValue(float(settings.get(
+            "quadratic_mz_coeff", self.advanced_ui.mz_coeff.value()
+        )))
+        self.advanced_ui.mz_exponent.setValue(float(settings.get(
+            "quadratic_mz_exp", self.advanced_ui.mz_exponent.value()
+        )))
+        self.advanced_ui.constant_coeff.setValue(float(settings.get(
+            "quadratic_constant_coeff", self.advanced_ui.constant_coeff.value()
+        )))
+        self.advanced_ui.constant_exponent.setValue(float(settings.get(
+            "quadratic_constant_exp", self.advanced_ui.constant_exponent.value()
         )))
         self.advanced_ui.checkBox_peakHeights.setChecked(self.parse_bool(
             settings.get("use_peak_height", self.advanced_ui.checkBox_peakHeights.isChecked()),

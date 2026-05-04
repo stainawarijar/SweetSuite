@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3]
+### Changed
+- Improved the GUI for quadratic m/z-window input under `Advanced settings`.
+- Block files can now be organized in subdirectories within the blocks folder.
+
+### Fixed
+- Analyte names that do not end with a number (e.g. `IgGI1H3N4F` instead of
+  `IgGI1H3N4F1`) now produce a clear error message instead of a generic crash.
+
+
 ## [0.3.2]
 ### Fixed
 - Fixed mass error calculation in calibration figures: errors are now correctly computed as `(observed m/z - exact m/z) / exact m/z * 1e6` (ppm).

@@ -30,7 +30,7 @@ class BlockParser:
         try:
             blocks_dict = {}
             blocks_path = self.ui.path_blocks.item(0).text()
-            files = glob.glob(os.path.join(blocks_path, "*.block"))
+            files = glob.glob(os.path.join(blocks_path, "**", "*.block"), recursive=True)
             
             for filename in files:
                 block = os.path.splitext(os.path.basename(filename))[0]
