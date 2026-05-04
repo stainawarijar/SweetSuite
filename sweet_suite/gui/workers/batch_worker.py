@@ -187,7 +187,7 @@ class BatchWorker(QObject):
                 self.finished.emit(False)
                 return
             
-            except OSError:
+            except OSError as e:
                 self.logger.error(f"Batch directory missing: {str(e)}")
                 self.error.emit(
                     "Non-existing directory",
