@@ -226,6 +226,12 @@ class InputAnalyte:
         # Break analyte name up into parts.
         analyte_parts = re.findall(r"\d+|\D+", self.name)
 
+        # Validate: every block name must be followed by a count.
+        if len(analyte_parts) % 2 != 0:
+            raise ValueError(
+                f"Analyte name '{self.name}' is invalid."
+            )
+
         # Calculate mass using block files.
         mass = 0
         for i, unit in enumerate(analyte_parts):
