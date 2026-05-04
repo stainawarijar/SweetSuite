@@ -80,7 +80,9 @@ Download the analytes template `.xlsx` file from the Toolbar
 
 Entries in `analyte` must be constructed from the `.block` files in the blocks 
 folder. For example, the analyte `IgGI1H3N4F1` consists of one `IgGI` block, 
-three `H` blocks, four `N` blocks, and one `F` block.
+three `H` blocks, four `N` blocks, and one `F` block. Block files can be 
+organized in subdirectories within the blocks folder; the entire folder is 
+scanned recursively.
 
 `charge_min` and `charge_max` define the charge states in which each analyte 
 will be quantified. `time` and `time_window` define the retention time range 
@@ -174,7 +176,7 @@ The "Data" tab contains for each file the following outputs per analyte and per 
 - `total_noise`: <br>Summed noise of all isotopic peaks.
 
 **Advanced settings** (accessible via the toolbar) provide additional quantitation options:
-- *Use quadratic quantitation m/z window* — applies a charge-state-dependent quadratic m/z window defined by user-supplied polynomial coefficients instead of the fixed global window.
+- *Use quadratic quantitation m/z window* — applies a charge-state-dependent quadratic m/z window instead of the fixed global window. The window is defined by three terms of the form *coeff* × 10^*exp*, covering the (m/z)², (m/z), and constant contributions respectively. The effective window is: `a·(m/z)² + b·(m/z) + c` where each coefficient is entered as a significand and an integer exponent.
 - *Use peak heights instead of areas for quantitation* — replaces trapezoidal integration with the maximum intensity in the quantitation m/z window for each isotopic peak. Background subtraction then uses the average background intensity instead of the background area.
 - *Save sum spectra as .xy files* — writes each quantitated (and, where applicable, calibrated) mass spectrum to a tab-delimited `.xy` file inside a dedicated `xy_<timestamp>/` subdirectory in the batch folder. In MS-only mode, files are only written when at least one calibrant is present.
 

@@ -65,7 +65,7 @@ SweetSuite/
 ├── compile_to_exe.sh              # PyInstaller build script
 ├── main.spec                      # PyInstaller spec file
 │
-├── blocks/                        # Block definition files (.block)
+├── blocks/                        # Block definition files (.block), scanned recursively
 ├── docs/                          # Documentation (this file)
 ├── logs/                          # Runtime log files (auto-created)
 ├── tests/                         # Test suite (currently a stub)
@@ -441,8 +441,11 @@ UI object(s) it needs, making them independently testable.
 #### dialogs/
 
 - **`AdvancedSettingsHandler`** — manages the advanced settings `QDialog`.
-  Promotes the three quadratic m/z-window coefficient spinboxes to the custom
-  `ScientificSpinBox` widget (supports scientific-notation entry). Also manages
+  The quadratic m/z-window is entered via six plain `QDoubleSpinBox` widgets:
+  a significand (5-decimal coefficient) and an integer exponent for each of
+  the three polynomial terms ((m/z)², (m/z), and constant). All six inputs
+  are greyed out while the *Use quadratic quantitation m/z window* checkbox
+  is unchecked. Also manages
   the *Use peak heights instead of areas for quantitation* checkbox
   (`checkBox_peakHeights`) and the *Save sum spectra as .xy files* checkbox
   (`checkBox_save_xy`), both of which are read by `BatchCoordinator` at
@@ -464,8 +467,8 @@ UI object(s) it needs, making them independently testable.
 #### widgets/
 
 - **`ScientificSpinBox`** — a `QDoubleSpinBox` subclass that accepts and
-  displays values in scientific notation (e.g. `1.23e-08`), used for the
-  quadratic m/z-window coefficients in the advanced settings dialog.
+  displays values in scientific notation (e.g. `1.23e-08`). Currently not
+  used by any dialog, but retained for potential future use.
 
 #### qtdesigner_files/
 
@@ -508,7 +511,8 @@ These files should not be edited by hand; re-generate them with
 ## Block files
 
 Block files (`.block`) in the `blocks/` directory define the molecular building
-blocks from which analyte names are composed.
+blocks from which analyte names are composed. The directory is scanned
+recursively, so block files can be organized freely in subdirectories.
 
 **Format** (plain text, `#` for comments):
 ```
