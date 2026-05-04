@@ -158,9 +158,9 @@ class BatchCoordinator:
             # Advanced settings
             quadratic_mz_window=bool(self.advanced_ui.checkBox_quadratic.isChecked()),
             quadratic_coeffs=(
-                float(self.advanced_ui.doubleSpinBox_mz2.value()),
-                float(self.advanced_ui.doubleSpinBox_mz.value()),
-                float(self.advanced_ui.doubleSpinBox_constant.value())
+                float(self.advanced_ui.mz2_coeff.value()) * 10 ** float(self.advanced_ui.mz2_exponent.value()),
+                float(self.advanced_ui.mz_coeff.value()) * 10 ** float(self.advanced_ui.mz_exponent.value()),
+                float(self.advanced_ui.constant_coeff.value()) * 10 ** float(self.advanced_ui.constant_exponent.value())
             ),
             use_peak_height=bool(self.advanced_ui.checkBox_peakHeights.isChecked()),
             save_xy=bool(self.advanced_ui.checkBox_save_xy.isChecked())
