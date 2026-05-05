@@ -218,6 +218,24 @@ class Analyte:
             abs(relative_areas_observed - relative_areas_theoretical)
         )
 
+        ''' TODO / NOTE
+        The way this is calculated, including more isotopic peaks will always 
+        increase the IPQ value which does not make sense.
+        A better alternative is to calculate the isotope dot product (IDP), 
+        which is a number between 0 and 1. A score of 1 means a perfect match 
+        between the theoretical and observed isotopic patterns.
+        The calculation is straightforward and the number easier to interpret.
+        This will require an adjustment in GlycoDash (IDP is already implemented
+        there for Skyline data, so implement it for SweetSuite but NOT for 
+        LaCyTools).
+        '''
+        # # Normalize vectors with theoretical and observed relative areas.
+        # tnorm = relative_areas_theoretical / np.linalg.norm(relative_areas_theoretical)
+        # onorm = relative_areas_observed / np.linalg.norm(relative_areas_observed)
+
+        # # Calculate IDP as the dot product between these normalized vectors
+        # idp = np.dot(tnorm, onorm)
+
+        # Keep returning the IPQ value for now.
         return ipq
         
-    
