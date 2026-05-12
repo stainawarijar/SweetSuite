@@ -228,6 +228,9 @@ class Analyte:
         This will require an adjustment in GlycoDash (IDP is already implemented
         there for Skyline data, so implement it for SweetSuite but NOT for 
         LaCyTools).
+        Geometrically, the IDP represents the cosine of the angle between the 
+        the vector containing theoretical relative areas and the vector containing
+        observed relative areas of the quantified isotopic peaks (cosine similarity).
         '''
         # # Normalize vectors with theoretical and observed relative areas.
         # tnorm = relative_areas_theoretical / np.linalg.norm(relative_areas_theoretical)
