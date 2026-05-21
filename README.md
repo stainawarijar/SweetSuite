@@ -175,6 +175,8 @@ The "Data" tab contains for each file the following outputs per analyte and per 
 - `total_background`: <br>Summed background values of all isotopic peaks.
 - `total_noise`: <br>Summed noise of all isotopic peaks.
 
+*Note*: when the output data exceeds $2^{20}$ rows, it is split across multiple sheets labeled `Data1`, `Data2`, etc.
+
 **Advanced settings** (accessible via the toolbar) provide additional quantitation options:
 - *Use quadratic quantitation m/z window* — applies a charge-state-dependent quadratic m/z window instead of the fixed global window. The window is defined by three terms of the form *coeff* × 10^*exp*, covering the (m/z)², (m/z), and constant contributions respectively. The effective window is: `a·(m/z)² + b·(m/z) + c` where each coefficient is entered as a significand and an integer exponent.
 - *Use peak heights instead of areas for quantitation* — replaces trapezoidal integration with the maximum intensity in the quantitation m/z window for each isotopic peak. Background subtraction then uses the average background intensity instead of the background area.
