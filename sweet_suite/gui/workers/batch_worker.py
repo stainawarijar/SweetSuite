@@ -166,9 +166,9 @@ class BatchWorker(QObject):
                 self.logger.info(f"Reference file created at: {analytes_ref_path}")
             
             except KeyError as e:
-                self.logger.error(f"Unknown charge carrier block: {str(e)}")
+                self.logger.error(f"Unknown block: {str(e)}")
                 self.error.emit(
-                    "Unknown charge carrier block",
+                    "Unknown block",
                     f"The block file {str(e)} could not be found.",
                     "",
                     "Critical"
