@@ -99,6 +99,20 @@ class InputAnalyte:
         element: str,
         number: int
     ) -> dict[str, list[tuple[float, float]]]:
+        # TODO FIXME: This implementation uses a binomial distribution for the total
+        # probability of heavy isotope incorporation. That is only exact for elements
+        # with one light isotope and one relevant heavy isotope, such as carbon when
+        # only 12C/13C are considered.
+
+        # For elements with more than two stable isotopes, such as oxygen, sulfur, and
+        # iron, the correct model is a multinomial distribution over all stable isotopes.
+        # The current approximation collapses all heavier isotopes into a single
+        # "heavy isotope" category, so it can give inaccurate masses and probabilities.
+
+        # The practical error is usually small for low-abundance minor isotopes, but it
+        # can become relevant for elements with many atoms, for sulfur-containing
+        # analytes, or for elements such as iron where the most abundant isotope is not
+        # the lightest isotope.
         """Calculate the distribution of heavy isotope incorporation for a 
         given element.
 
@@ -107,6 +121,7 @@ class InputAnalyte:
         given atoms. The calculation uses a binomial distribution, based on the 
         natural abundance of the heavier stable isotopes of the element. 
         Probabilities below 0.1% are considered negligible and are omitted.
+        TODO: Check if 0.1% is not too high.
 
         Args:
             element: Element for which to calculate isotope distributions.
