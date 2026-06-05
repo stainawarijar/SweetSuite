@@ -69,10 +69,12 @@ def write_to_excel(
                 worksheet = writer.sheets[sheet_name]
                 # Auto-adjust column widths.
                 for i, col in enumerate(sheet_df.columns):
-                    max_len = max(
-                        sheet_df[col].astype(str).map(len).max(),
-                        len(col)  # Include header length
-                    ) + 2  # Add some padding
+                    col_lens = sheet_df[col].astype(str).map(len)
+                    if not col_lens.empty:
+                        max_cell_len = int(col_lens.max())
+                    else:
+                        max_cell_len = 0
+                    max_len = max(max_cell_len, len(col)) + 2  # Add some padding
                     worksheet.set_column(i, i, max_len, center_format)
 
 
