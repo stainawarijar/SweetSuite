@@ -166,9 +166,9 @@ class BatchWorker(QObject):
                 self.logger.info(f"Reference file created at: {analytes_ref_path}")
             
             except KeyError as e:
-                self.logger.error(f"Unknown charge carrier block: {str(e)}")
+                self.logger.error(f"Unknown block: {str(e)}")
                 self.error.emit(
-                    "Unknown charge carrier block",
+                    "Unknown block",
                     f"The block file {str(e)} could not be found.",
                     "",
                     "Critical"
@@ -388,16 +388,30 @@ class BatchWorker(QObject):
                 )
                 self.finished.emit(False)
                 return
-            
-        self.export_results(
-            aligned=(
-                aligned_finished if aligned_finished is not None
-                else False
-            ),
-            quantitation_results=quantitation_results
-        )
-        self.logger.info("BatchWorker finished successfully")
-        self.finished.emit(True)
+
+        try:    
+            self.export_results(
+                aligned=(
+                    aligned_finished if aligned_finished is not None
+                    else False
+                ),
+                quantitation_results=quantitation_results
+            )
+            self.logger.info("BatchWorker finished successfully")
+            self.finished.emit(True)
+        except Exception as e:
+                self.logger.exception(
+                    "Unexpected error while exporting results: "
+                    f"{str(e)}"
+                )
+                self.error.emit(
+                    "Processing error",
+                    "Unexpected error while exporting results:",
+                    str(e),
+                    "Critical"
+                )
+                self.finished.emit(False)
+                return
     
     def write_ref_df(self, ref_df: pd.DataFrame) -> str:
         """Write a pre-loaded reference DataFrame to disk as an .xlsx file.

@@ -219,5 +219,4 @@ class Analyte:
         )
 
         return ipq
-        
     

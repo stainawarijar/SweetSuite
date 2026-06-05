@@ -1,5 +1,6 @@
 # Linux
 .directory
+.python-version
 
 # Figures
 *.pdf
