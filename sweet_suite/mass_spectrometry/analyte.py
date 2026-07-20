@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pandas as pd
 
@@ -59,6 +61,7 @@ class Analyte:
                 Background subtraction is performed using the average background
                 intensity instead of the background area. Defaults to False.
         """
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.name = name
         self.charge = charge
         self.peaks = peaks
@@ -162,7 +165,10 @@ class Analyte:
 
         # Check for non-positive noise.
         if noise <= 0:
-            # TODO: Log a warning message.
+            self.logger.warning(
+                f"Non-positive noise for analyte {self.name}; "
+                "returning NaN for S/N."
+            )
             # NOTE: Negative should not be possible because noise is calculated
             # as a standard deviation of data points.
             return np.nan
@@ -240,4 +246,4 @@ class Analyte:
         )
 
         return ipq
-    
+

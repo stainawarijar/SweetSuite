@@ -84,8 +84,11 @@ class IsotopicPeak:
         Returns `np.nan` if `self.data` is empty. 
         """
         if len(self.data) == 0:
-            # TODO: Log warning message
-            # Most likely: quantitation window too small in this case?
+            self.logger.warning(
+                f"No data found around m/z {self.mz_exact} within "
+                f"quantitation window {self.integration_window}. "
+                "The window may be too small."
+            )
             return np.nan
 
         intensities = self.data[:, 1]
