@@ -377,11 +377,64 @@ class InputAnalyte:
             contains: "isotope_group", "extra_neutrons", "prob", "mass", 
             "prob_relative" and "n_fine_structure_peaks".
         """
-        
+        grouped_pattern: dict[str, dict[str, Any]] = {}
 
-        return
-        
+        for peak in fine_structure_pattern:
+            # Determine how many extra neutrons this fine-structure peak has.
+            extra_neutrons = 0
 
+            for isotope_label, isotope_count in peak["isotope_counts"].items():
+                isotope_extra_neutrons = EXTRA_NEUTRON_LOOKUP[isotope_label]
+                extra_neutrons += isotope_count * isotope_extra_neutrons
+
+            if extra_neutrons > 0:
+                group_name = f"M+{extra_neutrons}"
+            else:
+                group_name = "M"
+            
+            # If this M+n group does not exist yet, create it.
+            if group_name not in grouped_pattern:
+                grouped_pattern[group_name] = {
+                    "isotope_group": group_name,
+                    "extra_neutrons": extra_neutrons,
+                    "prob": 0.0,
+                    "weighted_mass_sum": 0.0,
+                    "n_fine_structure_peaks": 0
+                }
+            
+            # Sum probabilities
+            grouped_pattern[group_name]["prob"] += peak["prob"]
+
+            # Store sum(mass * probability), so we can calculate the
+            # probability-weighted average mass later.
+            grouped_pattern[group_name]["weighted_mass_sum"] += (
+                peak["mass"] * peak["prob"]
+            )
+
+            grouped_pattern[group_name]["n_fine_structure_peaks"] += 1
+        
+        if len(grouped_pattern) == 0:
+            return []
+        
+        # Convert weighted mass sums into weighted average masses.
+        for group in grouped_pattern.values():
+            group["mass"] = group["weighted_mass_sum"] / group["prob"]
+            del group["weighted_mass_sum"]
+        
+        # Sort by M, M+1, M+2, ...
+        nominal_pattern = sorted(
+            grouped_pattern.values(),
+            key=lambda group: group["extra_neutrons"]
+        )
+
+        # Add probabilities relative to the most probable nominal group.
+        max_prob = max(group["prob"] for group in nominal_pattern)
+
+        for group in nominal_pattern:
+            group["prob_relative"] = group["prob"] / max_prob
+
+        return nominal_pattern
+        
     def get_monoisotopic_mass(self) -> float:
         """Return lightest-isotope mass (amu) of the neutral analyte based on 
         the block composition. In almost all cases this will be the equal
@@ -518,16 +571,15 @@ class InputAnalyte:
         fine_pattern = InputAnalyte.calculate_fine_structure(
             composition, charge
         )
-        # TODO: collapse fine pattern to nominal pattern.
-        # Also heck if this "epsilon" value is still used somewhere?
+        nominal_pattern = InputAnalyte.collapse_to_nominal_pattern(fine_pattern)
+
         # TODO From nominal pattern, convert (mass, prob) combinations to 
         # (mass_diff, prob) combinations where mass_diff is with respect to
         # lightest mass calculated based on composition. Then apply these 
         # (mass_dif, prob) combinations to `base_mass` which is based on the
         # block files.
-        nominal_pattern = InputAnalyte.collapse_to_nominal_pattern(fine_pattern)
-
-
+        # NOTE: base_mass is not necessarily the same as calculated lightest
+        # mass!
 
         return 
 
