@@ -44,11 +44,11 @@ class InputAnalyte:
 
     def __init__(
         self,
-        blocks: dict[dict],
+        blocks: dict[str, dict[str, float | int]],
         name: str,
         charge_min: int,
         charge_max: int,
-        mz_window_coeffs: float,
+        mz_window_coeffs: tuple[float, float, float],
         time: float | None,
         time_window: float | None,
         calibrant: bool,
@@ -182,25 +182,28 @@ class InputAnalyte:
     def element_fine_structure(
         element: str,
         atom_count: int,
-        min_prob: float = 1e-16
-    ):
-        """Calculate the isotopic fine structure for a single element.
+        min_prob: float = 1e-12
+    ) -> list[dict[str, Any]]:
+        """Calculate the isotopic fine structure for one element.
 
-        Computes all isotope peaks for a given element and atom count by 
-        evaluating every combination of isotopes. Peaks with probability at 
-        or below `min_prob` are skipped to reduce computation.
+        All possible distributions of `atom_count` atoms over the available 
+        isotopes are generated. The exact mass and multinomial probability are 
+        calculated for each isotope-count combination. Combinations below 
+        `min_prob` are discarded.
 
         Args:
-            element: Name of element, e.g. "carbon".
-            atom_count: Number of atoms of this element.
-            min_prob: Probability threshold. Peaks with probability at or 
-                below this value are excluded.
-        
+            element: Element name corresponding to a key in `ISOTOPES`, such as
+                `"carbon"` or `"sulfur"`.
+            atom_count: Number of atoms of the element.
+            min_prob: Minimum probability required to retain an isotope-count
+                combination.
+
         Returns:
-            A list of dictionaries. Each dictionary contains:
-                - "mass": exact mass of the peak (Da).
-                - "prob": probability of the peak.
-                - "isotope_counts": a dictionary of non-zero isotope counts.
+            Fine-structure peaks. Each dictionary contains `mass`, `prob`, and
+            `isotope_counts`.
+        
+        Raises:
+            KeyError: If `element` is not present in `ISOTOPES`.
         """
         isotope_data = ISOTOPES[element]
         isotope_labels = list(isotope_data.keys())
@@ -247,26 +250,24 @@ class InputAnalyte:
     
     @staticmethod
     def convolve_patterns(
-        pattern_a: list[dict],
-        pattern_b: list[dict],
-        min_prob: float = 1e-16
-    ) -> list:
-        """Convolve two isotope patterns.
+        pattern_a: list[dict[str, Any]],
+        pattern_b: list[dict[str, Any]],
+        min_prob: float = 1e-12
+    ) -> list[dict[str, Any]]:
+        """Convolve two isotopic fine-structure patterns.
 
-        Combines two isotope peak lists by convolving them. Every peak from
-        `pattern_a` is paired with every peak from `pattern_b`. Resulting peak
-        masses are summed and probabilities are multiplied. Pairs whose combined
-        probability falls below `min_prob` are discarded to reduce computation.
+        Every peak in `pattern_a` is combined with every peak in `pattern_b`.
+        Masses are added, probabilities are multiplied, and isotope counts are
+        merged. Combined peaks below `min_prob` are discarded.
 
         Args:
-            pattern_a: List of isotope peaks. Each peak is a dictionary with 
-                "mass", "prob" and "isotope_counts".
-            pattern_b: List of isotope peaks in the same format as `pattern_a`.
-            min_prob: Probability threshold. Combined peaks with probability below
-                this value are excluded.
-        
+            pattern_a: First fine-structure pattern.
+            pattern_b: Second fine-structure pattern.
+            min_prob: Minimum combined probability required to retain a peak.
+
         Returns:
-            A list of combined isotope peaks in the same format as the inputs.
+            Convolved fine-structure pattern containing `mass`, `prob`, and
+            `isotope_counts` for each retained peak.
         """
         combined_pattern = []
 
@@ -294,27 +295,32 @@ class InputAnalyte:
 
     @staticmethod
     def calculate_fine_structure(
-        composition,
+        composition: dict[str, int],
         charge: int,
-        min_prob: float = 1e-16
+        min_prob: float = 1e-12
     ) -> list[dict]:
-        """Calculate the isotopic fine structure for an elemental composition.
+        """Calculate the isotopic fine structure for an ion composition.
 
-        Computes the full isotopic fine structure for a molecule by successively
-        convolving the elemental fine-structure patterns for every element in 
-        the composition. Corrects for electron mass based on the charge state.
-        The resulting peaks are sorted by mass and annotated with relative 
-        probabilities.
+        Element-specific isotope patterns are generated and successively 
+        convolved. Low-probability configurations are discarded both while 
+        generating elemental patterns and after each convolution. The ion mass 
+        is corrected for the signed charge state by subtracting the 
+        corresponding electron mass.
+
+        An empty list is returned if all configurations are removed by
+        probability filtering.
 
         Args:
-            composition: A dictionary containing the elemental composition.
-            charge: Charge state. May be positive or negative.
-            min_prob: Probability threshold. Peaks below this value are
-                excluded at each convolution step.
-        
+            composition: Numbers of atoms whose isotopes are allowed to vary.
+            charge: Signed charge state of the ion.
+            min_prob: Minimum probability required to retain a fine-structure 
+                peak.
+
         Returns:
-            A list of fine-structure peaks sorted by mass. Each peak is a
-            dictionary with "mass", "prob", "isotope_counts", "relative_prob".
+            Fine-structure peaks sorted by increasing mass. Each dictionary 
+            contains `mass`, `prob`, `isotope_counts`, and `relative_prob`. 
+            The relative probability is normalized to the most probable retained 
+            fine-structure peak.
         """
         molecular_pattern = [{
             "mass": 0.0,
@@ -328,7 +334,8 @@ class InputAnalyte:
                 # for subsetting of `ISOTOPES` dictionary.
                 # E.g., "carbons" -> "carbon"
                 element=element.removesuffix("s"),
-                atom_count=atom_count
+                atom_count=atom_count,
+                min_prob=min_prob
             )
 
             molecular_pattern = InputAnalyte.convolve_patterns(
@@ -373,9 +380,11 @@ class InputAnalyte:
             should contain "mass", "prob" and "isotope_counts".
         
         Returns:
-            A list of nominal isotope peaks by extra neutron count. Each group
-            contains: "isotope_group", "extra_neutrons", "prob", "mass", 
-            "prob_relative" and "n_fine_structure_peaks".
+            Nominal isotope groups sorted by increasing number of extra
+            neutrons. Each dictionary contains `isotope_group`, 
+            `extra_neutrons`, `prob`, `mass`, `prob_relative`, and 
+            `n_fine_structure_peaks`. The mass is the probability-weighted 
+            average mass of the fine-structure peaks in the group.
         """
         grouped_pattern: dict[str, dict[str, Any]] = {}
 
@@ -434,14 +443,65 @@ class InputAnalyte:
             group["prob_relative"] = group["prob"] / max_prob
 
         return nominal_pattern
+    
+    @staticmethod
+    def calculate_lightest_mass(
+        composition: dict[str, int],
+        charge: int
+    ) -> float:
+        """Calculate the mass of the all-lightest-isotope ion composition.
+
+        For each variable element, the mass of its lightest isotope is 
+        multiplied by its atom count. The electron-mass correction corresponding 
+        to the signed charge state is then applied.
+
+        This function calculates only the mass represented by `composition`.
+        Fixed atoms, including fixed stable-isotope labels, must be accounted
+        for separately in the externally supplied `base_mass` (based on masses
+        specified in block files).
+
+        Args:
+            composition: Numbers of atoms whose isotopes are allowed to vary.
+                Element names are plural, such as `"carbons"` or `"oxygens"`.
+            charge: Signed charge state of the ion. Positive charge removes
+                electron mass, whereas negative charge adds electron mass.
         
+        Returns:
+            Exact mass of the all-lightest-isotope ion composition in Da.
+        """
+        mass = 0.0
+
+        for element, atom_count in composition.items():
+            element_name = element.removesuffix("s")
+            isotope_data = ISOTOPES[element_name]
+
+            lightest_isotope_mass = min(
+                isotope["mass"]
+                for isotope in isotope_data.values()
+            )
+
+            mass += atom_count * lightest_isotope_mass
+        
+        # Same electron-mass correction used for fine-structure peaks.
+        mass -= charge * ELECTRON_MASS
+
+        return mass
+
     def get_monoisotopic_mass(self) -> float:
-        """Return lightest-isotope mass (amu) of the neutral analyte based on 
-        the block composition. In almost all cases this will be the equal
-        to the monoisotopic mass, which is the mass of the molecule containing
-        the most probable isotopes for each element.
+        """Calculate the analyte base mass from its block definitions.
+
+        The base mass is obtained by summing the mass of each named block and 
+        the optional mass modifier. Block masses are expected to represent the 
+        lightest isotope composition of all variable atoms while already 
+        including any fixed stable-isotope labels.
+
+        Returns:
+            Neutral analyte base mass in daltons.
         
-        Includes the mass modifier if one is specified.
+        Raises:
+            ValueError: If the analyte name does not consist of alternating 
+                block names and integer counts.
+            KeyError: If an analyte block or mass-modifier block is not defined.
         """
         # Break analyte name up into parts.
         analyte_parts = re.findall(r"\d+|\D+", self.name)
@@ -479,8 +539,11 @@ class InputAnalyte:
 
         Returns:
             A dictionary containing the number of C, H, O, N, S, Na, K and Fe
-            whose isotopes can vary. Returns `None` when there are missing
-            block files.
+            whose isotopes can vary.
+
+        Raises:
+            KeyError: If a block referenced by the analyte name or mass modifier
+                is not defined.
         """
         # Break analyte name up into parts.
         analyte_parts = re.findall(r"\d+|\D+", self.name)
@@ -521,67 +584,108 @@ class InputAnalyte:
 
     def select_isotopologues(
         self,
-        merged_mass_probs: list[tuple[float, float]]
+        distribution: list[tuple[float, float, int]]
     ) -> list[tuple[float, float, int]]:
-        """Select most probable isotopologues until a cumulative threshold 
-            is met.
+        """Select isotopologues up to a cumulative probability threshold.
+
+        Nominal isotope groups are first ordered by decreasing probability.
+        Groups are selected until their cumulative probability reaches or 
+        exceeds `self.min_isotopic_fraction`. The selected groups are then 
+        returned in increasing mass order.
 
         Args:
-            merged_mass_probs: List of (mass, probability) tuples, 
-                sorted from low to high mass.
+            distribution: Nominal isotope distribution represented as tuples of
+                ion mass, probability and number of extra neutrons.
 
         Returns:
-            A reduced list of isotopologues as (mass, probability, index) 
-            tuples, sorted by increasing mass. The index represents the 
-            isotopologue number (0 being lowest-mass, 1 meaning one extra 
-            neutron, etc.). Note that the lowest-mass is not necessarily
-            the monoisotopic one, as this depends on its theoretical 
-            relative abundance which may be very low for large analytes.
+            Selected isotope groups as tuples of ion mass, probability, and 
+            number of extra neutrons, sorted by increasing mass. The extra-
+            neutron value identifies the nominal isotope group: 0 is M, 1 is
+            M+1, 2 is M+2, and so on.
         """
-        # Create list with tuples (mass, prob, idx).
-        masses_probs_idxs = []
-        for idx, (mass, prob) in enumerate(merged_mass_probs):
-            masses_probs_idxs.append((mass, prob, idx))
+        isotopologues_by_probability = sorted(
+            distribution,
+            key=lambda isotope: isotope[1],
+            reverse=True
+        )
 
-        # Sort by decreasing probability.
-        masses_probs_idxs.sort(key=lambda x: x[1], reverse=True)
-
-        # Keep isotopes until cumulative probability exceeds minimum
-        # isotopic fraction to be integrated.
         selected = []
-        contribution = 0
-        for mass, prob, idx in masses_probs_idxs:
-            contribution += prob
-            selected.append((mass, prob, idx))
-            if contribution > self.min_isotopic_fraction:
-                break
+        cumulative_probability = 0.0
 
-        # Return final selection sorted by mass.
-        return sorted(selected, key=lambda x: x[0])
+        for mass, probability, extra_neutrons in isotopologues_by_probability:
+            selected.append((mass, probability, extra_neutrons))
+            cumulative_probability += probability
+
+            if cumulative_probability >= self.min_isotopic_fraction:
+                break
+        
+        return sorted(selected, key=lambda isotope: isotope[0])
 
     def compute_distribution(
         self,
         base_mass: float,
         charge: int,
         composition: dict[str, int]
-    ) -> list[tuple[float, float]]:
-        """Compute the isotopic distribution for a given monoisotopic mass
-        and elemental composition using sequential convolution.
+    ) -> list[tuple[float, float, int]]:
+        """Compute the nominal isotopic distribution for an ion.
+
+        The isotopic fine structure is calculated from the variable elemental
+        composition and collapsed into nominal M, M+1, M+2, ... groups. The
+        resulting isotope-dependent mass differences are added to `base_mass`.
+
+        Args:
+            base_mass: Mass of the ion containing the lightest isotope of every
+                variable atom. Fixed stable-isotope labels are already included
+                in this mass.
+            charge: Signed charge state of the ion.
+            composition: Numbers of atoms whose isotopes are allowed to vary.
+        
+        Returns:
+            A list of tuples containing the ion mass, probability, and number of
+            extra neutrons for each retained nominal isotope group. The list is
+            sorted by increasing mass.
+        
+        Raises:
+            ValueError: If no isotopic peaks remain after probability filtering.
         """
         fine_pattern = InputAnalyte.calculate_fine_structure(
-            composition, charge
+            composition=composition, 
+            charge=charge
         )
-        nominal_pattern = InputAnalyte.collapse_to_nominal_pattern(fine_pattern)
+        nominal_pattern = InputAnalyte.collapse_to_nominal_pattern(
+            fine_structure_pattern=fine_pattern
+        )
 
-        # TODO From nominal pattern, convert (mass, prob) combinations to 
-        # (mass_diff, prob) combinations where mass_diff is with respect to
-        # lightest mass calculated based on composition. Then apply these 
-        # (mass_dif, prob) combinations to `base_mass` which is based on the
-        # block files.
-        # NOTE: base_mass is not necessarily the same as calculated lightest
-        # mass!
+        # Overly restrictive threshold can make `calculate_fine_structure()`
+        # return an empty list, which would lead to IndexError below.
+        # Check against this explicitly.
+        if not nominal_pattern:
+            raise ValueError(
+                "The isotopic pattern is empty. "
+                "The 'min_prob' threshold may be too high."
+            )
 
-        return 
+        # Calculate the mass represented by zero additional neutrons directly.
+        # This mass may not occur in `nominal_pattern` if its probability was
+        # below the filtering threshold.
+        mass_lightest = InputAnalyte.calculate_lightest_mass(
+            composition=composition,
+            charge=charge
+        )
+
+        distribution = [
+            (
+                base_mass + peak["mass"] - mass_lightest,
+                peak["prob"],
+                peak["extra_neutrons"]
+            )
+            for peak in nominal_pattern
+        ]
+
+        # NOTE: `base_mass` is NOT necessarily the same as `mass_lightest`!
+        # (E.g., in case of a stable-isotope labeled analyte).
+
+        return distribution
 
     def get_reference_df(self) -> pd.DataFrame:
         """Create a reference DataFrame for the analyte.
@@ -636,7 +740,13 @@ class InputAnalyte:
         )
 
         # Loop over charge states (in steps of charge unit).
-        for charge in range(self.charge_min, self.charge_max + 1, charge_unit):
+        # NOTE: Requires `charge_min <= charge_max` for positive charge
+        # and `charge_min >= charge_max` for negative charge.
+        for charge in range(
+            self.charge_min,
+            self.charge_max + charge_unit,
+            charge_unit
+        ):
             n_carriers = charge // charge_unit
 
             # Full ion monoisotopic mass and elemental composition.
@@ -646,19 +756,16 @@ class InputAnalyte:
                 for el in self.variable_composition
             }
 
-            # TODO: Correct isotope calculation here.
-            # 1. Compute nominal pattern
+            # Calculate nominal mass-probability distribution.
             distribution = self.compute_distribution(
                 base_mass=ion_mono_mass, 
                 charge=int(charge),
                 composition=ion_composition
             )
 
-            # Compute full ion isotopologue distribution and select peaks.
-            per_charge_isotopologues = self.select_isotopologues(
-                distribution
-                # self.compute_distribution(ion_mono_mass, ion_composition)
-            )
+            # Select most probable isotopic peaks that together summing to at 
+            # least `self.min_isotopic_fraction`.
+            per_charge_isotopologues = self.select_isotopologues(distribution)
 
             # Determine index of most abundant isotopologue for calibrant flag.
             if self.calibrant:
@@ -668,21 +775,26 @@ class InputAnalyte:
                 )
 
             # Loop over isotopologues.
-            for idx, iso in enumerate(per_charge_isotopologues):
-                # iso[0] is the full ion mass; divide by charge for m/z.
-                mz = iso[0] / charge
+            for idx, isotope in enumerate(per_charge_isotopologues):
+                ion_mass, probability, extra_neutrons = isotope
+                
+                # In negative mode, m/z is still reported as a positive number
+                # by convention. Hence we use absolute charge here.
+                mz = ion_mass / abs(charge) 
+
                 mz_window = (
                     self.mz_window_coeffs[0] * mz**2
                     + self.mz_window_coeffs[1] * mz
                     + self.mz_window_coeffs[2]
                 )
+
                 # Create small DataFrame for this isotopologue.
                 df = pd.DataFrame([{
-                    "peak": f"{self.name}_{charge}_{iso[2]}",
+                    "peak": f"{self.name}_{charge}_{extra_neutrons}",
                     "charge_carrier": self.charge_carrier,
                     "mass_modifier": mass_modifier_label,
                     "mz": mz,
-                    "relative_area": iso[1],
+                    "relative_area": probability,
                     "mz_window": mz_window,
                     "time": time_val,
                     "time_window": time_window_val,
