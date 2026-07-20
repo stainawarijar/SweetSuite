@@ -129,6 +129,22 @@ class MainWindow(QMainWindow):
             enabled: True to enable MS-only mode, False for LC-MS mode.
         """
         self.ms_only_mode = enabled
+
+        # Keep the individual controls in sync with their container.  While a
+        # disabled parent normally disables its children automatically, setting
+        # these explicitly ensures that no alignment control can retain a
+        # disabled state after returning from MS-only mode.
+        alignment_controls = (
+            self.ui.open_alignment_list,
+            self.ui.pushButton_delete_alignment,
+            self.ui.path_alignment_list,
+            self.ui.alignment_time_window,
+            self.ui.alignment_mz_window,
+            self.ui.alignment_min_peaks,
+            self.ui.alignment_sn_cutoff,
+        )
+        for control in alignment_controls:
+            control.setEnabled(not enabled)
         
         if enabled:
             # MS-only mode: disable all LC-related features
