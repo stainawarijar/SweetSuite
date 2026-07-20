@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import pandas as pd
 
@@ -59,36 +61,27 @@ class Analyte:
                 Background subtraction is performed using the average background
                 intensity instead of the background area. Defaults to False.
         """
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.name = name
         self.charge = charge
         self.peaks = peaks
         self.background_and_noise = background_and_noise
         self.use_peak_height = use_peak_height
         self.isotopic_fraction = self.get_isotopic_fraction()
-        self.mass_error_ppm = self.get_mass_error_ppm()
         self.total_area = self.get_total_area()
         self.total_background = self.get_total_background()
         self.total_noise = self.get_total_noise()
-        self.total_area_background_subtracted = self.get_total_area_background_subtracted()
+        self.total_area_background_subtracted = (
+            self.get_total_area_background_subtracted()
+        )
         self.signal_to_noise = self.get_signal_to_noise()
+        self.mass_error_ppm = self.get_mass_error_ppm()
         self.isotopic_pattern_quality = self.get_isotopic_pattern_quality()
 
     def get_isotopic_fraction(self) -> float:
         """Return the fraction of the isotopic pattern that was integrated."""
         return np.sum(self.peaks["relative_area_theoretical"])
-
-    def get_mass_error_ppm(self) -> float:
-        """Return the mass error in parts per million (ppm).
-        
-        The mass error of the analyte is taken to be the mass error
-        of the isotopic peak with the highest theoretical relative area.
-        """
-        mass_error_ppm = self.peaks.loc[
-            self.peaks["relative_area_theoretical"].idxmax(), "mass_error_ppm"
-        ]
-
-        return mass_error_ppm
-
+    
     def get_total_area(self) -> float:
         """Return the sum of the isotopologue areas (or peak heights).
         
@@ -98,10 +91,9 @@ class Analyte:
         col = "maximum_intensity" if self.use_peak_height else "area"
         values_sum = np.sum(self.peaks[col])
         # In case of negative result, return zero.
-        if values_sum > 0:
-            return values_sum
-        else:
-            return float(0)
+        if values_sum < 0:
+            return 0.0
+        return values_sum
     
     def get_total_background(self) -> float:
         """Return total background of the analyte.
@@ -114,10 +106,9 @@ class Analyte:
         bg = self.background_and_noise[0 if self.use_peak_height else 1]
         total_background = bg * len(self.peaks)
         # In case of negative result, return zero.
-        if total_background > 0:
-            return total_background
-        else:
-            return float(0)
+        if total_background < 0:
+            return 0.0
+        return total_background
     
     def get_total_noise(self) -> float:
         """Return the total noise for the analyte.
@@ -127,10 +118,9 @@ class Analyte:
         """
         total_noise = self.background_and_noise[2] * len(self.peaks)
         # In case of negative result, return zero.
-        if total_noise > 0:
-            return total_noise
-        else:
-            return float(0)
+        if total_noise < 0:
+            return 0.0
+        return total_noise
 
     def get_total_area_background_subtracted(self) -> float:
         """Return the background subtracted total area (or peak heights).
@@ -146,10 +136,9 @@ class Analyte:
         values = self.peaks[col] - bg
         values_sum = np.sum(values[values > 0])
         # In case of negative result, return zero.
-        if values_sum > 0:
-            return values_sum
-        else:
-            return float(0)
+        if values_sum < 0:
+            return 0.0
+        return values_sum
 
     def get_signal_to_noise(self) -> float:
         """Return the signal-to-noise (S/N).
@@ -157,30 +146,64 @@ class Analyte:
         The S/N of the analyte is taken to be the S/N of the isotopic peak
         with the highest theoretical relative area. 
 
-        In case of a negative signal-to-noise, zero is returned. Returns 
-        `np.inf` when noise is zero and signal is greater than zero.
+        Returns:
+            S/N value of the analyte as a float.
+            `0.0` in case of a negative S/N value.
+            `0.0` if background subtracted intensity is zero (analyte not
+            present).
+            `np.nan` when noise is non-positive (edge case that should
+            not happen).
         """
+        # If background subtracted intensity is 0, the analyte is not there
+        # and we return `np.nan`
+        if self.total_area_background_subtracted == 0:
+            return 0.0
+
         # Get noise and average background intensity.
         average_background_intensity = self.background_and_noise[0]
         noise = self.background_and_noise[2]
 
+        # Check for non-positive noise.
+        if noise <= 0:
+            self.logger.warning(
+                f"Non-positive noise for analyte {self.name}; "
+                "returning NaN for S/N."
+            )
+            # NOTE: Negative should not be possible because noise is calculated
+            # as a standard deviation of data points.
+            return np.nan
+        
         # Get maximum intensity for the most abundant isotopic peak.
         maximum_intensity = self.peaks.loc[
             self.peaks["relative_area_theoretical"].idxmax(), 
             "maximum_intensity"
         ]
-
-        # Calculate S/N.
-        try:
-            sn = (maximum_intensity - average_background_intensity) / noise
-        except ZeroDivisionError:
-            sn = np.inf
         
+        # Calculate S/N.
+        sn = (maximum_intensity - average_background_intensity) / noise
+
         # In case of negative result, return zero.
-        if sn > 0:
-            return sn
-        else:
-            return float(0)
+        if sn < 0:
+            return 0.0
+        return sn
+    
+    def get_mass_error_ppm(self) -> float:
+        """Return the mass error in parts per million (ppm).
+        
+        The mass error of the analyte is taken to be the mass error
+        of the isotopic peak with the highest theoretical relative area.
+
+        If the analyte background-subtracted area is zero, `np.nan` is 
+        returned because the analyte is not present.
+        """
+        if self.total_area_background_subtracted == 0:
+            return np.nan
+
+        mass_error_ppm = self.peaks.loc[
+            self.peaks["relative_area_theoretical"].idxmax(), "mass_error_ppm"
+        ]
+
+        return mass_error_ppm
 
     def get_isotopic_pattern_quality(self) -> float:
         """
@@ -189,7 +212,14 @@ class Analyte:
         For each isotopic peak, the absolute difference between the expected
         relative area and the observed relative area is taken. The resulting
         absolute differences are then summed to yield the IPQ.
+
+        Returns `np.nan` if the analyte background-subtracted signal is zero.
         """
+        # If background-subtracted area of the analyte is zero,
+        # then the IPQ is undefined. Return NaN.
+        if self.total_area_background_subtracted == 0:
+            return np.nan
+
         # Re-normalize the theoretical relative areas of the isotopic peaks.
         # This is required because in practice only a selection of isotopic
         # peaks is integrated.
@@ -205,12 +235,9 @@ class Analyte:
         areas_observed = np.maximum(self.peaks[col] - bg, 0)
 
         # Calculate observed relative areas.
-        try:
-            relative_areas_observed = (
-                areas_observed / self.total_area_background_subtracted
-            )
-        except ZeroDivisionError:
-            return None
+        relative_areas_observed = (
+            areas_observed / self.total_area_background_subtracted
+        )
 
         # Calculate absolute differences between theoretical and observed
         # relative areas, and sum the values.
@@ -219,4 +246,4 @@ class Analyte:
         )
 
         return ipq
-    
+

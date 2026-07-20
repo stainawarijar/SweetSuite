@@ -76,15 +76,20 @@ class IsotopicPeak:
         """Return the intensity of the highest local maximum within the
         m/z range `[mz_exact ± integration_mz_window]`.
 
-        Returns 0.0 if `self.data` is empty. A local maximum is defined as
-        a point whose intensity is strictly greater than both its immediate
-        neighbours. Among all local maxima, the one with the highest
-        intensity is selected. If no local maximum is found (e.g. the
-        window captures only a monotone slope), the global maximum intensity
-        is returned as a fallback.
+        A local maximum is defined as a point whose intensity is strictly 
+        greater than both its immediate neighbours. Among all local maxima, 
+        the one with the highest intensity is selected. 
+        If no local maximum is found (e.g. the window captures only a monotone 
+        slope), ...
+        Returns `np.nan` if `self.data` is empty. 
         """
         if len(self.data) == 0:
-            return 0.0
+            self.logger.warning(
+                f"No data found around m/z {self.mz_exact} within "
+                f"quantitation window {self.integration_window}. "
+                "The window may be too small."
+            )
+            return np.nan
 
         intensities = self.data[:, 1]
 
@@ -95,19 +100,15 @@ class IsotopicPeak:
             intensities[i] > intensities[i + 1]
         ], dtype=int)
 
-        if len(max_indices) > 0:
-            # Pick the local maximum with the highest intensity.
-            max_idx = max_indices[np.argmax(intensities[max_indices])]
-            return float(intensities[max_idx])
+        # Return 0 if there is no local maximum
+        if len(max_indices) == 0:
+            return 0.0
 
-        # Fallback: no interior local max → use highest intensity point.
-        # self.logger.info(
-        #     f"No local maximum found for m/z {self.mz_exact:.4f} "
-        #     f"(window={self.integration_mz_window:.4f} Th). "
-        #     f"Using highest intensity point as fallback."
-        # )
-        return float(np.max(intensities))
-
+        # Pick the local maximum with the highest intensity.
+        max_idx = max_indices[np.argmax(intensities[max_indices])]
+        
+        return float(intensities[max_idx])
+    
     def get_background_and_noise(
         self,
         target_mz: float,
