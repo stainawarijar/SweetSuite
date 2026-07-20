@@ -1,10 +1,11 @@
 import math
 import re
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from .resources.constants import ISOTOPES
+from .resources.constants import ISOTOPES, ELECTRON_MASS, EXTRA_NEUTRON_LOOKUP
 
 
 class InputAnalyte:
@@ -36,8 +37,7 @@ class InputAnalyte:
         monoisotopic_mass (float): Theoretical monoisotopic mass (amu) of the
             neutral analyte, including the mass modifier if specified.
         variable_composition (dict[str, int]): Number of atoms of each element
-            whose isotopes can vary (carbons, hydrogens, nitrogens, oxygens, 
-            sulfurs).
+            whose isotopes can vary (C, H, O, N, S, Na, K, Fe).
         reference_df (pd.DataFrame): Reference DataFrame with expected peaks,
             m/z values, abundances, retention times, and calibration flags.
     """
@@ -95,147 +95,298 @@ class InputAnalyte:
         self.reference_df = self.get_reference_df()
 
     @staticmethod
-    def get_heavy_isotope_distributions(
-        element: str,
-        number: int
-    ) -> dict[str, list[tuple[float, float]]]:
-        """Calculate the distribution of heavy isotope incorporation for a 
-        given element.
+    def multinomial_prob(
+        counts: tuple[int, ...],
+        probs: tuple[float, ...]
+    ) -> float:
+        """Calculate the multinomial probability for a set of isotope counts.
 
-        For a selected element and a number of atoms, this function computes 
-        the probability that 0, 1, ..., n heavy isotopes are present among the 
-        given atoms. The calculation uses a binomial distribution, based on the 
-        natural abundance of the heavier stable isotopes of the element. 
-        Probabilities below 0.1% are considered negligible and are omitted.
-        TODO: Check if 0.1% is not too high.
+        Computes the multinomial probability for a given set of isotope counts 
+        and their natural abundance probabilities. For example, for carbon 
+        with counts `(5, 1)`:
+            
+            probability = 6! / (5! * 1!) * P(C12)^5 * P(C13)^1
+
+        Computation is performed in log-space for numerical stability with 
+        large molecules.
 
         Args:
-            element: Element for which to calculate isotope distributions.
-                Must be one of: 'carbon', 'hydrogen', 'oxygen', 'nitrogen',
-                'sulfur', 'potassium', 'iron', 'chlorine'. Sodium and fluorine
-                are also allowed but will have no effect, as they have only 
-                one naturally occuring isotope.
-            number: Number of atoms of the given element whose isotopes can 
-                naturally vary.
+            counts: Isotope atom counts, summing to the total number of atoms
+                for the element.
+            probs: Natural abundance probabilities for each isotope, in the 
+                same order as `counts`.
 
         Returns:
-            A dictionary mapping each heavy isotope of the element (as a string 
-            identifier, e.g. 'C13') to a list of tuples of the form 
-            `(mass_diff, prob)`, where `mass_diff` is the mass difference 
-            relative to the monoisotopic mass based on the number `n` of 
-            incorporated heavy isotopes, and `prob` is the probability of having 
-            exactly `n` heavy isotopes among the total number of atoms.
+            The multinomial probability.
         """
-        # TODO FIXME: This implementation uses a binomial distribution for the total
-        # probability of heavy isotope incorporation. That is only exact for elements
-        # with one light isotope and one relevant heavy isotope, such as carbon when
-        # only 12C/13C are considered.
+        total = sum(counts)
 
-        # For elements with more than two stable isotopes, such as oxygen, sulfur, and
-        # iron, the correct model is a multinomial distribution over all stable isotopes.
-        # The current approximation collapses all heavier isotopes into a single
-        # "heavy isotope" category, so it can give inaccurate masses and probabilities.
+        # The gamma function generalizes factorials.
+        # `math.lgamma(n + 1)` is therefore log(n!).
+        log_prob = math.lgamma(total + 1)
 
-        # The practical error is usually small for low-abundance minor isotopes, but it
-        # can become relevant for elements with many atoms, for sulfur-containing
-        # analytes, or for elements such as iron where the most abundant isotope is not
-        # the lightest isotope.
+        # Subtract the log-factorials of the isotope counts.
+        log_prob -= sum(math.lgamma(count + 1) for count in counts)
 
-        # Initiate empty dictionary to store distributions.
-        isotope_distributions = {}
-
-        # Determine mass of lightest isotope.
-        lightest_isotope = next(iter(ISOTOPES[element]))
-        lightest_isotope_mass = ISOTOPES[element][lightest_isotope]["mass"]
-
-        # Loop over the stable isotopes.
-        for idx, isotope in enumerate(ISOTOPES[element]):
-            if idx == 0:  # Skip the lightest isotope.
-                continue
-
-            # Extract mass and abundance of isotope.
-            mass = ISOTOPES[element][isotope]["mass"]
-            abundance = ISOTOPES[element][isotope]["abundance"]
-
-            # Initiate values before loop starts.
-            n = 0  # Number of heavy isotopes incorporated among all atoms.
-            probs = []
-            last_prob = 0
-
-            # Loop over possible numbers of heavy isotopes.
-            while n <= number:
-                # Calculate binomial coefficient and probability.
-                abundance = ISOTOPES[element][isotope]["abundance"]
-                coeff = math.comb(number, n)
-                prob = coeff * abundance ** n * (1 - abundance) ** (number - n)
-
-                # Append tuple (mass_diff, prob) to probs.
-                mass_diff = (mass - lightest_isotope_mass) * n
-                probs.append((mass_diff, prob))
-
-                # Check if probability is below 0.1% and still decreasing.
-                if prob <= 0.001 and prob < last_prob:
-                    break
-                else:
-                    n += 1
-
-                # Update last_prob to last calculated probability.
-                last_prob = prob
-
-            # Add probability list to dictionary.
-            isotope_distributions[isotope] = probs
-
-        return isotope_distributions
+        # Add the probability terms.
+        # Only include counts > 0 to avoid problems such as 0 * log(0).
+        for count, prob in zip(counts, probs):
+            if count > 0:
+                log_prob += count * math.log(prob)
+        
+        return math.exp(log_prob)
 
     @staticmethod
-    def merge_isotopic_masses(
-        mass_probs: list[tuple[float, float]],
-        epsilon: float = 0.5  # Set constant for now.
-    ) -> list[tuple[float, float]]:
-        """Merge probabilities for isotopic masses within the instrument's 
-        resolution using NumPy for vectorized operations.
+    def isotope_count_combis(
+        n: int,
+        k: int
+    ) -> list[tuple[int, ...]]:
+        """ Generate all non-negative integer tuples of length `k` 
+        that sum to `n`.
 
-        Each group of (mass, probability) tuples with indistinguishable masses
-        is collapsed into a single weighted-average mass with a total combined
-        probability.
+        These represent every way to distribute `n` identical atoms of `k` 
+        isotopes. For example, `n = 2, k = 3` could represent two oxygen atoms 
+        for which there are three stable isotopes (O16, O17, O18), and would 
+        produce `(2, 0, 0)`, (1, 1, 0)`, `(0, 0, 2)`, etc.
 
         Args:
-            mass_probs: List of (mass, probability) tuples.
-            epsilon: Tuples whose masses fall within this tolerance are pooled 
-                and merged.
-
+            n: Total number of atoms to distribute.
+            k: Number of possible isotopes.
+        
         Returns:
-            A list of merged (mass, probability) tuples, ordered from low to 
-                high mass.
+            A list of integer tuples of length `k`, each summing to `n`.
         """
-        # Sort by mass using NumPy (vectorized sort)
-        sorted_mass_probs = sorted(mass_probs, key=lambda x: x[0])
-        masses = np.array([m for m, _ in sorted_mass_probs])
-        probs = np.array([p for _, p in sorted_mass_probs])
+        # Base case: only one isotope.
+        if k == 1:
+            return [(n,)]
+        
+        # Store all combinations here.
+        combinations = []
 
-        # Find where mass differences exceed epsilon (group boundaries).
-        diff = np.diff(masses)
-        group_boundaries = np.where(diff >= epsilon)[0] + 1
-        group_starts = np.concatenate([[0], group_boundaries, [len(masses)]])
+        # Try every possible count for the first isotope.
+        for first_count in range(0, n + 1):
+            # Distribute remaining atoms of the remaining isotopes.
+            remaining_combis = InputAnalyte.isotope_count_combis(
+                n = n - first_count,
+                k = k - 1
+            )
 
-        # Vectorized merging for each group.
-        merged = []
-        for i in range(len(group_starts) - 1):
-            start = group_starts[i]
-            end = group_starts[i + 1]
-            group_masses = masses[start:end]
-            group_probs = probs[start:end]
+            # Add `first_count` in front of each remaining combination.
+            for remaining_counts in remaining_combis:
+                new_combination = (first_count,) + remaining_counts
+                combinations.append(new_combination)
+
+        return combinations    
+
+    @staticmethod
+    def element_fine_structure(
+        element: str,
+        atom_count: int,
+        min_prob: float = 1e-16
+    ):
+        """Calculate the isotopic fine structure for a single element.
+
+        Computes all isotope peaks for a given element and atom count by 
+        evaluating every combination of isotopes. Peaks with probability at 
+        or below `min_prob` are skipped to reduce computation.
+
+        Args:
+            element: Name of element, e.g. "carbon".
+            atom_count: Number of atoms of this element.
+            min_prob: Probability threshold. Peaks with probability at or 
+                below this value are excluded.
+        
+        Returns:
+            A list of dictionaries. Each dictionary contains:
+                - "mass": exact mass of the peak (Da).
+                - "prob": probability of the peak.
+                - "isotope_counts": a dictionary of non-zero isotope counts.
+        """
+        isotope_data = ISOTOPES[element]
+        isotope_labels = list(isotope_data.keys())
+
+        isotope_masses = tuple(
+            isotope_data[label]["mass"]
+            for label in isotope_labels
+        )
+
+        isotope_probs = tuple(
+            isotope_data[label]["abundance"]
+            for label in isotope_labels
+        )
+
+        pattern = []
+
+        for counts in InputAnalyte.isotope_count_combis(
+            n=atom_count, k=len(isotope_labels)
+        ):
+            prob = InputAnalyte.multinomial_prob(counts, isotope_probs)
+
+            # Skip masses with very low probabilities, to reduce computation.
+            if prob < min_prob:
+                continue
+
+            mass = sum(
+                count * isotope_mass
+                for count, isotope_mass in zip(counts, isotope_masses)
+            )
+
+            isotope_counts = {
+                isotope_label: count
+                for isotope_label, count in zip(isotope_labels, counts)
+                if count > 0
+            }
+
+            pattern.append({
+                "mass": mass,
+                "prob": prob,
+                "isotope_counts": isotope_counts
+            })
+
+        return pattern
+    
+    @staticmethod
+    def convolve_patterns(
+        pattern_a: list[dict],
+        pattern_b: list[dict],
+        min_prob: float = 1e-16
+    ) -> list:
+        """Convolve two isotope patterns.
+
+        Combines two isotope peak lists by convolving them. Every peak from
+        `pattern_a` is paired with every peak from `pattern_b`. Resulting peak
+        masses are summed and probabilities are multiplied. Pairs whose combined
+        probability falls below `min_prob` are discarded to reduce computation.
+
+        Args:
+            pattern_a: List of isotope peaks. Each peak is a dictionary with 
+                "mass", "prob" and "isotope_counts".
+            pattern_b: List of isotope peaks in the same format as `pattern_a`.
+            min_prob: Probability threshold. Combined peaks with probability below
+                this value are excluded.
+        
+        Returns:
+            A list of combined isotope peaks in the same format as the inputs.
+        """
+        combined_pattern = []
+
+        for peak_a in pattern_a:
+            for peak_b in pattern_b:
+                prob = peak_a["prob"] * peak_b["prob"]
+
+                if prob < min_prob:
+                    continue
+
+                isotope_counts = peak_a["isotope_counts"].copy()
+
+                for isotope_label, count in peak_b["isotope_counts"].items():
+                    isotope_counts[isotope_label] = (
+                        isotope_counts.get(isotope_label, 0) + count
+                    )
+                
+                combined_pattern.append({
+                    "mass": peak_a["mass"] + peak_b["mass"],
+                    "prob": prob,
+                    "isotope_counts": isotope_counts
+                })
+        
+        return combined_pattern
+
+    @staticmethod
+    def calculate_fine_structure(
+        composition,
+        charge: int,
+        min_prob: float = 1e-16
+    ) -> list[dict]:
+        """Calculate the isotopic fine structure for an elemental composition.
+
+        Computes the full isotopic fine structure for a molecule by successively
+        convolving the elemental fine-structure patterns for every element in 
+        the composition. Corrects for electron mass based on the charge state.
+        The resulting peaks are sorted by mass and annotated with relative 
+        probabilities.
+
+        Args:
+            composition: A dictionary containing the elemental composition.
+            charge: Charge state. May be positive or negative.
+            min_prob: Probability threshold. Peaks below this value are
+                excluded at each convolution step.
+        
+        Returns:
+            A list of fine-structure peaks sorted by mass. Each peak is a
+            dictionary with "mass", "prob", "isotope_counts", "relative_prob".
+        """
+        molecular_pattern = [{
+            "mass": 0.0,
+            "prob": 1.0,
+            "isotope_counts": {}
+        }]
+
+        for element, atom_count in composition.items():
+            element_pattern = InputAnalyte.element_fine_structure(
+                # Remove trailing "s" from element before passing on,
+                # for subsetting of `ISOTOPES` dictionary.
+                # E.g., "carbons" -> "carbon"
+                element=element.removesuffix("s"),
+                atom_count=atom_count
+            )
+
+            molecular_pattern = InputAnalyte.convolve_patterns(
+                pattern_a=molecular_pattern,
+                pattern_b=element_pattern,
+                min_prob=min_prob
+            )
+
+            if len(molecular_pattern) == 0:
+                return []
             
-            # Vectorized weighted average and sum.
-            total_prob = np.sum(group_probs)
-            avg_mass = np.sum(group_masses * group_probs) / total_prob
-            merged.append((avg_mass, total_prob))
+        # Correct for electron masses based on charge state.
+        mass_correction = int(charge) * ELECTRON_MASS
+        for peak in molecular_pattern:
+            peak["mass"] -= mass_correction
+        
+        molecular_pattern = sorted(
+            molecular_pattern,
+            key=lambda peak: peak["mass"]
+        )
 
-        return merged
+        max_prob = max(peak["prob"] for peak in molecular_pattern)
+
+        for peak in molecular_pattern:
+            peak["relative_prob"] = peak["prob"] / max_prob
+        
+        return molecular_pattern
+    
+    @staticmethod
+    def collapse_to_nominal_pattern(
+        fine_structure_pattern: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Collapse fine-structure peaks into nominal M, M+1, M+2, ... groups.
+
+        Fine-structure peaks are grouped by their total number of extra neutrons
+        compared to the lightest-mass isotopologue. For each group, 
+        probabilities are summed and the representative mass is the probability-
+        weighted average mass.
+
+        Args:
+            fine_structure_pattern: List of fine-structure peaks. Each peak
+            should contain "mass", "prob" and "isotope_counts".
+        
+        Returns:
+            A list of nominal isotope peaks by extra neutron count. Each group
+            contains: "isotope_group", "extra_neutrons", "prob", "mass", 
+            "prob_relative" and "n_fine_structure_peaks".
+        """
+        
+
+        return
+        
 
     def get_monoisotopic_mass(self) -> float:
-        """Return monoisotopic mass (amu) of the neutral analyte based on 
-        the block composition.
+        """Return lightest-isotope mass (amu) of the neutral analyte based on 
+        the block composition. In almost all cases this will be the equal
+        to the monoisotopic mass, which is the mass of the molecule containing
+        the most probable isotopes for each element.
         
         Includes the mass modifier if one is specified.
         """
@@ -358,47 +509,27 @@ class InputAnalyte:
     def compute_distribution(
         self,
         base_mass: float,
+        charge: int,
         composition: dict[str, int]
     ) -> list[tuple[float, float]]:
-        """Compute the full isotopic distribution for a given monoisotopic mass
+        """Compute the isotopic distribution for a given monoisotopic mass
         and elemental composition using sequential convolution.
-
-        Rather than enumerating all isotopologue combinations simultaneously
-        (combinatorial explosion via itertools.product), this folds element
-        distributions one at a time into the running distribution, merging
-        masses within the instrument resolution after each step. The
-        intermediate list stays bounded in size, making this O(n_elements *
-        n_peaks) instead of O(product of per-element distribution sizes).
-
-        Args:
-            base_mass: Monoisotopic mass of the ion.
-            composition: Dict mapping element keys (e.g. 'carbons') to counts.
-
-        Returns:
-            A list of (mass, probability) tuples, sorted by increasing mass,
-            with probabilities summing to ~1.0.
         """
-        # Start from a delta distribution at the monoisotopic mass.
-        current = [(base_mass, 1.0)]
+        fine_pattern = InputAnalyte.calculate_fine_structure(
+            composition, charge
+        )
+        # TODO: collapse fine pattern to nominal pattern.
+        # Also heck if this "epsilon" value is still used somewhere?
+        # TODO From nominal pattern, convert (mass, prob) combinations to 
+        # (mass_diff, prob) combinations where mass_diff is with respect to
+        # lightest mass calculated based on composition. Then apply these 
+        # (mass_dif, prob) combinations to `base_mass` which is based on the
+        # block files.
+        nominal_pattern = InputAnalyte.collapse_to_nominal_pattern(fine_pattern)
 
-        for element, count in composition.items():
-            if count == 0:
-                continue
-            # Per-element distributions: {isotope_id: [(mass_delta, prob), ...]}
-            dists = self.get_heavy_isotope_distributions(
-                element=element[:-1],  # Remove trailing 's'.
-                number=count,
-            )
-            # Convolve and merge after each heavy isotope (typically 1-2 per element).
-            for iso_dist in dists.values():
-                convolved = [
-                    (m + delta, p * q)
-                    for (m, p) in current
-                    for (delta, q) in iso_dist
-                ]
-                current = self.merge_isotopic_masses(convolved)
 
-        return current
+
+        return 
 
     def get_reference_df(self) -> pd.DataFrame:
         """Create a reference DataFrame for the analyte.
@@ -463,9 +594,18 @@ class InputAnalyte:
                 for el in self.variable_composition
             }
 
+            # TODO: Correct isotope calculation here.
+            # 1. Compute nominal pattern
+            distribution = self.compute_distribution(
+                base_mass=ion_mono_mass, 
+                charge=int(charge),
+                composition=ion_composition
+            )
+
             # Compute full ion isotopologue distribution and select peaks.
             per_charge_isotopologues = self.select_isotopologues(
-                self.compute_distribution(ion_mono_mass, ion_composition)
+                distribution
+                # self.compute_distribution(ion_mono_mass, ion_composition)
             )
 
             # Determine index of most abundant isotopologue for calibrant flag.
