@@ -98,4 +98,3 @@ class AdvancedSettingsHandler:
         result = self.dialog.exec()
         if result == QDialog.DialogCode.Rejected:
             self.restore_settings(snapshot)
-    

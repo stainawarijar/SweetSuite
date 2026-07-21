@@ -51,17 +51,17 @@ class MassSpectrum():
     """
 
     def __init__(
-            self,
-            name: str,
-            file_raw: str,
-            data_uncalibrated: np.ndarray,
-            background_mass_window: float,
-            calibration_mass_window: float,
-            calibrants_list: list[tuple[float, float, float]],
-            min_calibrant_number: int,
-            min_calibrant_sn: float,
-            time: float | None,
-            time_window: float | None
+        self,
+        name: str,
+        file_raw: str,
+        data_uncalibrated: np.ndarray,
+        background_mass_window: float,
+        calibration_mass_window: float,
+        calibrants_list: list[tuple[float, float, float]],
+        min_calibrant_number: int,
+        min_calibrant_sn: float,
+        time: float | None,
+        time_window: float | None
     ):
         """
         Initialize a mass spectrum.
@@ -136,7 +136,7 @@ class MassSpectrum():
         
         return calibrants
 
-    def calibrate(self) -> tuple[np.ndarray, Figure] | tuple[None, Figure] | tuple[None, None]:
+    def calibrate(self) -> tuple[np.ndarray | None, Figure | None]:
         """Calibrate mass spectrum based on a specified list of calibrants.
 
         Calibration is performed based on a list of exact m/z values
@@ -221,9 +221,9 @@ class MassSpectrum():
         return (data_calibrated, plot)
         
     def quantify_analytes(
-            self,
-            analytes_ref: pd.DataFrame,
-            use_peak_height: bool = False
+        self,
+        analytes_ref: pd.DataFrame,
+        use_peak_height: bool = False
     ) -> list[Analyte] | None:
         """Quantify analytes and calculate quality control parameters.
 
@@ -375,10 +375,10 @@ class MassSpectrum():
         return analytes
 
     def write_xy(
-            self,
-            folder: str,
-            calibration_enabled: bool = True,
-            write_on_failure: bool = True
+        self,
+        folder: str,
+        calibration_enabled: bool = True,
+        write_on_failure: bool = True
     ) -> None:
         """Write m/z values and intensities to a '.xy' file.
 
@@ -422,4 +422,3 @@ class MassSpectrum():
                 self.data_uncalibrated,
                 delimiter="\t", fmt="%.8f"
             )
-

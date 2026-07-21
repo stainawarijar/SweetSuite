@@ -318,11 +318,11 @@ class BatchCoordinator:
     
     # Event handlers
     def on_batch_error(
-            self,
-            title: str,
-            text: str,
-            informative_text: str,
-            icon: str
+        self,
+        title: str,
+        text: str,
+        informative_text: str,
+        icon: str
     ) -> None:
         """Handle errors from the batch worker."""
         self.logger.error(f"Batch error: {title} - {text} - {informative_text}")

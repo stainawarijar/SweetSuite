@@ -31,13 +31,13 @@ class Eic:
     """
     
     def __init__(
-            self,
-            mz_exact: float,
-            data: np.ndarray,
-            time_required: float,
-            alignment_time_window: float,
-            alignment_sn_cutoff: float,
-            required_for_alignment: bool
+        self,
+        mz_exact: float,
+        data: np.ndarray,
+        time_required: float,
+        alignment_time_window: float,
+        alignment_sn_cutoff: float,
+        required_for_alignment: bool
     ):
         """Initialize an EIC instance.
 

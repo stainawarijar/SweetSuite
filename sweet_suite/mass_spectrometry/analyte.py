@@ -37,12 +37,12 @@ class Analyte:
     """
 
     def __init__(
-            self,
-            name: str,
-            charge: int,
-            peaks: pd.DataFrame,
-            background_and_noise: tuple[float, float, float],
-            use_peak_height: bool = False
+        self,
+        name: str,
+        charge: int,
+        peaks: pd.DataFrame,
+        background_and_noise: tuple[float, float, float],
+        use_peak_height: bool = False
     ):
         """Initialize an analyte.
 
@@ -246,4 +246,3 @@ class Analyte:
         )
 
         return ipq
-

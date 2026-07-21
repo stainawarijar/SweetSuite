@@ -329,4 +329,3 @@ class SettingsManager:
             settings.get("save_xy", self.advanced_ui.checkBox_save_xy.isChecked()),
             default=self.advanced_ui.checkBox_save_xy.isChecked()
         ))
-

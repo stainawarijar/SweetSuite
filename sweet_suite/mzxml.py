@@ -208,9 +208,9 @@ class Mzxml:
         return SumSpectrum(self.file_name, time, time_window, rounded)
     
     def get_alignment_fit_eics(
-            self,
-            alignment_features: list[AlignmentFeature],
-            min_peaks: int
+        self,
+        alignment_features: list[AlignmentFeature],
+        min_peaks: int
     ) -> tuple[np.ndarray | None, list[Eic]]:
         """Fit the required retention times as a function of observed
         retention times for a list of alignment features.
@@ -258,8 +258,8 @@ class Mzxml:
         return (fit_coeffs, eics)
 
     def plot_alignment_fit(
-            self,
-            fit_eics: tuple[np.ndarray | None, list[Eic]]
+        self,
+        fit_eics: tuple[np.ndarray | None, list[Eic]]
     ) -> Figure:
         """Visualize the curve fitting for retention alignment.
 
@@ -293,8 +293,8 @@ class Mzxml:
         return plot
 
     def align_retention_times(
-            self,
-            fit_eics: tuple[np.ndarray, list[Eic]]
+        self,
+        fit_eics: tuple[np.ndarray, list[Eic]]
     ) -> None:
         """Align retention times and write to a new mzXML file.
 
@@ -353,10 +353,3 @@ class Mzxml:
                     idx += 1
                 else:
                     new_file.write(line)
-
-
-
-
-    
-    
-        

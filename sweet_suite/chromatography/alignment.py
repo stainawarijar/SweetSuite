@@ -7,8 +7,8 @@ from .eic import Eic
 
 
 def fit_power(
-        eics: list[Eic],
-        min_peaks: int
+    eics: list[Eic],
+    min_peaks: int
 ) -> np.ndarray | None:
     """Fit a power function through a list of (observed, required) retention
     time pairs.
@@ -66,10 +66,10 @@ def fit_power(
 
 
 def plot_fit(
-        times_observed: np.ndarray,
-        times_required: np.ndarray,
-        fit_coeffs: np.ndarray,
-        title: str
+    times_observed: np.ndarray,
+    times_required: np.ndarray,
+    fit_coeffs: np.ndarray,
+    title: str
 ) -> Figure:
     """Visualize the curve fitting for retention alignment.
     
@@ -126,4 +126,3 @@ def plot_fit(
     ax.legend(loc="best")
 
     return fig
-

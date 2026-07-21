@@ -197,8 +197,8 @@ class IsotopicPeak:
         return (background_average_intensity, background_area, noise)
     
     def get_spline_maximum(
-            self,
-            mz_window: float
+        self,
+        mz_window: float
     ) -> tuple[float, float]:
         """Find the (m/z, intensity) tuple of the highest local maximum
         within the specified m/z range.
@@ -323,10 +323,15 @@ class IsotopicPeak:
         """Plot the peak data.
 
         The exact m/z, specified integration window and the integrated area
-        are all indicated.
+        are all indicated. 
+
+        This function is currently not used.
 
         Args:
             title: Title for the plot.
+
+        Returns:
+            A matplotlib figure.
         """
         x, y = self.data[:, 0], self.data[:, 1]
         
@@ -334,10 +339,28 @@ class IsotopicPeak:
         ax.set_xlabel("$m/z$")
         ax.set_ylabel("Intensity")
         ax.plot(x, y, linestyle="-", color="black")
-        ax.axvline(x=self.mz_exact, color="blue", label="Exact m/z")
-        ax.axvline(x=self.mz_exact - self.integration_mz_window, color="red", label="Integration window")
-        ax.axvline(x=self.mz_exact + self.integration_mz_window, color="red")
-        ax.fill_between(self.data[:, 0], 0, self.data[:, 1], color ="black", alpha=0.3, label="Integrated area")
+        ax.axvline(
+            x=self.mz_exact, 
+            color="blue", 
+            label="Exact m/z"
+        )
+        ax.axvline(
+            x=self.mz_exact - self.integration_mz_window, 
+            color="red", 
+            label="Integration window"
+        )
+        ax.axvline(
+            x=self.mz_exact + self.integration_mz_window, 
+            color="red"
+        )
+        ax.fill_between(
+            self.data[:, 0], 
+            0, 
+            self.data[:, 1], 
+            color ="black", 
+            alpha=0.3, 
+            label="Integrated area"
+        )
         ax.set_title(title)
         ax.legend(loc="upper left", framealpha=1)
         ax.ticklabel_format(useOffset=False)  # Prevents scientific notation on m/z axis.

@@ -28,6 +28,7 @@ def launch_xy_viewer(*args, **kwargs):
     """
     from .viewers.xy_spectrum_viewer import launch_xy_viewer as _launch_xy_viewer
     return _launch_xy_viewer(*args, **kwargs)
+
 class MainWindow(QMainWindow):
     """Main application window coordinating all GUI components. 
     
@@ -430,4 +431,3 @@ class MainWindow(QMainWindow):
     def report_a_bug(self) -> None:
         """Direct to SweetSuite issues page on GitHub."""
         webbrowser.open("https://github.com/stainawarijar/SweetSuite/issues")
-

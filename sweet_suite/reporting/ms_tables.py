@@ -4,11 +4,11 @@ from ..mass_spectrometry.mass_spectrum import MassSpectrum
 
 
 def build_quantitation_table(
-        filename: str,
-        mass_spectra: list[MassSpectrum],
-        analytes_ref: pd.DataFrame,
-        output_params: list[str],
-        use_peak_height: bool = False
+    filename: str,
+    mass_spectra: list[MassSpectrum],
+    analytes_ref: pd.DataFrame,
+    output_params: list[str],
+    use_peak_height: bool = False
 ) -> pd.DataFrame:
     """Create a table in long format with quantitation results for all 
     sum spectra of an mzXML file.

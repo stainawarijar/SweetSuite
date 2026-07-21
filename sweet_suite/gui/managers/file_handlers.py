@@ -235,7 +235,14 @@ class FileHandlers:
             return False
 
         # Columns that must never contain missing values.
-        always_required = ["peak", "charge_carrier", "mass_modifier", "mz", "relative_area", "mz_window", "calibrant"]
+        always_required = [
+            "peak", 
+            "charge_carrier", 
+            "mass_modifier", 
+            "mz", "relative_area", 
+            "mz_window", 
+            "calibrant"
+        ]
         for col in always_required:
             if df[col].isnull().any():
                 UIHelpers.show_message_box(

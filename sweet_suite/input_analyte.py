@@ -66,9 +66,9 @@ class InputAnalyte:
             charge_min: Minimum charge state to include.
             charge_max: Maximum charge state to include.
             mz_window_coeffs (tuple[float, float, float]): Coefficients 
-            (a, b, c) describing the peak integration window (Th) as a quadratic 
-            function of m/z: window = a*(m/z)^2 + b*(m/z) + c. The integration 
-            window can be constant setting a = b = 0.
+                (a, b, c) describing the peak integration window (Th) as a 
+                quadratic function of m/z: window = a*(m/z)^2 + b*(m/z) + c. 
+                The integration window can be constant setting a = b = 0.
             time: Retention time (LC-MS data), or None for non-LC data.
             time_window: Retention time window around `time`, or None for 
                 non-LC data.
@@ -812,4 +812,3 @@ class InputAnalyte:
                     reference = df
 
         return reference
-

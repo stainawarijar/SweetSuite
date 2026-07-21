@@ -6,10 +6,10 @@ import numpy as np
 
 
 def plot_polynomial(
-        mzs_observed: list[float],
-        mzs_exact: list[float],
-        poly_func: np.poly1d,
-        title: str
+    mzs_observed: list[float],
+    mzs_exact: list[float],
+    poly_func: np.poly1d,
+    title: str
 ) -> Figure:
     """Plots a polynomial calibration curve for mass spectrometry data.
 
@@ -141,9 +141,9 @@ def plot_polynomial(
 
 
 def plot_calibration_failure(
-        title: str,
-        mzs_observed: list[float],
-        mzs_exact: list[float]
+    title: str,
+    mzs_observed: list[float],
+    mzs_exact: list[float]
 ) -> Figure:
     """Creates a plot showing calibration failure with diagnostic information.
 
@@ -207,9 +207,15 @@ def plot_calibration_failure(
             max_mz = max_mz + 50
         
         x_range = np.array([min_mz, max_mz])
-        ax_plot.plot(x_range, x_range, color="#CC0000", linestyle="--", label="Target", linewidth=2)
+        ax_plot.plot(
+            x_range, x_range, 
+            color="#CC0000", 
+            linestyle="--", 
+            label="Target", 
+            linewidth=2
+        )
         
-        # Set equal axis limits to keep the diagonal nature of the target line clear
+        # Set equal axis limits to keep diagonal nature of the target line clear
         ax_plot.set_xlim(min_mz, max_mz)
         ax_plot.set_ylim(min_mz, max_mz)
     else:
@@ -285,4 +291,3 @@ def plot_calibration_failure(
     plt.tight_layout()
     
     return fig
-

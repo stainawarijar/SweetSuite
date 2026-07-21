@@ -1197,4 +1197,3 @@ class BatchWorker(QObject):
                 "Analyte ref (user-provided)": self.analytes_ref_df
             }
         )
-
