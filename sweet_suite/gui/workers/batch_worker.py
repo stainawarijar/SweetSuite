@@ -42,33 +42,33 @@ class BatchWorker(QObject):
     error = pyqtSignal(str, str, str, str)  # title, text, informative, icon
 
     def __init__(
-            self,
-            blocks: dict[dict],
-            raw_folder_path: str | None,
-            ms_only: bool,
-            alignment_list_df: pd.DataFrame | None,
-            alignment_time_window: float,
-            alignment_mz_window: float,
-            alignment_sn_cutoff: float,
-            alignment_min_peaks: int,
-            analytes_list_df: pd.DataFrame | None,
-            analytes_ref_df: pd.DataFrame | None,
-            sum_spectra_calibration: dict,
-            charge_carrier: str,
-            sum_spectrum_resolution: int,
-            background_mass_window: float,
-            calibration_mass_window: float,
-            calibrant_sn_cutoff: float,  # Global value
-            quantitation_mz_window: float,
-            min_calibrant_number: int,
-            min_isotopic_fraction: float,
-            quantitate_aligned_only: bool,
-            quadratic_mz_window: bool,
-            quadratic_coeffs: tuple[float, float, float],
-            mass_modifier: str | None = None,
-            use_peak_height: bool = False,
-            save_xy: bool = False,
-            parent = None
+        self,
+        blocks: dict[dict],
+        raw_folder_path: str | None,
+        ms_only: bool,
+        alignment_list_df: pd.DataFrame | None,
+        alignment_time_window: float,
+        alignment_mz_window: float,
+        alignment_sn_cutoff: float,
+        alignment_min_peaks: int,
+        analytes_list_df: pd.DataFrame | None,
+        analytes_ref_df: pd.DataFrame | None,
+        sum_spectra_calibration: dict,
+        charge_carrier: str,
+        sum_spectrum_resolution: int,
+        background_mass_window: float,
+        calibration_mass_window: float,
+        calibrant_sn_cutoff: float,  # Global value
+        quantitation_mz_window: float,
+        min_calibrant_number: int,
+        min_isotopic_fraction: float,
+        quantitate_aligned_only: bool,
+        quadratic_mz_window: bool,
+        quadratic_coeffs: tuple[float, float, float],
+        mass_modifier: str | None = None,
+        use_peak_height: bool = False,
+        save_xy: bool = False,
+        parent = None
     ):
         super().__init__(parent)
         self.start_time = datetime.now().strftime("%d-%m-%Y_%H%M")
@@ -656,9 +656,9 @@ class BatchWorker(QObject):
         return True
     
     def quantitate_mzxml_files(
-            self,
-            analytes_ref_path: str,
-            mzxml_file_paths: list[str]
+        self,
+        analytes_ref_path: str,
+        mzxml_file_paths: list[str]
     ) -> pd.DataFrame | None:
         """
         Perform calibration and quantitation on the mzXML files.
@@ -882,9 +882,9 @@ class BatchWorker(QObject):
         return quantitation_results
 
     def quantitate_xy_files(
-            self,
-            analytes_ref_path: str,
-            xy_file_paths: list[str]
+        self,
+        analytes_ref_path: str,
+        xy_file_paths: list[str]
     ) -> pd.DataFrame | None:
         """
         Perform calibration and quantitation on .xy files (MS-only mode).
@@ -1084,9 +1084,9 @@ class BatchWorker(QObject):
         return quantitation_results
 
     def export_results(
-            self,
-            aligned: bool,
-            quantitation_results: pd.DataFrame | None
+        self,
+        aligned: bool,
+        quantitation_results: pd.DataFrame | None
     ) -> None:
         """Export the quantitation results to an Excel file, including
         global settings and calibration settings.
