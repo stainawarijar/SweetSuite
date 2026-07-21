@@ -754,132 +754,53 @@ class BatchWorker(QObject):
                         resolution=self.sum_spectrum_resolution
                     )
 
-                    # Check for calibration.
-                    if not self.sum_spectra_calibration[pair]["calibrate"]:
-                        # No calibration -> empty list.
-                        calibrants_list = []
-                        # Set calibration S/N cut-off to None.
-                        calibration_sn_cutoff = None
-                    else:
-                        # Select calibrants in this retention time range.
-                        calibrants_df = (
-                            ref_calibrants[
-                                (ref_calibrants["time"] == sum_spectrum.time) &
-                                (ref_calibrants["time_window"] == sum_spectrum.time_window)
-                            ]
-                            .assign(
-                                # Extract charge number from peak name.
-                                charge = lambda x: (
-                                    x["peak"].str.split("_").str[1].astype(int)
-                                )
+                    # Select calibrants in this retention time range.
+                    calibrants_df = (
+                        ref_calibrants[
+                            (ref_calibrants["time"] == sum_spectrum.time) &
+                            (ref_calibrants["time_window"] == sum_spectrum.time_window)
+                        ]
+                        .assign(
+                            # Extract charge number from peak name.
+                            charge = lambda x: (
+                                x["peak"].str.split("_").str[1].astype(int)
                             )
-                            # Select required columns.
-                            [["mz", "charge", "mz_window"]]
                         )
+                        # Select required columns.
+                        [["mz", "charge", "mz_window"]]
+                    )
 
-                        # Create a list with (m/z, charge, m/z window) tuples.
-                        calibrants_list = list(calibrants_df.itertuples(
-                            index=False, name=None
-                        ))
-
-                        # Determine calibration S/N cut-off.
-                        calibration_sn_cutoff = float(
-                            self.sum_spectra_calibration[pair]["sn_cutoff"]
-                        )
-                
-                    # Create an instance of MassSpectrum.
+                    # Create a MassSpectrum instance and add to list.
                     mass_spectrum = MassSpectrum(
                         name=sum_spectrum.name,
                         file_raw=sum_spectrum.file_raw,
                         data_uncalibrated=sum_spectrum.data,
                         background_mass_window=self.background_mass_window,
                         calibration_mass_window=self.calibration_mass_window,
-                        calibrants_list=calibrants_list,
-                        min_calibrant_number=self.min_calibrant_number,
-                        min_calibrant_sn=calibration_sn_cutoff,
+                        calibrants_df=calibrants_df,
                         time=sum_spectrum.time,
                         time_window=sum_spectrum.time_window
                     )
 
-                    # Write calibration plot to pdf.
-                    if len(calibrants_list) > 0:
-                        # Calibration was attempted
-                        if mass_spectrum.data_calibrated is not None:
-                            self.logger.info(
-                                f"Calibrated sum spectrum ({mass_spectrum.time}"
-                                f" ± {mass_spectrum.time_window} seconds) for "
-                                f"{os.path.basename(path)}"
-                            )
-                        else:
-                            self.logger.info(
-                                f"Failed calibrating sum spectrum ({mass_spectrum.time}"
-                                f" ± {mass_spectrum.time_window} seconds) for "
-                                f"{os.path.basename(path)}"
-                            )
-                        # Save plot (success or failure) to PDF
-                        if mass_spectrum.calibration_plot is not None:
-                            pdf.savefig(mass_spectrum.calibration_plot)
-                            plt.close(mass_spectrum.calibration_plot)
-                            # Set plot to None to free up memory.
-                            mass_spectrum.calibration_plot = None
-                    else:
-                        self.logger.info(
-                            f"Skipped calibration of sum spectrum ({mass_spectrum.time}"
-                            f" ± {mass_spectrum.time_window} seconds) for "
-                            f"{os.path.basename(path)}"
-                        )
-
-                    # Write .xy file when requested.
-                    if self.save_xy:
-                        mass_spectrum.write_xy(
-                            folder=xy_folder,
-                            calibration_enabled=len(calibrants_list) > 0
-                        )
-                        self.logger.info(
-                            f"Saved .xy file for {mass_spectrum.name}"
-                        )
-
-                    # Add mass spectrum to list.
                     mass_spectra.append(mass_spectrum)
                 
-                # Build a long table with quantitation results.
-                output = ms_tables.build_quantitation_table(
-                    filename=mzxml.file_name,
-                    mass_spectra=mass_spectra,
-                    analytes_ref=analytes_ref,
-                    output_params=output_params,
-                    use_peak_height=self.use_peak_height
-                )
-            
-                # Append output to temporary CSV file.
-                if not header:
-                    output.to_csv(
-                        temp_csv_path, mode="a", index=False, header=False
-                    )
-                else:
-                    output.to_csv(
-                        temp_csv_path, mode="a", index=False, header=True
-                    )
-                    header = False  # Only a header for the first processed file.
-                
-                # Update percentage of processed files.
-                percent = round((idx + 1) / n * 100)
-                self.quantitation_progress.emit(percent)
+                # TODO: Continue here with new calibration method
+                # Collect all calibrants with S/N above the cut-off.
+                calibrants = []
 
-        # If no files produced output, the temp CSV is empty.
-        # Avoid pd.read_csv raising EmptyDataError; return None instead.
-        if header:
-            self.logger.warning(
-                "No mzXML files contained data. Quantitation produced no results."
-            )
-            os.remove(temp_csv_path)
-            return None
+                for ms in mass_spectra:
+                    for cal in ms.calibrants:
+                        if cal.signal_to_noise > self.alignment_sn_cutoff:
+                            calibrants.append({
+                                "time": cal.time,
+                                "signal_to_noise": cal.signal_to_noise,
+                                "mz_exact": cal.mz_exact,
+                                "mz_observed": cal.mz_observed
+                            })
 
-        # Read the accumulated CSV file and delete it.
-        quantitation_results = pd.read_csv(temp_csv_path)
-        os.remove(temp_csv_path)
+                print("foo")
 
-        return quantitation_results
+
 
     def quantitate_xy_files(
         self,

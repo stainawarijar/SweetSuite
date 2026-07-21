@@ -13,41 +13,6 @@ from .plotting import plot_polynomial, plot_calibration_failure
 
 class MassSpectrum():
     """Represents a mass spectrum.
-
-    Attributes:
-        name (str): Name of the mass spectrum.
-        file_raw (str): Name of the mzXML file from which the raw data 
-            originates, excluding file extension.
-        data_uncalibrated (np.ndarray): Array with uncalibrated MS data, 
-            the first column containing m/z values and the second column
-            containing intensities.
-        background_mass_window (float): The mass window (Da) to be used
-            for background determination around the lowest-mass peak.
-        calibration_mass_window (float): Mass window (Da) used to compute the 
-                calibration m/z window for each calibrant.
-        calibrants_list (list[tuple[float, float, float]]): List with tuples 
-            of the form `(m/z, charge, integration window)` for each calibrant.
-        min_calibrant_number (int): Minimum number of calibrants required for 
-            calibration. Calibration will fail if this threshold is not met.
-        min_calibrant_sn (float): Minimum signal-to-noise required for
-            a calibrant to actually be used for calibration.
-        time (float | None): Retention time for which the sum spectrum was 
-            created. Only applicable to LC data.
-        time_window (float | None): Retention time window that was used around
-            `time` to create the sum spectrum. Only applicable to LC data.
-        calibrants (list[Calibrant]): List with instances of the `Calibrant`
-            class. The list is empty when no calibration is performed.
-        calibrated (tuple[np.ndarray, Figure] | tuple[None, Figure] | tuple[None, None]): Tuple
-            containing an array with calibrated data and a figure showing
-            the calibration. `(None, Figure)` if calibration failed due to
-            insufficient calibrants (the figure shows which calibrants were
-            found). `(None, None)` if no calibrants were provided.
-        data_calibrated (np.ndarray | None): Array with calibrated MS data.
-            If calibration failed, this is set to `None`. When no calibration 
-            was performed (an empty `calibrants` list), this will be set to 
-            `data_uncalibrated`.
-        calibration_plot: Figure showing calibration of the mass spectrum
-            (observed vs exact m/z fit).
     """
 
     def __init__(
@@ -57,64 +22,51 @@ class MassSpectrum():
         data_uncalibrated: np.ndarray,
         background_mass_window: float,
         calibration_mass_window: float,
-        calibrants_list: list[tuple[float, float, float]],
-        min_calibrant_number: int,
-        min_calibrant_sn: float,
+        calibrants_df: pd.DataFrame,
         time: float | None,
         time_window: float | None
     ):
         """
         Initialize a mass spectrum.
-
-        Args:
-            name: Name of the mass spectrum.
-            file_raw: Name of the mzXML file from which the raw data originates, 
-                excluding file extension.
-            data_uncalibrated: Array with uncalibrated MS data, the first 
-                column containing m/z values and the second column containing 
-                intensities.
-            background_mass_window: The mass window (Da) to be used for 
-                background determination around the lowest-mass peak.
-            calibration_mass_window: Mass window (Da) used to compute the 
-                calibration m/z window for each calibrant.
-            calibrants_list: List with tuples of the form 
-                `(m/z, charge, integration window)` for each calibrant.
-            min_calibrant_number: The minimum number of calibrants required 
-                for calibration. Calibration will fail if this threshold is
-                not met.
-            min_calibrant_sn: Minimum signal-to-noise required for a calibrant 
-                to actually be used for calibration.
-            time: Retention time for which the sum spectrum was created. 
-                Only applicable to LC data.
-            time_window: Retention time window that was used around `time` 
-                to create the sum spectrum. Only applicable to LC data.
         """
         self.name = name
         self.file_raw = file_raw
         self.data_uncalibrated = data_uncalibrated
         self.background_mass_window = background_mass_window
         self.calibration_mass_window = calibration_mass_window
-        self.calibrants_list = calibrants_list
-        self.min_calibrant_number = min_calibrant_number
-        self.min_calibrant_sn = min_calibrant_sn        
+        self.calibrants_df = calibrants_df
         self.time = time
         self.time_window = time_window
         self.logger = logging.getLogger(self.__class__.__name__)
         self.calibrants = self.get_calibrants()
-        self.calibrated = self.calibrate()
-        self.data_calibrated = self.calibrated[0]
-        self.calibration_plot = self.calibrated[1]
+
+        # self.calibrated = self.calibrate()
+        # self.data_calibrated = self.calibrated[0]
+        # self.calibration_plot = self.calibrated[1]
 
     def get_calibrants(self) -> list[Calibrant]:
         """Return a list with instances of the `Calibrant` class.
         
-        When no calibrants are provided in `self.calibrants_list`,
+        When no calibrants are provided in `self.calibrants_df`,
         an empty list is returned.
         """
+        # Create list of (m/z, charge, m/z window) tuples.
+        tuples = list(
+            self.calibrants_df.itertuples(index=False, name=None)
+        )
+
+        if not tuples:
+            return []
+
+        # Determine m/z boundaries of mass spectrum.
         mz_min = np.min(self.data_uncalibrated[:, 0])
         mz_max = np.max(self.data_uncalibrated[:, 0])
+
         calibrants = []
-        for mz, charge, mz_window in self.calibrants_list:
+    
+        for mz, charge, mz_window in tuples:
+
+            # Check m/z value is not outside MS range.
             half_span = max(
                 self.calibration_mass_window / charge,
                 self.background_mass_window / charge + mz_window
@@ -125,13 +77,18 @@ class MassSpectrum():
                     "and will not be used."
                 )
                 continue
+            
+            # Create instance of Calibrant and add to list.
             calibrant = Calibrant(
                 mz_exact=mz,
                 charge=charge,
+                time=self.time,
                 spectrum=self.data_uncalibrated,
+                background_mass_window=self.background_mass_window,
                 integration_mz_window=mz_window,
                 calibration_mass_window=self.calibration_mass_window
             )
+
             calibrants.append(calibrant)
         
         return calibrants
