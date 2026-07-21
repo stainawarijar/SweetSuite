@@ -92,8 +92,11 @@ class MassSpectrum():
             calibrants.append(calibrant)
         
         return calibrants
+    
+    def calibrate(self, calibration_fit):
+        return
 
-    def calibrate(self) -> tuple[np.ndarray | None, Figure | None]:
+    def calibrate_old(self) -> tuple[np.ndarray | None, Figure | None]:
         """Calibrate mass spectrum based on a specified list of calibrants.
 
         Calibration is performed based on a list of exact m/z values

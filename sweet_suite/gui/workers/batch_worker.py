@@ -15,6 +15,7 @@ from ... import __version__
 from ...chromatography.alignment_feature import AlignmentFeature
 from ...input_analyte import InputAnalyte
 from ...reporting import ms_tables
+from ...mass_spectrometry.calibration import calibration_fit
 from ...mass_spectrometry.mass_spectrum import MassSpectrum
 from ...mzxml import Mzxml
 from ...utils import utils
@@ -798,8 +799,13 @@ class BatchWorker(QObject):
                                 "mz_observed": cal.mz_observed
                             })
 
-                print("foo")
+                # TODO: 
+                # - Check against minimum number of calibrants.
+                # - Create one calibration fit.
+                # - Apply the calibration fit to all mass spectra.
+                # - Perform quantitation on calibrated spectra.
 
+                fit = calibration_fit(calibrants, include_time = False)
 
 
     def quantitate_xy_files(
