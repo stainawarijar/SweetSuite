@@ -223,7 +223,7 @@ class MassSpectrum():
             delta_fitted,
             label="Quadratic fit"
         )
-        axis.hline(0, linewidth=1, linestyle="--", c="black")
+        axis.axhline(0, linewidth=1, linestyle="--", c="black")
         axis.set_xlabel(r"Observed $m/z$")
         axis.set_ylabel(r"Required correction $\Delta m/z$")
         axis.set_title(f"Quadratic m/z calibration fit\n{self.file_raw}")

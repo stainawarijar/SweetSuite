@@ -15,7 +15,6 @@ from ... import __version__
 from ...chromatography.alignment_feature import AlignmentFeature
 from ...input_analyte import InputAnalyte
 from ...reporting import ms_tables
-from ...mass_spectrometry.calibration import calibration_fit
 from ...mass_spectrometry.mass_spectrum import MassSpectrum
 from ...mzxml import Mzxml
 from ...utils import utils
@@ -846,9 +845,34 @@ class BatchWorker(QObject):
                             f"{os.path.basename(path)}"
                         )
 
-                    # TODO: Continue here...
-                    
+                    # Save calibration fit figure to PDF.
+                    if ms.calibration_plot is not None:
+                        try:
+                            pdf.savefig(ms.calibration_plot)
+                        finally:
+                            plt.close(ms.calibration_plot)
+                            ms.calibration_plot = None  # To free up memory.
 
+                    # TODO Add pre- and post-calibration mass errors to figure.
+                    # And add RETENTION TIMES to figure.
+
+                    # TODO Write .xy file when requested.
+                
+                # TODO Build a long table with quantitation results.
+
+                # TODO Append output to temporary CSV file.
+
+                # TODO Update percentage of processed files
+            
+            # TODO If no files produced output, the temp CSV is empty.
+            # Avoid pd.read_csv raising EmptyDataError; return None instead.
+
+            # TODO Read the accumulated CSV file and delete it.
+
+            # TODO Return quantitation results.
+            return
+                    
+    # TODO Update quantitation method for xy files.
     def quantitate_xy_files(
         self,
         analytes_ref_path: str,
