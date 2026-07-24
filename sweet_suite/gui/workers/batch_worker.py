@@ -59,7 +59,7 @@ class BatchWorker(QObject):
         sum_spectrum_resolution: int,
         background_mass_window: float,
         calibration_mass_window: float,
-        calibrant_sn_cutoff: float,  # Global value
+        calibrant_sn_cutoff: float,
         quantitation_mz_window: float,
         min_calibrant_number: int,
         min_isotopic_fraction: float,
@@ -780,33 +780,74 @@ class BatchWorker(QObject):
                         calibration_mass_window=self.calibration_mass_window,
                         calibrants_df=calibrants_df,
                         time=sum_spectrum.time,
-                        time_window=sum_spectrum.time_window
+                        time_window=sum_spectrum.time_window,
+                        calibrants_used = None
                     )
 
                     mass_spectra.append(mass_spectrum)
                 
-                # TODO: Continue here with new calibration method
-                # Collect all calibrants with S/N above the cut-off.
+                # Collect all calibrants with S/N above the threshold.
                 calibrants = []
 
                 for ms in mass_spectra:
                     for cal in ms.calibrants:
-                        if cal.signal_to_noise > self.alignment_sn_cutoff:
-                            calibrants.append({
-                                "time": cal.time,
-                                "signal_to_noise": cal.signal_to_noise,
-                                "mz_exact": cal.mz_exact,
-                                "mz_observed": cal.mz_observed
-                            })
+                        if cal.signal_to_noise > self.calibrant_sn_cutoff:
+                            calibrants.append(
+                                {
+                                    "time": cal.time,
+                                    "signal_to_noise": cal.signal_to_noise,
+                                    "mz_exact": cal.mz_exact,
+                                    "mz_observed": cal.mz_observed
+                                }
+                            )
 
-                # TODO: 
-                # - Check against minimum number of calibrants.
-                # - Create one calibration fit.
-                # - Apply the calibration fit to all mass spectra.
-                # - Perform quantitation on calibrated spectra.
+                # Loop over all sum spectra.
+                for ms in mass_spectra:
+                    # Collect calibrants for this retention time and check 
+                    # number. If below threshold, keep adding calibrants 
+                    # from nearest retention time until threshold is reached.
+                    calibrant_times = sorted(
+                        {cal["time"] for cal in calibrants},
+                        key=lambda time: abs(time - ms.time)
+                    )
 
-                fit = calibration_fit(calibrants, include_time = False)
+                    calibrants_to_use = []
+                    last_distance = None
 
+                    for time in calibrant_times:
+                        distance = abs(time - ms.time)
+
+                        if (
+                            len(calibrants_to_use) >= self.min_calibrant_number 
+                            and distance != last_distance
+                        ):
+                            break
+
+                        calibrants_to_use.extend(
+                            cal for cal in calibrants
+                            if cal["time"] == time
+                        )
+
+                        last_distance = distance
+
+                    # If enough calibrants to use, pass on to MassSpectrum
+                    # instance. It will then calibrate.
+                    if len(calibrants_to_use) >= self.min_calibrant_number:
+                        ms.set_calibrants_used(calibrants_to_use)
+                        self.logger.info(
+                            f"Calibrated sum spectrum ({ms.time}"
+                            f" ± {ms.time_window} s) for "
+                            f"{os.path.basename(path)}"
+                        )
+                    else:
+                        self.logger.info(
+                            f"Failed calibrating sum spectrum ({ms.time}"
+                            f" ± {ms.time_window} s) for "
+                            f"{os.path.basename(path)}"
+                        )
+
+                    # TODO: Continue here...
+                    
 
     def quantitate_xy_files(
         self,

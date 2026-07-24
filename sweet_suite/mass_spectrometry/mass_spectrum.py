@@ -2,17 +2,19 @@ import logging
 import os
 
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from .analyte import Analyte
 from .calibrant import Calibrant
 from .isotopic_peak import IsotopicPeak
-from .plotting import plot_polynomial, plot_calibration_failure
 
 
 class MassSpectrum():
     """Represents a mass spectrum.
+
+    TODO: FILL THIS IN...
     """
 
     def __init__(
@@ -24,11 +26,10 @@ class MassSpectrum():
         calibration_mass_window: float,
         calibrants_df: pd.DataFrame,
         time: float | None,
-        time_window: float | None
+        time_window: float | None,
+        calibrants_used = list[dict] | None
     ):
-        """
-        Initialize a mass spectrum.
-        """
+        """Initialize a mass spectrum."""
         self.name = name
         self.file_raw = file_raw
         self.data_uncalibrated = data_uncalibrated
@@ -40,9 +41,27 @@ class MassSpectrum():
         self.logger = logging.getLogger(self.__class__.__name__)
         self.calibrants = self.get_calibrants()
 
-        # self.calibrated = self.calibrate()
-        # self.data_calibrated = self.calibrated[0]
-        # self.calibration_plot = self.calibrated[1]
+        # Set calibrants used and calculate all dependent attributes:
+        # calibration fit, calibrated data and calibration figure.
+        self.set_calibrants_used(calibrants_used)
+
+    def set_calibrants_used(
+        self,
+        calibrants_used: list[dict] | None
+    ) -> None:
+        """Set the calibrants used and update the calibration results.
+        
+        Args:
+            calibrants_used: Calibrants used to fit the calibration model. Each 
+                calibrant is specified as a dictionary containing `"time"`, 
+                `"signal_to_noise"`, `"mz_exact"` and `"mz_observed"`.
+                When `None`, the calibration-dependent attributes are also
+                set to `None`.
+        """
+        self.calibrants_used = calibrants_used
+        self.calibration_fit = self.fit_calibration()
+        self.data_calibrated = self.calibrate()
+        self.calibration_plot = self.plot_calibration()
 
     def get_calibrants(self) -> list[Calibrant]:
         """Return a list with instances of the `Calibrant` class.
@@ -92,94 +111,129 @@ class MassSpectrum():
             calibrants.append(calibrant)
         
         return calibrants
-    
-    def calibrate(self, calibration_fit):
-        return
 
-    def calibrate_old(self) -> tuple[np.ndarray | None, Figure | None]:
-        """Calibrate mass spectrum based on a specified list of calibrants.
+    def fit_calibration(self) -> np.ndarray | None:
+        """Fit a quadratic m/z calibration model.
 
-        Calibration is performed based on a list of exact m/z values
-        of potential calibrant peaks. First, the observed m/z values
-        of all the potential calibrants are determined. The S/N of each 
-        observed calibrant peak is then calculated. For those calibrant 
-        peaks whose S/N is above a specified cut-off (usually 9 or 27),
-        if the number of peaks equals at least the specified minimum number 
-        of calibrants (4 being the absolute minimum), a second-degree 
-        polynomial is fitted through the pairs of exact and observed 
-        m/z values. This polynomial is used to calibrate the mass spectrum.
+        The model predicts the required m/z correction
 
+            `mz_exact - mz_observed`
+        
+        as a quadratic function of the observed m/z.
+        
         Returns:
-            A tuple containing calibrated data and a figure visualizing the
-            fitting. The calibrated data is a 2D array with adjusted m/z values 
-            in one column and intensities in the second column. 
-            Returns `(None, Figure)` if the minimum number of calibrants is 
-            not reached; the figure shows the calibrants that were found above 
-            the S/N cut-off.
-            Returns `(None, None)` if the list with calibrants is empty.
+            An array containing the polynomial coefficients in descending order:
+            [quadratic, linear, intercept]
         """
-        # Check if calibrants were provided.
-        if len(self.calibrants) == 0:
-            return (None, None)
+        if self.calibrants_used is None:
+            return None
 
-        # Create a list of observed m/z values for all calibrants
-        # with a signal-to-noise valuea above the S/N cut-off.
-        calibrants_above_cutoff = []
-        for calibrant in self.calibrants:
-            # Get background and noise data.
-            background_and_noise = calibrant.get_background_and_noise(
-                target_mz=calibrant.spline_maximum[0],
-                background_mass_window=self.background_mass_window
-            )
-            # Check S/N > cut-off.
-            background_average_intensity=background_and_noise[0] 
-            noise = background_and_noise[2]
-            if calibrant.signal > (
-                background_average_intensity + self.min_calibrant_sn * noise
-            ):
-                calibrants_above_cutoff.append(calibrant)
-
-        # Check against the minimum number of calibrants.
-        if len(calibrants_above_cutoff) < self.min_calibrant_number:
-            # Generate failure plot showing only calibrants above S/N cutoff.
-            # Collect m/z values for calibrants that passed the S/N threshold.
-            # Explicitly get the observed m/z (from spectrum) and exact m/z (theoretical).
-            mzs_observed = []
-            mzs_exact = []
-            for cal in calibrants_above_cutoff:
-                # cal.mz_observed: the peak m/z found in the spectrum via spline
-                # cal.mz_exact: the theoretical m/z value (inherited from IsotopicPeak)
-                observed_mz_value = float(cal.mz_observed)
-                expected_mz_value = float(cal.mz_exact)
-                mzs_observed.append(observed_mz_value)
-                mzs_exact.append(expected_mz_value)
-            
-            failure_plot = plot_calibration_failure(
-                title=self.name,
-                mzs_observed=mzs_observed,
-                mzs_exact=mzs_exact
-            )
-            return (None, failure_plot)
-    
-        # Fit 2nd degree polynomial through (observed, exact) m/z pairs.
-        mzs_observed = [cal.mz_observed for cal in calibrants_above_cutoff]
-        mzs_exact = [cal.mz_exact for cal in calibrants_above_cutoff]
-        fit = np.polyfit(x = mzs_observed, y=mzs_exact, deg=2)
-
-        # Adjust m/z values using the fitted polynomial.
-        poly_func = np.poly1d(fit)  # Polynomial function based on fit coeffs.
-        mzs_adjusted = poly_func(self.data_uncalibrated[:, 0])
-
-        # Visualize the calibration in a plot (similar to alignment).
-        plot = plot_polynomial(mzs_observed, mzs_exact, poly_func, self.name)
-
-        # Return calibrated spectrum and figure.
-        data_calibrated = np.column_stack(
-            (mzs_adjusted, self.data_uncalibrated[:, 1])
+        mz_observed = np.array(
+            [cal["mz_observed"] for cal in self.calibrants_used],
+            dtype=float
         )
 
-        return (data_calibrated, plot)
+        mz_delta = np.array(
+            [
+                cal["mz_exact"] - cal["mz_observed"] 
+                for cal in self.calibrants_used
+            ],
+            dtype=float
+        )
+
+        fit = np.polyfit(x=mz_observed, y=mz_delta, deg=2)
+
+        return fit
+    
+    def calibrate(self) -> np.ndarray | None:
+        """Calibrate spectrum based on quadratic fit coefficients, as 
+        specified in `self.calibration_fit`.
+
+        The coefficients in `self.calibration_fit` specify by what amount
+        each observed m/z value should be shifted.
+
+        Returns:
+            A 2D array containing calibrated data: adjusted m/z values in
+            one column and intensities in the other column. 
+            Returns `None` if `self.calibration_fit` is `None`.
+        """
+        if self.calibration_fit is None:
+            return None
+
+        data_calibrated = self.data_uncalibrated.copy()
+
+        data_calibrated[:, 0] += np.polyval(
+            self.calibration_fit,
+            self.data_uncalibrated[:, 0]
+        )
+
+        return data_calibrated
+
+    def plot_calibration(self) -> Figure | None:
+        """Plot the calibration fit.
+
+        Required m/z corrections are plotted against the observed m/z values.
+        Calibrant data points are colored by their retention time.
+        The quadratic fit is shown as a smooth curve.
         
+        Returns:
+            A matplotlib Figure.
+            `None` if `self.calibration_fit` is `None`.
+        """
+        if self.calibration_fit is None:
+            return None
+        
+        mz_observed = np.array(
+                [cal["mz_observed"] for cal in self.calibrants_used],
+                dtype=float
+            )
+        
+        mz_delta = np.array(
+            [
+                cal["mz_exact"] - cal["mz_observed"] 
+                for cal in self.calibrants_used
+            ],
+            dtype=float
+        )
+    
+        time = np.array(
+            [cal["time"] for cal in self.calibrants_used],
+            dtype=float
+        )
+
+        # Create evenly spaced m/z values for drawing smooth fitted curve.
+        mz_plot = np.linspace(mz_observed.min(), mz_observed.max(), 500)
+
+        # Apply the fit to the specified m/z values.
+        delta_fitted = np.polyval(self.calibration_fit, mz_plot)
+
+        # Create figure
+        figure, axis = plt.subplots()
+        scatter = axis.scatter(
+            mz_observed,
+            mz_delta,
+            c=time,
+            cmap="turbo",
+            s=45,
+            edgecolor="black",
+            linewidths=0.4
+        )
+        axis.plot(
+            mz_plot,
+            delta_fitted,
+            label="Quadratic fit"
+        )
+        axis.hline(0, linewidth=1, linestyle="--", c="black")
+        axis.set_xlabel(r"Observed $m/z$")
+        axis.set_ylabel(r"Required correction $\Delta m/z$")
+        axis.set_title(f"Quadratic m/z calibration fit\n{self.file_raw}")
+        axis.legend()
+        colorbar = figure.colorbar(scatter, ax=axis)
+        colorbar.set_label("Sum spectrum retention time")
+        figure.tight_layout()
+
+        return figure
+
     def quantify_analytes(
         self,
         analytes_ref: pd.DataFrame,
