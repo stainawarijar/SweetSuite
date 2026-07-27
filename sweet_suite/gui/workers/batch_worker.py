@@ -726,7 +726,9 @@ class BatchWorker(QObject):
 
                 # Check if stop was requested.
                 if self.stop_requested:
-                    self.logger.info("BatchWorker stop requested during quantitation")
+                    self.logger.info(
+                        "BatchWorker stop requested during quantitation"
+                    )
                     self.aborted.emit()
                     return
 
@@ -794,44 +796,65 @@ class BatchWorker(QObject):
                             calibrants.append(
                                 {
                                     "time": cal.time,
+                                    "time_window": cal.time_window,
                                     "signal_to_noise": cal.signal_to_noise,
                                     "mz_exact": cal.mz_exact,
                                     "mz_observed": cal.mz_observed
                                 }
                             )
 
-                # Loop over all sum spectra.
+                # Group calibrants by mass spectrum to which they are assigned.
+                calibrants_by_rt = {}
+                for cal in calibrants:
+                    rt = (cal["time"], cal["time_window"])
+                    # `setdefault` creates the `rt` key with an empty list as 
+                    # its value if the key does not yet exist.
+                    # If it does exist, it returns the existing list.
+                    # In either case, `cal` is appended to that list.
+                    calibrants_by_rt.setdefault(rt, []).append(cal)
+
+                # Per MS, first collect calibrants assigned to its exact
+                # RT window. If below threshold for min. number of calibrants, 
+                # keep adding calibrants from the nearest retention times until 
+                # the threshold is reached.
                 for ms in mass_spectra:
-                    # Collect calibrants for this retention time and check 
-                    # number. If below threshold, keep adding calibrants 
-                    # from nearest retention time until threshold is reached.
-                    calibrant_times = sorted(
-                        {cal["time"] for cal in calibrants},
-                        key=lambda time: abs(time - ms.time)
+                    # MS is uniquely defined by `time` and `time_window`
+                    # combination.
+                    ms_rt = (ms.time, ms.time_window)
+
+                    # Start with calibrants assigned to this exact RT.
+                    calibrants_to_use = list(
+                        calibrants_by_rt.get(ms_rt, [])
                     )
 
-                    calibrants_to_use = []
+                    # Sort all other calibrant RT groups by distance from
+                    # the spectrum RT.
+                    nearby_rts = sorted(
+                        (rt for rt in calibrants_by_rt if rt != ms_rt),
+                        key=lambda rt: abs(rt[0] - ms.time)
+                    )
+
                     last_distance = None
 
-                    for time in calibrant_times:
-                        distance = abs(time - ms.time)
+                    for rt in nearby_rts:
+                        distance = abs(rt[0] - ms.time)
 
+                        # Stop once enough calibrants have been collected,
+                        # but only after adding every RT group at the same
+                        # distance. For example, groups at 40s and 60s are
+                        # both added for a spectrum at 50s.
                         if (
-                            len(calibrants_to_use) >= self.min_calibrant_number 
+                            len(calibrants_to_use) >= self.min_calibrant_number
                             and distance != last_distance
                         ):
                             break
 
-                        calibrants_to_use.extend(
-                            cal for cal in calibrants
-                            if cal["time"] == time
-                        )
-
+                        calibrants_to_use.extend(calibrants_by_rt[rt])
                         last_distance = distance
 
-                    # If enough calibrants to use, pass on to MassSpectrum
-                    # instance. It will then calibrate.
-                    if len(calibrants_to_use) >= self.min_calibrant_number:
+                    # If enough calibrants are available, pass them to the 
+                    # MassSpectrum instance. It will then perform calibration.
+                    if (len(calibrants_to_use)) >= self.min_calibrant_number:
                         ms.set_calibrants_used(calibrants_to_use)
                         self.logger.info(
                             f"Calibrated sum spectrum ({ms.time}"

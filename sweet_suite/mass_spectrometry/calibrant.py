@@ -29,6 +29,7 @@ class Calibrant(IsotopicPeak):
         mz_exact: float,
         charge: int,
         time: float | None,
+        time_window: float | None,
         spectrum: np.ndarray,
         background_mass_window: float,
         integration_mz_window: float,
@@ -41,6 +42,8 @@ class Calibrant(IsotopicPeak):
             charge: Ion charge state.
             time: Retention time of corresponding sum spectrum. Set to `None`
                 in case of MS-only data.
+            time_window: Retention time window of the corresponding sum 
+                spectrum. Set to `None` in case of MS-only data.
             spectrum: 2D array with m/z and intensity columns.
             background_mass_window: ...
             integration_mz_window: m/z window (Th) used for extraction.
@@ -49,6 +52,7 @@ class Calibrant(IsotopicPeak):
         """                                                                       
         super().__init__(mz_exact, charge, spectrum, integration_mz_window)
         self.time = time
+        self.time_window = time_window
         self.background_mass_window = background_mass_window
         self.calibration_mass_window = calibration_mass_window
         self.calibration_mz_window = self.get_calibration_mz_window()

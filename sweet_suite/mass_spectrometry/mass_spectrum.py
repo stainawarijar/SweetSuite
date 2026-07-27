@@ -102,6 +102,7 @@ class MassSpectrum():
                 mz_exact=mz,
                 charge=charge,
                 time=self.time,
+                time_window = self.time_window,
                 spectrum=self.data_uncalibrated,
                 background_mass_window=self.background_mass_window,
                 integration_mz_window=mz_window,
