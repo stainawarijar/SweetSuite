@@ -8,6 +8,7 @@ import pandas as pd
 
 from .analyte import Analyte
 from .calibrant import Calibrant
+from .calibration import fit_calibration, plot_quadratic_calibration
 from .isotopic_peak import IsotopicPeak
 
 
@@ -25,11 +26,13 @@ class MassSpectrum():
         background_mass_window: float,
         calibration_mass_window: float,
         calibrants_df: pd.DataFrame,
-        time: float | None,
-        time_window: float | None,
-        calibrants_used = list[dict] | None
+        time: float | None = None,
+        time_window: float | None = None,
+        global_calibration_fit: np.ndarray | None = None,
+        local_calibrants_to_fit: list[dict] | None = None
     ):
         """Initialize a mass spectrum."""
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.name = name
         self.file_raw = file_raw
         self.data_uncalibrated = data_uncalibrated
@@ -38,30 +41,30 @@ class MassSpectrum():
         self.calibrants_df = calibrants_df
         self.time = time
         self.time_window = time_window
-        self.logger = logging.getLogger(self.__class__.__name__)
         self.calibrants = self.get_calibrants()
+        self.global_calibration_fit = global_calibration_fit
+        self.local_calibrants_to_fit = local_calibrants_to_fit
 
-        # Set calibrants used and calculate all dependent attributes:
-        # calibration fit, calibrated data and calibration figure.
-        self.set_calibrants_used(calibrants_used)
+        if self.global_calibration_fit is not None:
+            self.apply_global_calibration()
+        else:
+            self.apply_local_calibration()
 
-    def set_calibrants_used(
-        self,
-        calibrants_used: list[dict] | None
-    ) -> None:
-        """Set the calibrants used and update the calibration results.
+    def apply_global_calibration(self) -> None:
+        """Calibrate the MS data by applying the global calibration fit."""
+        self.data_calibrated = self.calibrate_data(self.global_calibration_fit)
+        self.local_calibration_plot = None
+
+    def apply_local_calibration(self) -> None:
+        """Calibrate the data using a local calibration fit.
         
-        Args:
-            calibrants_used: Calibrants used to fit the calibration model. Each 
-                calibrant is specified as a dictionary containing `"time"`, 
-                `"signal_to_noise"`, `"mz_exact"` and `"mz_observed"`.
-                When `None`, the calibration-dependent attributes are also
-                set to `None`.
+        If `self.local_calibrants_used` is `None` or an empty list, then
+        `local_calibration_fit`, `data_calibrated` and `calibration_fit` will
+        all be `None`.
         """
-        self.calibrants_used = calibrants_used
-        self.calibration_fit = self.fit_calibration()
-        self.data_calibrated = self.calibrate()
-        self.calibration_plot = self.plot_calibration()
+        fit = self.fit_calibration_local()
+        self.data_calibrated = self.calibrate_data(fit)
+        self.local_calibration_plot = self.plot_local_calibration(fit)
 
     def get_calibrants(self) -> list[Calibrant]:
         """Return a list with instances of the `Calibrant` class.
@@ -113,128 +116,60 @@ class MassSpectrum():
         
         return calibrants
 
-    def fit_calibration(self) -> np.ndarray | None:
-        """Fit a quadratic m/z calibration model.
+    def fit_calibration_local(self) -> np.ndarray | None:
+        """Fit a quadratic m/z calibration model using local calibrants."""
+        return fit_calibration(self.local_calibrants_to_fit)
 
-        The model predicts the required m/z correction
-
-            `mz_exact - mz_observed`
-        
-        as a quadratic function of the observed m/z.
-        
-        Returns:
-            An array containing the polynomial coefficients in descending order:
-            [quadratic, linear, intercept]
-        """
-        if self.calibrants_used is None:
-            return None
-
-        mz_observed = np.array(
-            [cal["mz_observed"] for cal in self.calibrants_used],
-            dtype=float
-        )
-
-        mz_delta = np.array(
-            [
-                cal["mz_exact"] - cal["mz_observed"] 
-                for cal in self.calibrants_used
-            ],
-            dtype=float
-        )
-
-        fit = np.polyfit(x=mz_observed, y=mz_delta, deg=2)
-
-        return fit
-    
-    def calibrate(self) -> np.ndarray | None:
+    def calibrate_data(
+        self,
+        calibration_fit: np.ndarray | None
+    ) -> np.ndarray | None:
         """Calibrate spectrum based on quadratic fit coefficients, as 
-        specified in `self.calibration_fit`.
+        specified in `calibration_fit`.
 
-        The coefficients in `self.calibration_fit` specify by what amount
+        The coefficients in the calibration fit specify by what amount
         each observed m/z value should be shifted.
 
         Returns:
             A 2D array containing calibrated data: adjusted m/z values in
             one column and intensities in the other column. 
-            Returns `None` if `self.calibration_fit` is `None`.
+            Returns `None` if `calibration_fit` is `None`.
         """
-        if self.calibration_fit is None:
+        if calibration_fit is None:
             return None
 
         data_calibrated = self.data_uncalibrated.copy()
 
         data_calibrated[:, 0] += np.polyval(
-            self.calibration_fit,
+            calibration_fit,
             self.data_uncalibrated[:, 0]
         )
 
         return data_calibrated
 
-    def plot_calibration(self) -> Figure | None:
-        """Plot the calibration fit.
+    def plot_local_calibration(
+        self,
+        local_fit: np.ndarray | None
+    ) -> Figure | None:
+        """Plot the local calibration fit.
 
         Required m/z corrections are plotted against the observed m/z values.
-        Calibrant data points are colored by their retention time.
+        Calibrant data points are colored by their retention time if applicable.
         The quadratic fit is shown as a smooth curve.
+
+        Args:
+            local_fit: Array containing the quadratic m/z fit coefficients in 
+                descending order: [quadratic, linear, intercept].
         
         Returns:
-            A matplotlib Figure.
-            `None` if `self.calibration_fit` is `None`.
+            A matplotlib Figure, as generated by `plot_quadratic_calibration`.
         """
-        if self.calibration_fit is None:
-            return None
+        return plot_quadratic_calibration(
+            calibrants=self.local_calibrants_to_fit, 
+            fit=local_fit,
+            title=f"{self.file_raw} - ({self.time} ± {self.time_window} s)"
+        )
         
-        mz_observed = np.array(
-                [cal["mz_observed"] for cal in self.calibrants_used],
-                dtype=float
-            )
-        
-        mz_delta = np.array(
-            [
-                cal["mz_exact"] - cal["mz_observed"] 
-                for cal in self.calibrants_used
-            ],
-            dtype=float
-        )
-    
-        time = np.array(
-            [cal["time"] for cal in self.calibrants_used],
-            dtype=float
-        )
-
-        # Create evenly spaced m/z values for drawing smooth fitted curve.
-        mz_plot = np.linspace(mz_observed.min(), mz_observed.max(), 500)
-
-        # Apply the fit to the specified m/z values.
-        delta_fitted = np.polyval(self.calibration_fit, mz_plot)
-
-        # Create figure
-        figure, axis = plt.subplots()
-        scatter = axis.scatter(
-            mz_observed,
-            mz_delta,
-            c=time,
-            cmap="turbo",
-            s=45,
-            edgecolor="black",
-            linewidths=0.4
-        )
-        axis.plot(
-            mz_plot,
-            delta_fitted,
-            label="Quadratic fit"
-        )
-        axis.axhline(0, linewidth=1, linestyle="--", c="black")
-        axis.set_xlabel(r"Observed $m/z$")
-        axis.set_ylabel(r"Required correction $\Delta m/z$")
-        axis.set_title(f"Quadratic m/z calibration fit\n{self.file_raw}")
-        axis.legend()
-        colorbar = figure.colorbar(scatter, ax=axis)
-        colorbar.set_label("Sum spectrum retention time")
-        figure.tight_layout()
-
-        return figure
-
     def quantify_analytes(
         self,
         analytes_ref: pd.DataFrame,

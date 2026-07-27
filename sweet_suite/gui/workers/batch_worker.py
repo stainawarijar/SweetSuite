@@ -1,6 +1,7 @@
 from datetime import datetime
 import logging
 import os
+from typing import Literal
 import warnings
 
 import matplotlib
@@ -12,6 +13,7 @@ import pandas as pd
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from ... import __version__
+from ...mass_spectrometry.calibration import fit_calibration, plot_quadratic_calibration
 from ...chromatography.alignment_feature import AlignmentFeature
 from ...input_analyte import InputAnalyte
 from ...reporting import ms_tables
@@ -658,7 +660,8 @@ class BatchWorker(QObject):
     def quantitate_mzxml_files(
         self,
         analytes_ref_path: str,
-        mzxml_file_paths: list[str]
+        mzxml_file_paths: list[str],
+        calibration_method: Literal["pooled", "pooled_time", "local"] = "local"
     ) -> pd.DataFrame | None:
         """
         Perform calibration and quantitation on the mzXML files.
@@ -666,7 +669,19 @@ class BatchWorker(QObject):
         Args:
             analytes_ref_path: Path to the analytes reference Excel file.
             mzxml_file_paths: List of paths to mzXML files.
-        
+            
+            calibration_method: `"pooled"`, `"pooled_time"`, or `"local"`. 
+                Currently only used for testing. Default is "pooled".
+                There is no setting for this in the user interface.
+                - `pooled`: One calibration fit is made using the calibrants
+                    from all clusters. This fit is then applied to all 
+                    sum spectra.
+                - `local`: A calibration fit is made per retention time range.
+                    If not enough calibrants are available, calibrants from
+                    nearby retention times are added until enough are available.
+                - `pooled_time`: Similar to `"pooled"`, but the fit now includes 
+                    a linear term for the retention time.
+
         Returns:
             Dataframe with quantitation results if processing finished for
             all files. None if batch process was aborted during quantitation.
@@ -781,8 +796,7 @@ class BatchWorker(QObject):
                         calibration_mass_window=self.calibration_mass_window,
                         calibrants_df=calibrants_df,
                         time=sum_spectrum.time,
-                        time_window=sum_spectrum.time_window,
-                        calibrants_used = None
+                        time_window=sum_spectrum.time_window
                     )
 
                     mass_spectra.append(mass_spectrum)
@@ -795,91 +809,96 @@ class BatchWorker(QObject):
                         if cal.signal_to_noise > self.calibrant_sn_cutoff:
                             calibrants.append(
                                 {
-                                    "time": cal.time,
-                                    "time_window": cal.time_window,
-                                    "signal_to_noise": cal.signal_to_noise,
                                     "mz_exact": cal.mz_exact,
-                                    "mz_observed": cal.mz_observed
+                                    "mz_observed": cal.mz_observed,
+                                    "time": cal.time,
+                                    "time_window": cal.time_window
                                 }
                             )
 
-                # Group calibrants by mass spectrum to which they are assigned.
-                calibrants_by_rt = {}
-                for cal in calibrants:
-                    rt = (cal["time"], cal["time_window"])
-                    # `setdefault` creates the `rt` key with an empty list as 
-                    # its value if the key does not yet exist.
-                    # If it does exist, it returns the existing list.
-                    # In either case, `cal` is appended to that list.
-                    calibrants_by_rt.setdefault(rt, []).append(cal)
+                # Calibrate depending on chosen method.
+                if calibration_method == "pooled":
+                    pass
+                elif calibration_method == "pooled_time":
+                    pass
+                elif calibration_method == "local":
+                    # Group calibrants by retention time range.
+                    calibrants_by_rt = {}
+                    for cal in calibrants:
+                        rt = (cal["time"], cal["time_window"])
+                        # `setdefault` creates the `rt` key with an empty list 
+                        # as its value if the key does not yet exist.
+                        # If it does exist, it returns the existing list.
+                        # In either case, `cal` is appended to that list.
+                        calibrants_by_rt.setdefault(rt, []).append(cal)
 
-                # Per MS, first collect calibrants assigned to its exact
-                # RT window. If below threshold for min. number of calibrants, 
-                # keep adding calibrants from the nearest retention times until 
-                # the threshold is reached.
-                for ms in mass_spectra:
-                    # MS is uniquely defined by `time` and `time_window`
-                    # combination.
-                    ms_rt = (ms.time, ms.time_window)
+                    # Per MS, first collect calibrants assigned to its exact
+                    # RT window. If below threshold for min. number of 
+                    # calibrants, keep adding calibrants from the nearest 
+                    # retention times until the threshold is reached.
+                    for ms in mass_spectra:
+                        # MS is uniquely defined by `time` and `time_window`
+                        # combination.
+                        ms_rt = (ms.time, ms.time_window)
 
-                    # Start with calibrants assigned to this exact RT.
-                    calibrants_to_use = list(
-                        calibrants_by_rt.get(ms_rt, [])
-                    )
-
-                    # Sort all other calibrant RT groups by distance from
-                    # the spectrum RT.
-                    nearby_rts = sorted(
-                        (rt for rt in calibrants_by_rt if rt != ms_rt),
-                        key=lambda rt: abs(rt[0] - ms.time)
-                    )
-
-                    last_distance = None
-
-                    for rt in nearby_rts:
-                        distance = abs(rt[0] - ms.time)
-
-                        # Stop once enough calibrants have been collected,
-                        # but only after adding every RT group at the same
-                        # distance. For example, groups at 40s and 60s are
-                        # both added for a spectrum at 50s.
-                        if (
-                            len(calibrants_to_use) >= self.min_calibrant_number
-                            and distance != last_distance
-                        ):
-                            break
-
-                        calibrants_to_use.extend(calibrants_by_rt[rt])
-                        last_distance = distance
-
-                    # If enough calibrants are available, pass them to the 
-                    # MassSpectrum instance. It will then perform calibration.
-                    if (len(calibrants_to_use)) >= self.min_calibrant_number:
-                        ms.set_calibrants_used(calibrants_to_use)
-                        self.logger.info(
-                            f"Calibrated sum spectrum ({ms.time}"
-                            f" ± {ms.time_window} s) for "
-                            f"{os.path.basename(path)}"
-                        )
-                    else:
-                        self.logger.info(
-                            f"Failed calibrating sum spectrum ({ms.time}"
-                            f" ± {ms.time_window} s) for "
-                            f"{os.path.basename(path)}"
+                        # Start with calibrants assigned to this exact RT.
+                        calibrants_to_use = list(
+                            calibrants_by_rt.get(ms_rt, [])
                         )
 
-                    # Save calibration fit figure to PDF.
-                    if ms.calibration_plot is not None:
-                        try:
-                            pdf.savefig(ms.calibration_plot)
-                        finally:
-                            plt.close(ms.calibration_plot)
-                            ms.calibration_plot = None  # To free up memory.
+                        # Sort all other calibrant RT groups by distance from
+                        # the spectrum RT.
+                        nearby_rts = sorted(
+                            (rt for rt in calibrants_by_rt if rt != ms_rt),
+                            key=lambda rt: abs(rt[0] - ms.time)
+                        )
 
-                    # TODO Add pre- and post-calibration mass errors to figure.
-                    # And add RETENTION TIMES to figure.
+                        last_distance = None
 
-                    # TODO Write .xy file when requested.
+                        for rt in nearby_rts:
+                            distance = abs(rt[0] - ms.time)
+
+                            # Stop once enough calibrants have been collected,
+                            # but only after adding every RT group at the same
+                            # distance. For example, groups at 40s and 60s are
+                            # both added for a spectrum at 50s.
+                            if (
+                                len(calibrants_to_use) >= self.min_calibrant_number
+                                and distance != last_distance
+                            ):
+                                break
+
+                            calibrants_to_use.extend(calibrants_by_rt[rt])
+                            last_distance = distance
+
+                        # If enough calibrants are available, pass them to the 
+                        # MassSpectrum instance and calibrate.
+                        if (len(calibrants_to_use)) >= self.min_calibrant_number:
+                            ms.local_calibrants_to_fit = calibrants_to_use
+                            ms.apply_local_calibration()
+                            self.logger.info(
+                                f"Calibrated sum spectrum ({ms.time}"
+                                f" ± {ms.time_window} s) for "
+                                f"{os.path.basename(path)}"
+                            )
+                        else:
+                            self.logger.info(
+                                f"Failed calibrating sum spectrum ({ms.time}"
+                                f" ± {ms.time_window} s) for "
+                                f"{os.path.basename(path)}"
+                            )
+
+                        # Save calibration fit figure to PDF.
+                        if ms.local_calibration_plot is not None:
+                            try:
+                                pdf.savefig(ms.local_calibration_plot)
+                            finally:
+                                # Close figure and free up memory.
+                                plt.close(ms.local_calibration_plot)
+                                ms.local_calibration_plot = None
+
+
+                # TODO Write .xy files when requested.
                 
                 # TODO Build a long table with quantitation results.
 
