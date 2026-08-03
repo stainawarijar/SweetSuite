@@ -661,7 +661,7 @@ class BatchWorker(QObject):
         self,
         analytes_ref_path: str,
         mzxml_file_paths: list[str],
-        calibration_method: Literal["pooled", "pooled_time", "local"] = "pooled_time"
+        calibration_method: Literal["pooled", "pooled_time", "local"] = "pooled"
     ) -> pd.DataFrame | None:
         """
         Perform calibration and quantitation on the mzXML files.
@@ -801,12 +801,12 @@ class BatchWorker(QObject):
 
                     mass_spectra.append(mass_spectrum)
                 
-                # Collect all calibrants with S/N above the threshold.
+                # Collect all calibrants with S/N at or above threshold.
                 calibrants = []
 
                 for ms in mass_spectra:
                     for cal in ms.calibrants:
-                        if cal.signal_to_noise > self.calibrant_sn_cutoff:
+                        if cal.signal_to_noise >= self.calibrant_sn_cutoff:
                             calibrants.append(
                                 {
                                     "mz_exact": cal.mz_exact,
@@ -914,22 +914,53 @@ class BatchWorker(QObject):
                                 ms.local_calibration_plot = None
 
 
-                # TODO Write .xy files when requested.
-                # for ms in mass_spectra ...
+                # Write .xy files when requested.
+                if self.save_xy:
+                    for ms in mass_spectra:
+                        ms.write_xy(folder=xy_folder)
+                        self.logger.info(
+                            f"Saved .xy file for {ms.name}"
+                        )
                 
-                # TODO Build a long table with quantitation results.
+                # Build a table with quantitation results.
+                output = ms_tables.build_quantitation_table(
+                    filename=mzxml.file_name,
+                    mass_spectra=mass_spectra,
+                    analytes_ref=analytes_ref,
+                    output_params=output_params,
+                    use_peak_height=self.use_peak_height
+                )
 
-                # TODO Append output to temporary CSV file.
+                # Append output to temporary CSV file.
+                if not header:
+                    output.to_csv(
+                        temp_csv_path, mode="a", index=False, header=False
+                    )
+                else:
+                    output.to_csv(
+                        temp_csv_path, mode="a", index=False, header=True
+                    )
+                    header = False  # Only header for the first processed file.
 
-                # TODO Update percentage of processed files
+                # Update percentage of processed files
+                percent = round((idx + 1) / n * 100)
+                self.quantitation_progress.emit(percent)
             
-            # TODO If no files produced output, the temp CSV is empty.
+            # If no files produced output, the temp CSV is empty.
             # Avoid pd.read_csv raising EmptyDataError; return None instead.
+            if header:
+                self.logger.warning(
+                    "Quantitation produced no results. "
+                    "None of the mzXML files appear to contain data."
+                )
+                os.remove(temp_csv_path)
+                return
 
-            # TODO Read the accumulated CSV file and delete it.
+            # Read the accumulated CSV file and delete it.
+            quantitation_results = pd.read_csv(temp_csv_path)
+            os.remove(temp_csv_path)
 
-            # TODO Return quantitation results.
-            return
+            return quantitation_results
                     
     # TODO Update quantitation method for xy files.
     def quantitate_xy_files(

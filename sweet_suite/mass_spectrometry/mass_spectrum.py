@@ -218,7 +218,7 @@ class MassSpectrum():
         """
         # Determine which MS data to use.
         if self.data_calibrated is None:
-            if len(self.calibrants_list) != 0:
+            if len(self.calibrants) > 0:
                 # Calibration failed, return None.
                 return None
             else:
@@ -246,6 +246,7 @@ class MassSpectrum():
         mz_max = np.max(spectrum[:, 0])
         analytes_to_skip = set()
         prev_analyte_label = None
+
         for _, row in reference.iterrows():
             peak_name = str(row["peak"])
             mz_val = row["mz"]
@@ -254,25 +255,37 @@ class MassSpectrum():
             analyte_label = "_".join(peak_name.split("_")[:-1])
             if analyte_label in analytes_to_skip:
                 continue
+
             # Check that the integration window fits within the spectrum range.
             if mz_val - mz_window < mz_min or mz_val + mz_window > mz_max:
                 analytes_to_skip.add(analyte_label)
                 continue
-            # For the first peak of each analyte, also check the background window.
+
+            # For the first peak of each analyte, also check background window.
             if analyte_label != prev_analyte_label:
-                background_half_span = self.background_mass_window / charge + mz_window
-                if mz_val - background_half_span < mz_min or mz_val + background_half_span > mz_max:
+                background_half_span = (
+                    self.background_mass_window / charge + mz_window
+                )
+                if (
+                    mz_val - background_half_span < mz_min or 
+                    mz_val + background_half_span > mz_max
+                ):
                     analytes_to_skip.add(analyte_label)
+
             prev_analyte_label = analyte_label
+
         for label in analytes_to_skip:
             self.logger.warning(
-                f"Analyte {label} falls outside the spectrum m/z range and will not be quantified."
+                f"Analyte {label} falls outside the spectrum m/z range "
+                "and will not be quantified."
             )
+
         self.skipped_analytes = analytes_to_skip
         if analytes_to_skip:
             reference = reference[
                 ~reference["peak"].apply(
-                    lambda p: "_".join(str(p).split("_")[:-1]) in analytes_to_skip
+                    lambda p: "_".join(str(p).split("_")[:-1]) 
+                    in analytes_to_skip
                 )
             ]
 
@@ -307,8 +320,12 @@ class MassSpectrum():
                         name=current_analyte.split("_")[0],
                         charge=int(current_analyte.split("_")[1]),
                         peaks=pd.DataFrame(peaks, columns=[
-                            "peak", "mz_exact", "relative_area_theoretical",
-                            "area", "maximum_intensity", "mass_error_ppm"
+                            "peak", 
+                            "mz_exact", 
+                            "relative_area_theoretical",
+                            "area", 
+                            "maximum_intensity", 
+                            "mass_error_ppm"
                         ]), 
                         background_and_noise=background_and_noise,
                         use_peak_height=use_peak_height

@@ -92,7 +92,10 @@ def build_quantitation_table(
     keep = {}  # (filename, analyte, charge): {parameters}
     skipped_labels: set[str] = set()
     for spectrum in mass_spectra:
-        analytes = spectrum.quantify_analytes(analytes_ref, use_peak_height=use_peak_height)
+        analytes = spectrum.quantify_analytes(
+            analytes_ref=analytes_ref, 
+            use_peak_height=use_peak_height
+        )
         skipped_labels.update(getattr(spectrum, "skipped_analytes", set()))
         if not analytes:
             continue  # Uncalibrated, grid keeps blank row for it.
