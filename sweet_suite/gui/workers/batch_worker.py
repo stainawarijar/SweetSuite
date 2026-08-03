@@ -13,7 +13,7 @@ import pandas as pd
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from ... import __version__
-from ...mass_spectrometry.calibration import fit_calibration, plot_quadratic_calibration
+from ...mass_spectrometry.calibration import fit_calibration, plot_calibration
 from ...chromatography.alignment_feature import AlignmentFeature
 from ...input_analyte import InputAnalyte
 from ...reporting import ms_tables
@@ -661,7 +661,7 @@ class BatchWorker(QObject):
         self,
         analytes_ref_path: str,
         mzxml_file_paths: list[str],
-        calibration_method: Literal["pooled", "pooled_time", "local"] = "local"
+        calibration_method: Literal["pooled", "pooled_time", "local"] = "pooled_time"
     ) -> pd.DataFrame | None:
         """
         Perform calibration and quantitation on the mzXML files.
@@ -817,10 +817,26 @@ class BatchWorker(QObject):
                             )
 
                 # Calibrate depending on chosen method.
-                if calibration_method == "pooled":
-                    pass
-                elif calibration_method == "pooled_time":
-                    pass
+                if calibration_method in ["pooled", "pooled_time"]:
+                    if calibration_method == "pooled":
+                        fit = fit_calibration(calibrants)
+                    else:
+                        fit = fit_calibration(calibrants, include_time=True)
+                    # Apply fit to mass spectra.
+                    for ms in mass_spectra:
+                        ms.global_calibration_fit = fit
+                        ms.apply_global_calibration()
+                        # Visualize
+                        plot = plot_calibration(
+                            calibrants=calibrants,
+                            fit=fit,
+                            title=ms.file_raw
+                        )
+                        try:
+                            pdf.savefig(plot)
+                        finally:
+                            plt.close(plot)
+
                 elif calibration_method == "local":
                     # Group calibrants by retention time range.
                     calibrants_by_rt = {}
@@ -899,6 +915,7 @@ class BatchWorker(QObject):
 
 
                 # TODO Write .xy files when requested.
+                # for ms in mass_spectra ...
                 
                 # TODO Build a long table with quantitation results.
 

@@ -45,6 +45,7 @@ class MassSpectrum():
         self.global_calibration_fit = global_calibration_fit
         self.local_calibrants_to_fit = local_calibrants_to_fit
 
+        # TODO: Perhapse this if-else can be removed?
         if self.global_calibration_fit is not None:
             self.apply_global_calibration()
         else:
@@ -124,26 +125,49 @@ class MassSpectrum():
         self,
         calibration_fit: np.ndarray | None
     ) -> np.ndarray | None:
-        """Calibrate spectrum based on quadratic fit coefficients, as 
-        specified in `calibration_fit`.
+        """Calibrate spectrum based on the supplied calibration coefficients.
 
-        The coefficients in the calibration fit specify by what amount
-        each observed m/z value should be shifted.
+        The coefficients specify the amount by which each observed m/z value
+        should be shifted. A three-coefficient fit depends only on m/z, while
+        a four-coefficient fit also includes retention time.
+
+        Args:
+            calibration_fit: Calibration coefficients. Expected formats are:
+                - Three coefficients: [quadratic_mz, linear_mz, intercept]
+                - Four coefficients: [quadratic_mz, linear_mz, time, intercept]
 
         Returns:
-            A 2D array containing calibrated data: adjusted m/z values in
-            one column and intensities in the other column. 
-            Returns `None` if `calibration_fit` is `None`.
+            A 2D array containing calibrated m/z values in the first column
+            and intensities in the second column. Returns `None` when
+            `calibration_fit` is `None`.
+        
+        Raises:
+            ValueError: If the fit does not contain three or four coefficients.
         """
         if calibration_fit is None:
             return None
 
-        data_calibrated = self.data_uncalibrated.copy()
+        if len(calibration_fit) not in [3, 4]:
+            raise ValueError(
+                "`calibration_fit` must contain either 3 coefficients "
+                "(m/z only) or 4 coefficients (m/z and time)."
+            )
 
-        data_calibrated[:, 0] += np.polyval(
-            calibration_fit,
-            self.data_uncalibrated[:, 0]
-        )
+        data_calibrated = self.data_uncalibrated.copy()
+        mz_observed = self.data_uncalibrated[:, 0]
+
+        if len(calibration_fit) == 3:
+            mz_shift = np.polyval(calibration_fit, mz_observed)
+        else:
+            quadratic_mz, linear_mz, time, intercept = calibration_fit
+            mz_shift = (
+                quadratic_mz * mz_observed**2
+                + linear_mz * mz_observed
+                + time * self.time
+                + intercept
+            )
+
+        data_calibrated[:, 0] += mz_shift
 
         return data_calibrated
 

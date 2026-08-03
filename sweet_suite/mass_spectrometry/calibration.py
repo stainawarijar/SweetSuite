@@ -1,3 +1,4 @@
+from matplotlib.colors import Normalize
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
@@ -153,6 +154,147 @@ def plot_quadratic_calibration(
     if color_by_time:
         colorbar = figure.colorbar(scatter, ax=axis)
         colorbar.set_label("Sum spectrum retention time")
+    figure.tight_layout()
+
+    return figure
+
+
+def plot_calibration(
+    calibrants: list[dict],
+    fit: np.ndarray | None,
+    title: str = ""
+) -> Figure | None:
+    """Plot a quadratic m/z calibration fit including retention time.
+
+    Required m/z corrections are plotted against observed m/z values.
+    Calibrants are colored by retention time. Fitted quadratic curves are
+    shown for representative retention times.
+
+    The fitted model is:
+
+        correction = (
+            quadratic * mz_observed**2
+            + linear * mz_observed
+            + time_coefficient * time
+            + intercept
+        )
+
+    Args:
+        calibrants: Calibrants containing `mz_exact`, `mz_observed`, `time`
+            and `time_window`.
+        fit: Fit coefficients in the order [quadratic, linear, time, intercept].
+        title: Title to place above the figure.
+
+    Returns:
+        A matplotlib Figure. Returns `None` when `fit` is `None` or does
+        not contain four coefficients.
+    """
+    if fit is None or len(fit) not in (3, 4):
+        return None
+
+    mz_observed = np.array(
+        [cal["mz_observed"] for cal in calibrants],
+        dtype=float
+    )
+
+    mz_delta = np.array(
+        [cal["mz_exact"] - cal["mz_observed"] for cal in calibrants],
+        dtype=float
+    )
+
+    time = np.array(
+        [cal["time"] for cal in calibrants],
+        dtype=float
+    )
+
+    color_by_time = not np.isnan(time).any()
+
+    # A time-dependent fit cannot be evaluated without valid time values.
+    if len(fit) == 4 and not color_by_time:
+        return None
+
+    # Create evenly spaced m/z values for drawing smooth fitted curves.
+    mz_plot = np.linspace(
+        mz_observed.min(),
+        mz_observed.max(),
+        500
+    )
+
+    figure, axis = plt.subplots()
+
+    if color_by_time:
+        normalization = Normalize(
+            vmin=time.min(),
+            vmax=time.max()
+        )
+        colormap = plt.get_cmap("brg")
+
+        scatter = axis.scatter(
+            mz_observed,
+            mz_delta,
+            c=time,
+            cmap=colormap,
+            norm=normalization,
+            s=45,
+            edgecolor="black",
+            linewidths=0.4
+        )
+    else:
+        scatter = axis.scatter(
+            mz_observed,
+            mz_delta,
+            c="blue",
+            s=45,
+            edgecolor="black",
+            linewidths=0.4
+        )
+
+    if len(fit) == 3:
+        delta_fitted = np.polyval(fit, mz_plot)
+
+        axis.plot(
+            mz_plot,
+            delta_fitted,
+            label="Quadratic fit"
+        )
+
+    else:
+        quadratic, linear, time_coefficient, intercept = fit
+
+        for time_value in np.unique(time):
+            delta_fitted = (
+                quadratic * mz_plot**2
+                + linear * mz_plot
+                + time_coefficient * time_value
+                + intercept
+            )
+
+            axis.plot(
+                mz_plot,
+                delta_fitted,
+                color=colormap(normalization(time_value)),
+                linewidth=1,
+                alpha=0.7
+            )
+
+    axis.axhline(
+        0,
+        linewidth=1,
+        linestyle="--",
+        color="black"
+    )
+
+    axis.set_xlabel(r"Observed $m/z$")
+    axis.set_ylabel(r"Required correction $\Delta m/z$")
+    axis.set_title(title)
+
+    if len(fit) == 3:
+        axis.legend()
+
+    if color_by_time:
+        colorbar = figure.colorbar(scatter, ax=axis)
+        colorbar.set_label("Sum spectrum retention time")
+
     figure.tight_layout()
 
     return figure
