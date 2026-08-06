@@ -23,8 +23,8 @@ def build_quantitation_table(
     
     Returns:
         A pandas dataframe with the following columns: `file`, `analyte`,
-        `charge`, `mz_exact`, `isotopic_fraction` and a column for
-        each specified output parameter.
+        `charge`, `mz_monoisotopic`, `mz_most_abundant`, `isotopic_fraction` 
+        and a column for each specified output parameter.
     """
     # Build dataframe with analyte names, charge, isotopologue number and m/z.
     ref_parts = (
@@ -48,16 +48,26 @@ def build_quantitation_table(
         .tolist()
     )
 
-    # Build a dictionary with exact m/z values, using the m/z values of
-    # most abundant isotopologue.
-    ref_mz = ref_df.loc[
+    # Build a dictionary with exact m/z values of the most abundant 
+    # isotopic peaks.
+    ref_mz_most_abundant = ref_df.loc[
         ref_df.groupby(["analyte", "charge"])["relative_area"].idxmax(),
         ["analyte", "charge", "mz"]
     ]
-    mz_lookup = {
+    mz_most_abundant_lookup = {
         # (analyte, charge): m/z
         (row.analyte, int(row.charge)): row.mz
-        for row in ref_mz.itertuples(index=False)
+        for row in ref_mz_most_abundant.itertuples(index=False)
+    }
+
+    # Build a dictionary with exact m/z values of the monoisotopic peaks.
+    ref_mz_monoisotopic = ref_df.loc[
+        ref_df.groupby(["analyte", "charge"])["iso"].idxmin(),
+        ["analyte", "charge", "mz"]
+    ]
+    mz_monoisotopic_lookup = {
+        (row.analyte, int(row.charge)): row.mz
+        for row in ref_mz_monoisotopic.itertuples(index=False)
     }
 
     # Build a table with file, analyte and charge columns, ensuring that
@@ -75,9 +85,13 @@ def build_quantitation_table(
         })
     base = pd.DataFrame(base_rows, columns=["file", "analyte", "charge"])
 
-    # Attach `mz_exact` column to the base grid.
-    base["mz_exact"] = [
-        mz_lookup.get((analyte, charge), pd.NA)
+    # Attach m/z columns to the base grid.
+    base["mz_most_abundant"] = [
+        mz_most_abundant_lookup.get((analyte, charge), pd.NA)
+        for analyte, charge in zip(base["analyte"], base["charge"])
+    ]
+    base["mz_monoisotopic"] = [
+        mz_monoisotopic_lookup.get((analyte, charge), pd.NA)
         for analyte, charge in zip(base["analyte"], base["charge"])
     ]
 
@@ -150,7 +164,8 @@ def build_quantitation_table(
         "file",
         "analyte",
         "charge",
-        "mz_exact",
+        "mz_most_abundant",
+        "mz_monoisotopic",
         "isotopic_fraction",
         *output_params
     ]
