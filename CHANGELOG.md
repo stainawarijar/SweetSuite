@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.6]
 ### Changed
 - The output `xlsx` results file now contains an extra column `mz_monoisotopic`, 
-listing the monoisotopic m/z values of all analytes. The column containing m/z 
-values of the most abundant isotopic peak for each analyte has been renamend
-from `mz_exact` to `mz_most_abundant`.
+listing the monoisotopic m/z values of all analytes. 
+- The column containing m/z values of the most abundant isotopic peak for each analyte 
+has been renamed from `mz_exact` to `mz_most_abundant`.
 
 
 ## [0.3.5]
