@@ -8,7 +8,6 @@ import pandas as pd
 
 from .analyte import Analyte
 from .calibrant import Calibrant
-from .calibration import fit_calibration, plot_quadratic_calibration
 from .isotopic_peak import IsotopicPeak
 
 
@@ -24,12 +23,13 @@ class MassSpectrum():
         file_raw: str,
         data_uncalibrated: np.ndarray,
         background_mass_window: float,
+        calibrate: bool,
         calibration_mass_window: float,
         calibrants_df: pd.DataFrame,
+        min_calibrant_mz_coverage: float,
         time: float | None = None,
         time_window: float | None = None,
-        global_calibration_fit: np.ndarray | None = None,
-        local_calibrants_to_fit: list[dict] | None = None
+        calibrants_to_fit: list[dict] | None = None
     ):
         """Initialize a mass spectrum."""
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -37,38 +37,67 @@ class MassSpectrum():
         self.file_raw = file_raw
         self.data_uncalibrated = data_uncalibrated
         self.background_mass_window = background_mass_window
+        self.calibrate = calibrate
         self.calibration_mass_window = calibration_mass_window
         self.calibrants_df = calibrants_df
+        self.min_calibrant_mz_coverage = min_calibrant_mz_coverage
         self.time = time
         self.time_window = time_window
-        self.calibrants = self.get_calibrants()
-        self.global_calibration_fit = global_calibration_fit
-        self.local_calibrants_to_fit = local_calibrants_to_fit
+        self.calibrant_mz_bounds = self.get_calibrant_mz_bounds()
+        self.local_calibrants = self.get_local_calibrants()
+        self.calibrants_to_fit = calibrants_to_fit
+        self.apply_calibration()
 
-        # TODO: Perhapse this if-else can be removed?
-        if self.global_calibration_fit is not None:
-            self.apply_global_calibration()
-        else:
-            self.apply_local_calibration()
-
-    def apply_global_calibration(self) -> None:
-        """Calibrate the MS data by applying the global calibration fit."""
-        self.data_calibrated = self.calibrate_data(self.global_calibration_fit)
-        self.local_calibration_plot = None
-
-    def apply_local_calibration(self) -> None:
+    def apply_calibration(self) -> None:
         """Calibrate the data using a local calibration fit.
         
-        If `self.local_calibrants_used` is `None` or an empty list, then
-        `local_calibration_fit`, `data_calibrated` and `calibration_fit` will
-        all be `None`.
+        If `self.calibrants_to_fit` is `None` or an empty list, then
+        `local_calibration_fit`, `data_calibrated` and `calibration_fit`
+        will all be `None` as well.
         """
-        fit = self.fit_calibration_local()
+        fit = self.fit_calibration()
         self.data_calibrated = self.calibrate_data(fit)
-        self.local_calibration_plot = self.plot_local_calibration(fit)
+        self.calibration_plot = self.plot_calibration(fit)
 
-    def get_calibrants(self) -> list[Calibrant]:
-        """Return a list with instances of the `Calibrant` class.
+    def get_calibrant_mz_bounds(self) -> tuple[float, float] | None:
+        """Determine the required calibrant m/z coverage bounds.
+
+        The bounds are based on the min. and max. m/z values of all potential
+        calibrant peaks, and on `self.calibrant_mz_coverage`.
+
+        Example:
+            If `mz_min = 200` and `mz_max = 1200` for the potential local 
+            calibrant peaks, that is a range of 1000 Th if all peaks are used.
+            If `self.calibrant_mz_coverage = 0.8`, then a range of at least
+            800 Th should be covered by the calibrant peaks that are actually
+            used during the calibration. The lower bound becomes 300 Th, and
+            the upper bound becomes 1100 Th.
+
+        Returns:
+            The minimum and maximum m/z values that the calibrants used for
+            calibration should cover. Returns `None` when no local calibrants
+            are specified.
+        """
+        if self.calibrants_df.empty:
+            return
+
+        mz_min = self.calibrants_df["mz"].min()
+        mz_max = self.calibrants_df["mz"].max()
+
+        mz_range = mz_max - mz_min
+
+        margin_fraction = (1 - self.min_calibrant_mz_coverage) / 2
+        margin = mz_range * margin_fraction
+
+        required_min = mz_min + margin
+        required_max = mz_max - margin
+
+        return (required_min, required_max)
+
+    def get_local_calibrants(self) -> list[Calibrant]:
+        """Return a list with instances of the `Calibrant` class, whose 
+        retention times correspond to the retention time of this MassSpectrum
+        instance (if applicable).
         
         When no calibrants are provided in `self.calibrants_df`,
         an empty list is returned.
@@ -117,9 +146,38 @@ class MassSpectrum():
         
         return calibrants
 
-    def fit_calibration_local(self) -> np.ndarray | None:
-        """Fit a quadratic m/z calibration model using local calibrants."""
-        return fit_calibration(self.local_calibrants_to_fit)
+    def fit_calibration(self) -> np.ndarray | None:
+        """Fit an m/z calibration model using specified calibrants.
+
+        The model predicts the required m/z correction `mz_exact - mz_observed`
+        as a quadratic function of the observed m/z, using calibrants specified
+        in `self.calibrants_to_fit`. In the case of LC-MS data, this may 
+        include non-local calibrants when the minimum number of calibrants
+        or the minimum required m/z coverage is not reached using only local
+        calibrants (meaning calibrants corresponding to the sum spectrum 
+        retention time window).
+
+        Returns:
+            An array containing the model coefficients [quadratic, linear, 
+            intercept]. If `self.calibrants_to_fit` is `None` or an empty list, 
+            `None` is returned.
+        """ 
+        calibrants = self.calibrants_to_fit
+
+        if calibrants is None or len(calibrants) == 0:
+            return
+
+        mz_observed = np.array(
+            [cal["mz_observed"] for cal in calibrants],
+            dtype=float
+        )
+
+        mz_delta = np.array(
+            [cal["mz_exact"] - cal["mz_observed"] for cal in calibrants],
+            dtype=float
+        )
+
+        return np.polyfit(x=mz_observed, y=mz_delta, deg=2)
 
     def calibrate_data(
         self,
@@ -128,72 +186,138 @@ class MassSpectrum():
         """Calibrate spectrum based on the supplied calibration coefficients.
 
         The coefficients specify the amount by which each observed m/z value
-        should be shifted. A three-coefficient fit depends only on m/z, while
-        a four-coefficient fit also includes retention time.
+        should be shifted. 
 
         Args:
-            calibration_fit: Calibration coefficients. Expected formats are:
-                - Three coefficients: [quadratic_mz, linear_mz, intercept]
-                - Four coefficients: [quadratic_mz, linear_mz, time, intercept]
+            calibration_fit: Calibration coefficients in the order [quadratic, 
+            linear, intercept].
 
         Returns:
             A 2D array containing calibrated m/z values in the first column
             and intensities in the second column. Returns `None` when
             `calibration_fit` is `None`.
-        
-        Raises:
-            ValueError: If the fit does not contain three or four coefficients.
         """
         if calibration_fit is None:
             return None
 
-        if len(calibration_fit) not in [3, 4]:
-            raise ValueError(
-                "`calibration_fit` must contain either 3 coefficients "
-                "(m/z only) or 4 coefficients (m/z and time)."
-            )
-
         data_calibrated = self.data_uncalibrated.copy()
         mz_observed = self.data_uncalibrated[:, 0]
-
-        if len(calibration_fit) == 3:
-            mz_shift = np.polyval(calibration_fit, mz_observed)
-        else:
-            quadratic_mz, linear_mz, time, intercept = calibration_fit
-            mz_shift = (
-                quadratic_mz * mz_observed**2
-                + linear_mz * mz_observed
-                + time * self.time
-                + intercept
-            )
-
+        mz_shift = np.polyval(calibration_fit, mz_observed)
         data_calibrated[:, 0] += mz_shift
 
         return data_calibrated
 
-    def plot_local_calibration(
+    def plot_calibration(
         self,
-        local_fit: np.ndarray | None
+        calibration_fit: np.ndarray | None
     ) -> Figure | None:
-        """Plot the local calibration fit.
+        """Plot the calibration fit.
 
         Required m/z corrections are plotted against the observed m/z values.
-        Calibrant data points are colored by their retention time if applicable.
-        The quadratic fit is shown as a smooth curve.
-
+        Calibrant data points are colored by their retention time window if 
+        applicable. The quadratic fit is shown as a smooth curve. The required
+        m/z bounds are shown by vertical lines.
         Args:
-            local_fit: Array containing the quadratic m/z fit coefficients in 
-                descending order: [quadratic, linear, intercept].
+            calibration_fit: Quadratic fit coefficients in the order [quadratic, 
+            linear, intercept].
         
         Returns:
-            A matplotlib Figure, as generated by `plot_quadratic_calibration`.
+            A matplotlib Figure. `None` if `calibration_fit` is `None`.
         """
-        return plot_quadratic_calibration(
-            calibrants=self.local_calibrants_to_fit, 
-            fit=local_fit,
-            title=f"{self.file_raw} - ({self.time} ± {self.time_window} s)"
+        if calibration_fit is None:
+            return
+
+        # Data for plot
+        calibrants = self.calibrants_to_fit
+
+        mz_observed = np.array(
+            [cal["mz_observed"] for cal in calibrants],
+            dtype=float
         )
         
+        mz_delta = np.array(
+            [cal["mz_exact"] - cal["mz_observed"] for cal in calibrants],
+            dtype=float
+        )
+
+        time_windows = np.array(
+            [(cal["time"], cal["time_window"]) for cal in calibrants],
+            dtype=float
+        )
+
+        # In case of LC-MS data, color by retention time and include time
+        # in title.
+        if self.time is None:
+            color_by_time = False
+            title = self.file_raw
+        else:
+            color_by_time = True
+            title = (
+                f"{self.file_raw} - "
+                f"({self.time:g} ± {self.time_window:g} s)"
+            )
+
+        # Create evenly spaced m/z values for drawing smooth fitted curve.
+        mz_plot = np.linspace(mz_observed.min(), mz_observed.max(), 500)
+
+        # Apply the fit to the specified m/z values.
+        delta_fitted = np.polyval(calibration_fit, mz_plot)
+
+        # Create figure.
+        figure, axis = plt.subplots()
+        if color_by_time:
+            for time_value, window_value in np.unique(time_windows, axis=0):
+                mask = (
+                    (time_windows[:, 0] == time_value) &
+                    (time_windows[:, 1] == window_value)
+                )
+                axis.scatter(
+                    mz_observed[mask],
+                    mz_delta[mask],
+                    s=45,
+                    edgecolor="black",
+                    linewidths=0.4,
+                    label=f"{time_value:g} ± {window_value:g} s"
+                )
+        else:
+            axis.scatter(
+                mz_observed,
+                mz_delta,
+                s=45,
+                edgecolor="black",
+                linewidths=0.4
+            )
+
+        axis.plot(mz_plot, delta_fitted)
+
+        # Show minimum required calibrant m/z coverage.
+        if self.calibrant_mz_bounds is not None:
+            mz_min, mz_max = self.calibrant_mz_bounds
+            axis.axvline(
+                mz_min,
+                linewidth=1,
+                linestyle=":",
+                c="black"
+            )
+            axis.axvline(
+                mz_max,
+                linewidth=1,
+                linestyle=":",
+                c="black"
+            )
+
+        axis.axhline(0, linewidth=1, linestyle="--", c="black")
+        axis.set_xlabel(r"Observed $m/z$")
+        axis.set_ylabel(r"Required correction $\Delta m/z$")
+        axis.set_title(title)
+
+        if color_by_time:
+            axis.legend(title="Retention time")
+
+        figure.tight_layout()
+
+        return figure
+
     def quantify_analytes(
         self,
         analytes_ref: pd.DataFrame,
@@ -208,7 +332,7 @@ class MassSpectrum():
         (IPQ), mass error in parts-per-million (ppm).
         
         Args:
-            analytes_ref: A data frame with the following columns: ...
+            analytes_ref: A data frame with columns ...
             use_peak_height: If True, use maximum intensity of each isotopic
                 peak instead of the trapezoidal area for quantitation.
         
@@ -218,9 +342,9 @@ class MassSpectrum():
         """
         # Determine which MS data to use.
         if self.data_calibrated is None:
-            if len(self.calibrants) > 0:
+            if self.calibrate:
                 # Calibration failed, return None.
-                return None
+                return
             else:
                 # No calibration, so use uncalibrated data.
                 spectrum = self.data_uncalibrated
