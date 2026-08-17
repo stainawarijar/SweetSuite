@@ -32,7 +32,7 @@ class Calibrant(IsotopicPeak):
         time_window: float | None,
         spectrum: np.ndarray,
         background_mass_window: float,
-        integration_mz_window: float,
+        quantitation_mz_window: float,
         calibration_mass_window: float
     ):
         """Initialize a calibrant peak.
@@ -46,11 +46,11 @@ class Calibrant(IsotopicPeak):
                 spectrum. Set to `None` in case of MS-only data.
             spectrum: 2D array with m/z and intensity columns.
             background_mass_window: ...
-            integration_mz_window: m/z window (Th) used for extraction.
+            quantitation_mz_window: m/z window (Th) used for extraction.
             calibration_mass_window: Mass window (Da) used to compute the 
                 calibration m/z window.
         """                                                                       
-        super().__init__(mz_exact, charge, spectrum, integration_mz_window)
+        super().__init__(mz_exact, charge, spectrum, quantitation_mz_window)
         self.time = time
         self.time_window = time_window
         self.background_mass_window = background_mass_window

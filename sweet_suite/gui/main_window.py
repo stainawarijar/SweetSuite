@@ -286,7 +286,7 @@ class MainWindow(QMainWindow):
             self.ui.quantitation_mz_window.setStyleSheet("")
             self.ui.quantitation_mz_window.setToolTip(
                 "m/z window used around the exact m/z of each isotopic peak"
-                " for area integration\n"
+                " for area quantitation\n"
                 "(or for determining peak height, if enabled under advanced settings).\n"
                 "Can be overwritten for individual analytes in the analytes list."
             )

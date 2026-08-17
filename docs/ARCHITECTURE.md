@@ -82,7 +82,7 @@ SweetSuite/
     │   ├── alignment_feature.py   # One alignment target (m/z + required RT)
     │   └── eic.py                 # Extracted ion chromatogram (EIC)
     │
-    ├── mass_spectrometry/         # Peak integration and calibration
+    ├── mass_spectrometry/         # Peak quantitation and calibration
     │   ├── isotopic_peak.py       # Single isotopic peak extraction + background
     │   ├── calibrant.py           # Calibrant peak (spline-based m/z refinement)
     │   ├── analyte.py             # Aggregated analyte result (area, S/N, IPQ)
@@ -185,7 +185,7 @@ described analyte object ready for quantitation.
   (e.g. ⁴¹K for potassium) is correctly included per charge state. Produces
   one row per selected isotopologue with the expected m/z, relative abundance,
   retention time window, calibration flag, `charge_carrier`, and
-  `mass_modifier` columns. This DataFrame drives peak integration in
+  `mass_modifier` columns. This DataFrame drives peak quantitation in
   `MassSpectrum`.
 
 ---
@@ -280,12 +280,12 @@ exceeding `alignment_sn_cutoff`.
 #### `isotopic_peak.py` — `IsotopicPeak`
 
 Base class for a single isotopic peak in a spectrum. Given an exact m/z and an
-integration window, it slices the relevant region from the spectrum array and
+quantitation window, it slices the relevant region from the spectrum array and
 provides:
 
-- `get_area()` — trapezoidal integration over `[mz_exact ± mz_window]`.
+- `get_area()` — trapezoidal quantitation over `[mz_exact ± mz_window]`.
 - `get_maximum_intensity()` — returns the intensity of the highest local
-  maximum within `[mz_exact ± integration_mz_window]`. Falls back to the
+  maximum within `[mz_exact ± quantitation_mz_window]`. Falls back to the
   highest intensity point in the window if no local maximum is found.
 - `get_spline_maximum()` — fits a cubic spline over `[mz_exact ± mz_window]`
   and returns the `(m/z, intensity)` of the highest local maximum. Falls back
@@ -309,7 +309,7 @@ theoretical `mz_exact` to produce one calibration data point.
 
 #### `analyte.py` — `Analyte`
 
-Aggregates the integration results for all isotopologue peaks of one analyte
+Aggregates the quantitation results for all isotopologue peaks of one analyte
 at one charge state into high-level metrics:
 
 | Attribute | Description |
@@ -339,7 +339,7 @@ reference DataFrame (from `InputAnalyte`), it:
    `numpy.polyfit`, then applies the polynomial to shift all m/z values.
    Calibration fails (and is skipped) when fewer than `min_calibrant_number`
    calibrants pass the S/N cut-off.
-2. **Peak integration** — for each row in the reference DataFrame, creates an
+2. **Peak quantitation** — for each row in the reference DataFrame, creates an
    `IsotopicPeak`, computes its area, maximum intensity, and background, and stores the results.
 3. **Analyte assembly** — groups peaks by `(analyte, charge)` and creates one
    `Analyte` per group, forwarding the `use_peak_height` flag so the correct

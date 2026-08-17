@@ -179,7 +179,7 @@ The "Data" tab contains for each file the following outputs per analyte and per 
 
 **Advanced settings** (accessible via the toolbar) provide additional quantitation options:
 - *Use quadratic quantitation m/z window* — applies a charge-state-dependent quadratic m/z window instead of the fixed global window. The window is defined by three terms of the form *coeff* × 10^*exp*, covering the (m/z)², (m/z), and constant contributions respectively. The effective window is: `a·(m/z)² + b·(m/z) + c` where each coefficient is entered as a significand and an integer exponent.
-- *Use peak heights instead of areas for quantitation* — replaces trapezoidal integration with the maximum intensity in the quantitation m/z window for each isotopic peak. Background subtraction then uses the average background intensity instead of the background area.
+- *Use peak heights instead of areas for quantitation* — replaces trapezoidal quantitation with the maximum intensity in the quantitation m/z window for each isotopic peak. Background subtraction then uses the average background intensity instead of the background area.
 - *Save sum spectra as .xy files* — writes each quantitated (and, where applicable, calibrated) mass spectrum to a tab-delimited `.xy` file inside a dedicated `xy_<timestamp>/` subdirectory in the batch folder. In MS-only mode, files are only written when at least one calibrant is present.
 
 ### Viewing .xy spectra

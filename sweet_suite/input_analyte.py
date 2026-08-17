@@ -23,9 +23,9 @@ class InputAnalyte:
         charge_min (int): Minimum charge state to consider.
         charge_max (int): Maximum charge state to consider.
         mz_window_coeffs (tuple[float, float, float]): Coefficients (a, b, c) 
-            describing the peak integration window (Th) as a quadratic 
+            describing the peak quantitation window (Th) as a quadratic 
             function of m/z: window = a*(m/z)^2 + b*(m/z) + c. 
-            The integration window can be constant setting a = b = 0.
+            The quantitation window can be constant setting a = b = 0.
         time (float | None): Retention time of the analyte (for LC-MS data).
         time_window (float | None): Retention time window around `time`
             (for LC-MS data).
@@ -66,9 +66,9 @@ class InputAnalyte:
             charge_min: Minimum charge state to include.
             charge_max: Maximum charge state to include.
             mz_window_coeffs (tuple[float, float, float]): Coefficients 
-                (a, b, c) describing the peak integration window (Th) as a 
+                (a, b, c) describing the peak quantitation window (Th) as a 
                 quadratic function of m/z: window = a*(m/z)^2 + b*(m/z) + c. 
-                The integration window can be constant setting a = b = 0.
+                The quantitation window can be constant setting a = b = 0.
             time: Retention time (LC-MS data), or None for non-LC data.
             time_window: Retention time window around `time`, or None for 
                 non-LC data.
@@ -698,7 +698,7 @@ class InputAnalyte:
         - `mz`: m/z value of the isotopologue ion.
         - `relative_area`: theoretical relative abundance of the isotopologue,
             as a fraction.
-        - `mz_window`: integration window (Th) to be used around the exact m/z
+        - `mz_window`: quantitation window (Th) to be used around the exact m/z
             value of the isotopologue.
         - `time`: retention time of the corresponding cluster for which a
             sum spectrum will be created (LC-MS data), or `np.nan` (MS-only data).

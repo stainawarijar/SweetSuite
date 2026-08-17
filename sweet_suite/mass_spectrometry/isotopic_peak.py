@@ -20,10 +20,10 @@ class IsotopicPeak:
         charge (int): Charge state of the ion.
         spectrum (np.ndarray): 2D NumPy array with two columns: 
             m/z values and intensities.
-        integration_mz_window (float): m/z window (Th) used for extracting the 
+        quantitation_mz_window (float): m/z window (Th) used for extracting the 
             peak from the spectrum.
         data (np.ndarray): 2D array with MS data of the spectrum in the 
-            m/z range `[mz_exact ± integration_mz_window]`.
+            m/z range `[mz_exact ± quantitation_mz_window]`.
     """
 
     def __init__(
@@ -31,7 +31,7 @@ class IsotopicPeak:
         mz_exact: float,
         charge: int,
         spectrum: np.ndarray,
-        integration_mz_window: float
+        quantitation_mz_window: float
     ):
         """Initialize an isotopic peak.
 
@@ -39,42 +39,42 @@ class IsotopicPeak:
             mz_exact: The exact m/z value of the isotopic peak.
             charge: Charge state of the ion.
             spectrum: 2D NumPy array with m/z values and intensities.
-            integration_mz_window: m/z window (Th) used for extracting the 
+            quantitation_mz_window: m/z window (Th) used for extracting the 
                 peak from the spectrum.
         """
         self.logger = logging.getLogger(self.__class__.__name__)
         self.mz_exact = mz_exact
         self.charge = charge
         self.spectrum = spectrum
-        self.integration_mz_window = integration_mz_window
+        self.quantitation_mz_window = quantitation_mz_window
         self.data = self.get_data()
 
     def get_data(self) -> np.ndarray:
         """Return an array with the MS data in the m/z range
-        [exact m/z ± integration window].
+        [exact m/z ± quantitation window].
         """
         idx_low = np.searchsorted(
             self.spectrum[:, 0], 
-            self.mz_exact - self.integration_mz_window, 
+            self.mz_exact - self.quantitation_mz_window, 
             side="left"
         )
         idx_high = np.searchsorted(
             self.spectrum[:, 0], 
-            self.mz_exact + self.integration_mz_window, 
+            self.mz_exact + self.quantitation_mz_window, 
             side="right"
         )
 
         return self.spectrum[idx_low:idx_high, :]
     
     def get_area(self) -> float:
-        """Integrate the region [exact m/z ± integration window] using the
+        """Integrate the region [exact m/z ± quantitation window] using the
         trapezoidal tule and return the total area. 
         """
         return np.trapezoid(y=self.data[:, 1], x=self.data[:, 0])
 
     def get_maximum_intensity(self) -> float:
         """Return the intensity of the highest local maximum within the
-        m/z range `[mz_exact ± integration_mz_window]`.
+        m/z range `[mz_exact ± quantitation_mz_window]`.
 
         A local maximum is defined as a point whose intensity is strictly 
         greater than both its immediate neighbours. Among all local maxima, 
@@ -86,7 +86,7 @@ class IsotopicPeak:
         if len(self.data) == 0:
             self.logger.warning(
                 f"No data found around m/z {self.mz_exact} within "
-                f"quantitation window {self.integration_window}. "
+                f"quantitation window {self.quantitation_window}. "
                 "The window may be too small."
             )
             return np.nan
@@ -120,7 +120,7 @@ class IsotopicPeak:
         m/z regions are defined and integrated. The centers of the regions are 
         separated by (1.00335 / z), corresponding to the mass difference between 
         13C and 12C, with 'z' being the charge state. Each region has a width of
-        twice `self.integration_mz_window`.
+        twice `self.quantitation_mz_window`.
 
         For all possible 5 consecutive regions, the average intensity is 
         calculated. The set of 5 bins with the lowest average intensity are 
@@ -163,12 +163,12 @@ class IsotopicPeak:
             # Get data for this bin.
             idx_low = np.searchsorted(
                 self.spectrum[:, 0], 
-                mz_center - self.integration_mz_window, 
+                mz_center - self.quantitation_mz_window, 
                 side="left"
             )
             idx_high = np.searchsorted(
                 self.spectrum[:, 0], 
-                mz_center + self.integration_mz_window, 
+                mz_center + self.quantitation_mz_window, 
                 side="right"
             )
             bin_data = self.spectrum[idx_low:idx_high]
@@ -214,7 +214,7 @@ class IsotopicPeak:
         Args:
             mz_window: m/z window (Th) to use around the exact
                 m/z value (`self.mz_exact`). For quantitation, this
-                should be equal to `integration_mz_window`. In case of
+                should be equal to `quantitation_mz_window`. In case of
                 calibration, this should be equal to `calibration_mz_window`.
         
         Returns:
@@ -311,7 +311,7 @@ class IsotopicPeak:
         The mass error is calculated as: `(observed - exact) / exact * 1e6`
         """
         # Get observed m/z based on spline maximum.
-        spline_maximum = self.get_spline_maximum(self.integration_mz_window)
+        spline_maximum = self.get_spline_maximum(self.quantitation_mz_window)
         mz_observed = spline_maximum[0]
 
         # Calculate mass error
@@ -322,7 +322,7 @@ class IsotopicPeak:
     def plot(self, title: str) -> Figure:
         """Plot the peak data.
 
-        The exact m/z, specified integration window and the integrated area
+        The exact m/z, specified quantitation window and the integrated area
         are all indicated. 
 
         This function is currently not used.
@@ -345,12 +345,12 @@ class IsotopicPeak:
             label="Exact m/z"
         )
         ax.axvline(
-            x=self.mz_exact - self.integration_mz_window, 
+            x=self.mz_exact - self.quantitation_mz_window, 
             color="red", 
-            label="Integration window"
+            label="Quantitation window"
         )
         ax.axvline(
-            x=self.mz_exact + self.integration_mz_window, 
+            x=self.mz_exact + self.quantitation_mz_window, 
             color="red"
         )
         ax.fill_between(

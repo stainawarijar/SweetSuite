@@ -138,7 +138,7 @@ class MassSpectrum():
                 time_window = self.time_window,
                 spectrum=self.data_uncalibrated,
                 background_mass_window=self.background_mass_window,
-                integration_mz_window=mz_window,
+                quantitation_mz_window=mz_window,
                 calibration_mass_window=self.calibration_mass_window
             )
 
@@ -367,7 +367,7 @@ class MassSpectrum():
             reference = analytes_ref
 
         # Check that all required m/z windows for each analyte fit within the
-        # spectrum range. For every peak the integration window is checked;
+        # spectrum range. For every peak the quantitation window is checked;
         # for the first (lowest-mass) peak per analyte the background window is
         # also checked, because background is determined from that peak.
         mz_min = np.min(spectrum[:, 0])
@@ -384,7 +384,7 @@ class MassSpectrum():
             if analyte_label in analytes_to_skip:
                 continue
 
-            # Check that the integration window fits within the spectrum range.
+            # Check that the quantitation window fits within the spectrum range.
             if mz_val - mz_window < mz_min or mz_val + mz_window > mz_max:
                 analytes_to_skip.add(analyte_label)
                 continue
@@ -435,7 +435,7 @@ class MassSpectrum():
                 mz_exact=row["mz"],
                 charge=int(row["peak"].split("_")[-2]),
                 spectrum=spectrum,
-                integration_mz_window=row["mz_window"]
+                quantitation_mz_window=row["mz_window"]
             )
 
             # Check if analyte name has changed.
