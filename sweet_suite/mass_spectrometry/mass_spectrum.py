@@ -214,13 +214,14 @@ class MassSpectrum():
         """Plot the calibration fit.
 
         Required m/z corrections are plotted against the observed m/z values.
-        Calibrant data points are colored by their retention time window if 
+        Calibrant data points are colored by their retention time window if
         applicable. The quadratic fit is shown as a smooth curve. The required
-        m/z bounds are shown by vertical lines.
+        calibrant m/z range is shown by light shading.
+
         Args:
-            calibration_fit: Quadratic fit coefficients in the order [quadratic, 
-            linear, intercept].
-        
+            calibration_fit: Quadratic fit coefficients in the order
+                [quadratic, linear, intercept].
+
         Returns:
             A matplotlib Figure. `None` if `calibration_fit` is `None`.
         """
@@ -234,7 +235,7 @@ class MassSpectrum():
             [cal["mz_observed"] for cal in calibrants],
             dtype=float
         )
-        
+
         mz_delta = np.array(
             [cal["mz_exact"] - cal["mz_observed"] for cal in calibrants],
             dtype=float
@@ -265,6 +266,18 @@ class MassSpectrum():
 
         # Create figure.
         figure, axis = plt.subplots()
+
+        # Show minimum required calibrant m/z coverage as a shaded region.
+        if self.calibrant_mz_bounds is not None:
+            mz_min, mz_max = self.calibrant_mz_bounds
+            axis.axvspan(
+                mz_min,
+                mz_max,
+                color="lightgrey",
+                alpha=0.3,
+                zorder=0
+            )
+
         if color_by_time:
             for time_value, window_value in np.unique(time_windows, axis=0):
                 mask = (
@@ -290,29 +303,20 @@ class MassSpectrum():
 
         axis.plot(mz_plot, delta_fitted)
 
-        # Show minimum required calibrant m/z coverage.
-        if self.calibrant_mz_bounds is not None:
-            mz_min, mz_max = self.calibrant_mz_bounds
-            axis.axvline(
-                mz_min,
-                linewidth=1,
-                linestyle=":",
-                c="black"
-            )
-            axis.axvline(
-                mz_max,
-                linewidth=1,
-                linestyle=":",
-                c="black"
-            )
-
-        axis.axhline(0, linewidth=1, linestyle="--", c="black")
         axis.set_xlabel(r"Observed $m/z$")
         axis.set_ylabel(r"Required correction $\Delta m/z$")
         axis.set_title(title)
 
         if color_by_time:
             axis.legend(title="Retention time")
+
+        axis.set_axisbelow(True)
+        axis.grid(
+            True,
+            which="major",
+            linewidth=0.5,
+            alpha=0.2
+        )
 
         figure.tight_layout()
 
