@@ -26,10 +26,10 @@ class MassSpectrum():
         calibrate: bool,
         calibration_mass_window: float,
         calibrants_df: pd.DataFrame,
-        min_calibrant_mz_coverage: float,
+        min_calibrant_mz_coverage: float | None,
         time: float | None = None,
         time_window: float | None = None,
-        calibrants_to_fit: list[dict] | None = None
+        calibrants_to_fit: list[Calibrant] | None = None
     ):
         """Initialize a mass spectrum."""
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -76,9 +76,10 @@ class MassSpectrum():
         Returns:
             The minimum and maximum m/z values that the calibrants used for
             calibration should cover. Returns `None` when no local calibrants
-            are specified.
+            are specified (empty `calibrants_df`) or if 
+            `min_calibrant_mz_coverage` is `None`.
         """
-        if self.calibrants_df.empty:
+        if self.calibrants_df.empty or self.min_calibrant_mz_coverage is None:
             return
 
         mz_min = self.calibrants_df["mz"].min()
@@ -168,12 +169,12 @@ class MassSpectrum():
             return
 
         mz_observed = np.array(
-            [cal["mz_observed"] for cal in calibrants],
+            [cal.mz_observed for cal in calibrants],
             dtype=float
         )
 
         mz_delta = np.array(
-            [cal["mz_exact"] - cal["mz_observed"] for cal in calibrants],
+            [cal.mz_exact - cal.mz_observed for cal in calibrants],
             dtype=float
         )
 
@@ -232,17 +233,17 @@ class MassSpectrum():
         calibrants = self.calibrants_to_fit
 
         mz_observed = np.array(
-            [cal["mz_observed"] for cal in calibrants],
+            [cal.mz_observed for cal in calibrants],
             dtype=float
         )
 
         mz_delta = np.array(
-            [cal["mz_exact"] - cal["mz_observed"] for cal in calibrants],
+            [cal.mz_exact - cal.mz_observed for cal in calibrants],
             dtype=float
         )
 
         time_windows = np.array(
-            [(cal["time"], cal["time_window"]) for cal in calibrants],
+            [(cal.time, cal.time_window) for cal in calibrants],
             dtype=float
         )
 
@@ -504,13 +505,13 @@ class MassSpectrum():
         The filename and data written depend on whether calibration was
         performed and whether it succeeded:
 
-        - Calibration disabled (`calibration_enabled=False`): writes
-        uncalibrated data to `{name}.xy` (no prefix).
-        - Calibration enabled and successful: writes calibrated data to
-        `calibrated_{name}.xy`.
-        - Calibration enabled but failed: writes uncalibrated data to
-        `uncalibrated_{name}.xy`, unless `write_on_failure` is
-        `False`, in which case nothing is written.
+            - Calibration disabled (`calibration_enabled=False`): writes
+                uncalibrated data to `{name}.xy` (no prefix).
+            - Calibration enabled and successful: writes calibrated data to
+                `calibrated_{name}.xy`.
+            - Calibration enabled but failed: writes uncalibrated data to
+                `uncalibrated_{name}.xy`, unless `write_on_failure` is
+                `False`, in which case nothing is written.
 
         m/z values and intensities are rounded to 8 decimals.
 

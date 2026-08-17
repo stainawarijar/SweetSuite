@@ -1,7 +1,6 @@
 from datetime import datetime
 import logging
 import os
-from typing import Literal
 import warnings
 
 import matplotlib
@@ -13,6 +12,7 @@ import pandas as pd
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from ... import __version__
+from ...mass_spectrometry.calibrant import Calibrant
 from ...chromatography.alignment_feature import AlignmentFeature
 from ...input_analyte import InputAnalyte
 from ...reporting import ms_tables
@@ -107,7 +107,7 @@ class BatchWorker(QObject):
 
     @staticmethod
     def sufficient_calibrants(
-        calibrants: list[dict],
+        calibrants: list[Calibrant],
         min_number: int,
         mz_bounds: tuple[float, float] | None
     ) -> bool:
@@ -126,7 +126,7 @@ class BatchWorker(QObject):
         if len(calibrants) < min_number:
             return False
 
-        mz = [cal["mz_exact"] for cal in calibrants]
+        mz = [cal.mz_exact for cal in calibrants]
         required_min, required_max = mz_bounds
 
         sufficient = (
@@ -150,7 +150,7 @@ class BatchWorker(QObject):
         This function is used during calibration of LC-MS sum spectra.
         """
         group_mzs = [
-            cal["mz_exact"] for cal in calibrants_by_rt[rt]
+            cal.mz_exact for cal in calibrants_by_rt[rt]
         ]
         return (min(group_mzs), max(group_mzs))
 
@@ -845,20 +845,12 @@ class BatchWorker(QObject):
                 for ms in mass_spectra:
                     for cal in ms.local_calibrants:
                         if cal.signal_to_noise >= self.calibrant_sn_cutoff:
-                            calibrants.append(
-                                {
-                                    "mz_exact": cal.mz_exact,
-                                    "mz_observed": cal.mz_observed,
-                                    "time": cal.time,
-                                    "time_window": cal.time_window,
-                                    "signal_to_noise": cal.signal_to_noise
-                                }
-                            )
+                            calibrants.append(cal)
 
                 # Group calibrants by retention time range.
                 calibrants_by_rt = {}
                 for cal in calibrants:
-                    rt = (cal["time"], cal["time_window"])
+                    rt = (cal.time, cal.time_window)
                     # `setdefault` creates the `rt` key with an empty list 
                     # as its value if the key does not yet exist.
                     # If it does exist, it returns the existing list.
@@ -878,7 +870,7 @@ class BatchWorker(QObject):
                     ms_rt = (ms.time, ms.time_window)
 
                     # Start with calibrants assigned to this exact RT.
-                    calibrants_to_fit = list(
+                    calibrants = list(
                         calibrants_by_rt.get(ms_rt, [])
                     )
 
@@ -892,7 +884,7 @@ class BatchWorker(QObject):
                     # Loop to ensure sufficient calibrants (minimum number
                     # and m/z coverage).
                     while not BatchWorker.sufficient_calibrants(
-                        calibrants=calibrants_to_fit,
+                        calibrants=calibrants,
                         min_number=self.min_calibrant_number,
                         mz_bounds=ms.calibrant_mz_bounds
                     ):
@@ -901,7 +893,7 @@ class BatchWorker(QObject):
 
                         # If min calibrant number is not yet reached,
                         # simply add nearest remaining RT group.
-                        if len(calibrants_to_fit) < self.min_calibrant_number:
+                        if len(calibrants) < self.min_calibrant_number:
                             nearest_dist = abs(remaining_rts[0][0] - ms.time)
                             # Add all groups that are at the same RT distance.
                             rts_to_add = [
@@ -915,7 +907,7 @@ class BatchWorker(QObject):
                             # coverage.
                             required_min, required_max = ms.calibrant_mz_bounds
                             mz_values = [
-                                cal["mz_exact"] for cal in calibrants_to_fit
+                                cal.mz_exact for cal in calibrants
                             ]
                             lower_missing = min(mz_values) > required_min
                             upper_missing = max(mz_values) < required_max
@@ -987,18 +979,18 @@ class BatchWorker(QObject):
                             ]
 
                         for rt in rts_to_add:
-                            calibrants_to_fit.extend(calibrants_by_rt[rt])
+                            calibrants.extend(calibrants_by_rt[rt])
                             remaining_rts.remove(rt)
 
                     # Calibrate if min number of calibrants is available.
-                    if len(calibrants_to_fit) >= self.min_calibrant_number:
-                        ms.calibrants_to_fit = calibrants_to_fit
+                    if len(calibrants) >= self.min_calibrant_number:
+                        ms.calibrants_to_fit = calibrants
                         ms.apply_calibration()
 
                         # If the m/z bounds were not met, log a warning 
                         # message but keep the calibration.
                         if BatchWorker.sufficient_calibrants(
-                            calibrants=calibrants_to_fit,
+                            calibrants=calibrants,
                             min_number=self.min_calibrant_number,
                             mz_bounds=ms.calibrant_mz_bounds
                         ):
@@ -1020,7 +1012,7 @@ class BatchWorker(QObject):
                             f"Failed calibrating sum spectrum ({ms.time:g}"
                             f" ± {ms.time_window:g} s) for "
                             f"{os.path.basename(path)}: "
-                            "insufficient number of calibrants."
+                            "too few calibrants above S/N cut-off."
                         )
 
                     # Save calibration fit figure to PDF.
@@ -1035,7 +1027,10 @@ class BatchWorker(QObject):
                 # Write .xy files when requested.
                 if self.save_xy:
                     for ms in mass_spectra:
-                        ms.write_xy(folder=xy_folder)
+                        ms.write_xy(
+                            folder=xy_folder,
+                            calibration_enabled=ms.calibrate
+                        )
                         self.logger.info(
                             f"Saved .xy file for {ms.name}"
                         )
@@ -1080,7 +1075,6 @@ class BatchWorker(QObject):
 
             return quantitation_results
                     
-    # TODO Update calibration method for xy files.
     def quantitate_xy_files(
         self,
         analytes_ref_path: str,
@@ -1132,12 +1126,29 @@ class BatchWorker(QObject):
         with open(temp_csv_path, "w", newline="") as f:
             pass
 
+        # Create calibrants dataframe.
+        # If no calibrants are specified in `ref_calibrants`,
+        # then this dataframe will have zero rows, and calibration
+        # will be skipped.
+        calibrants_df = (
+            ref_calibrants
+            .assign(
+                # Extract charge number from peak name
+                charge = lambda x: (
+                    x["peak"].str.split("_").str[1].astype(int)
+                )
+            )
+            # Select required columns
+            [["mz", "charge", "mz_window"]]
+        )
+
         # Create output folder for .xy files when requested.
-        if self.save_xy:
+        # But only when calibration will be attempted.
+        if self.save_xy and not calibrants_df.empty:
             xy_folder = os.path.join(
                 self.raw_folder_path, f"xy_{self.start_time}"
             )
-            os.makedirs(xy_folder, exist_ok=True)
+            os.makedirs(xy_folder, exist_ok=True)    
 
         # Loop over xy file paths and create mass spectra.
         # Keep track of number of processed files.
@@ -1147,9 +1158,11 @@ class BatchWorker(QObject):
             for idx, path in enumerate(xy_file_paths):
                 # Check if stop was requested.
                 if self.stop_requested:
-                    self.logger.info("BatchWorker stop requested during quantitation")
+                    self.logger.info(
+                        "BatchWorker stop requested during quantitation"
+                    )
                     self.aborted.emit()
-                    return None
+                    return
 
                 # Read xy file.
                 # If reading fails, show warning and continue to next file.
@@ -1164,90 +1177,68 @@ class BatchWorker(QObject):
                     percent = round((idx + 1) / n * 100)
                     self.quantitation_progress.emit(percent)
                     continue
-
-                # Determine calibration for MS-only mode.
-                # Calibrate if calibrants are specified in the analytes list.
-                if len(ref_calibrants) > 0:
-                    # All calibrants apply in MS-only mode (no time filtering).
-                    calibrants_df = (
-                        ref_calibrants
-                        .assign(
-                            # Extract charge number from peak name.
-                            charge = lambda x: (
-                                x["peak"].str.split("_").str[1].astype(int)
-                            )
-                        )
-                        # Select required columns.
-                        [["mz", "charge", "mz_window"]]
-                    )
-
-                    # Create a list with (m/z, charge, m/z window) tuples.
-                    calibrants_list = list(calibrants_df.itertuples(
-                        index=False, name=None
-                    ))
-
-                    # Use global calibrant S/N cutoff for MS-only calibration.
-                    calibration_sn_cutoff = self.calibrant_sn_cutoff
-
-                else:
-                    # No calibrants -> skip calibration.
-                    calibrants_list = []
-                    calibration_sn_cutoff = None
                 
                 # Create an instance of MassSpectrum.
-                # For MS-only mode, time and time_window are None.
-                mass_spectrum = MassSpectrum(
+                spectrum = MassSpectrum(
                     name=file_name,
                     file_raw=file_name,
                     data_uncalibrated=data_uncalibrated,
                     background_mass_window=self.background_mass_window,
+                    calibrate=(not calibrants_df.empty),
                     calibration_mass_window=self.calibration_mass_window,
-                    calibrants_list=calibrants_list,
-                    min_calibrant_number=self.min_calibrant_number,
-                    min_calibrant_sn=calibration_sn_cutoff,
+                    calibrants_df=calibrants_df,
+                    min_calibrant_mz_coverage=None,
                     time=None,
                     time_window=None
                 )
 
-                # Write calibration plot to pdf.
-                if len(calibrants_list) > 0:
-                    # Calibration was attempted
-                    if mass_spectrum.data_calibrated is not None:
-                        self.logger.info(
-                            f"Calibrated spectrum for {file_name}"
-                        )
-                    else:
-                        self.logger.info(
-                            f"Failed calibrating spectrum for {file_name}"
-                        )
-                    # Save plot (success or failure) to PDF
-                    if mass_spectrum.calibration_plot is not None:
-                        pdf.savefig(mass_spectrum.calibration_plot)
-                        plt.close(mass_spectrum.calibration_plot)
-                        # Set plot to None to free up memory.
-                        mass_spectrum.calibration_plot = None
+                # Check number of calibrants above S/N cut-off.
+                calibrants = [
+                    cal for cal in spectrum.local_calibrants
+                    if cal.signal_to_noise >= self.calibrant_sn_cutoff
+                ]
+
+                # Apply calibration if enough calibrants.
+                if len(calibrants) >= self.min_calibrant_number:
+                    spectrum.calibrants_to_fit = calibrants
+                    spectrum.apply_calibration()
+                    self.logger.info(
+                        f"Calibrated spectrum {file_name}"
+                    )
+                # If not enough calibrants: either no calibrants were specified
+                # and calibration can be skipped, or not enough calibrants
+                # had sufficient S/N/
+                elif calibrants_df.empty:
+                    self.logger.info(
+                        f"Skipped calibration of spectrum {file_name}"
+                    )
                 else:
                     self.logger.info(
-                        f"Skipped calibration of spectrum for {file_name}"
+                        f"Failed calibrating spectrum {file_name}: "
+                        "too few calibrants above S/N cut-off."
                     )
 
-                # Write calibrated .xy file when requested and calibration succeeded.
-                if self.save_xy and len(calibrants_list) > 0:
-                    mass_spectrum.write_xy(
-                        folder=xy_folder,
-                        calibration_enabled=True,
-                        write_on_failure=False
+                # Save calibration fit figure to PDF.
+                if spectrum.calibration_plot is not None:
+                    try:
+                        pdf.savefig(spectrum.calibration_plot)
+                    finally:
+                        plt.close(spectrum.calibration_plot)
+                        spectrum.calibration_plot = None
+
+                # Write .xy files when requested, but only when calibration
+                # was attempted (otherwise data is just duplicated).
+                if self.save_xy and not calibrants_df.empty:
+                    spectrum.write_xy(folder=xy_folder)
+                    self.logger.info(
+                        f"Saved .xy file for {file_name}"
                     )
-                    if mass_spectrum.data_calibrated is not None:
-                        self.logger.info(
-                            f"Saved calibrated .xy file for {file_name}"
-                        )
 
                 # Build a long table with quantitation results.
                 # For MS-only mode, we have a single mass spectrum per file.
                 output = ms_tables.build_quantitation_table(
                     filename=file_name,
-                    mass_spectra=[mass_spectrum],
+                    mass_spectra=[spectrum],
                     analytes_ref=analytes_ref,
                     output_params=output_params,
                     use_peak_height=self.use_peak_height
@@ -1275,7 +1266,7 @@ class BatchWorker(QObject):
                 "No xy files contained data. Quantitation produced no results."
             )
             os.remove(temp_csv_path)
-            return None
+            return
 
         # Read the accumulated CSV file and delete it.
         quantitation_results = pd.read_csv(temp_csv_path)
