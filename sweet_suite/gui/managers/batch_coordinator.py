@@ -151,6 +151,7 @@ class BatchCoordinator:
             background_mass_window=float(self.ui.background_mass_window.value()),
             calibration_mass_window=float(self.ui.calibration_mass_window.value()),
             calibrant_sn_cutoff=float(self.ui.calibrant_sn_cutoff.value()),
+            min_calibrant_mz_coverage=float(self.ui.min_mz_coverage.value()),
             quantitation_mz_window=float(self.ui.quantitation_mz_window.value()),
             min_calibrant_number=int(self.ui.min_calibrant_number.value()),
             min_isotopic_fraction=float(self.ui.min_isotopic_fraction.value()),

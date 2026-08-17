@@ -62,11 +62,11 @@ class BatchWorker(QObject):
         calibrant_sn_cutoff: float,
         quantitation_mz_window: float,
         min_calibrant_number: int,
+        min_calibrant_mz_coverage: float,
         min_isotopic_fraction: float,
         quantitate_aligned_only: bool,
         quadratic_mz_window: bool,
         quadratic_coeffs: tuple[float, float, float],
-        min_calibrant_mz_coverage: float = 0.8,  # TODO: Expose to user
         mass_modifier: str | None = None,
         use_peak_height: bool = False,
         save_xy: bool = False,
