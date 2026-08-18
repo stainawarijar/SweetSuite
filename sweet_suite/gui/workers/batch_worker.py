@@ -840,11 +840,21 @@ class BatchWorker(QObject):
 
                     mass_spectra.append(mass_spectrum)
                 
-                # Collect all calibrants with S/N at or above threshold.
+                # Collect all calibrants with S/N at or above threshold, for
+                # sum spectra that the user chose to calibrate,
                 calibrants = []
                 for ms in mass_spectra:
+                    # If calibration is disabled for the sum spectrum, don't
+                    # use its calibrants anywhere.
+                    if not ms.calibrate:
+                        continue
+                    # For sum-spectra we use the S/N cut-off specified in the
+                    # table, not the global value.
+                    sn_cutoff = self.sum_spectra_calibration[
+                        (ms.time, ms.time_window)
+                    ]["sn_cutoff"]
                     for cal in ms.local_calibrants:
-                        if cal.signal_to_noise >= self.calibrant_sn_cutoff:
+                        if cal.signal_to_noise >= sn_cutoff:
                             calibrants.append(cal)
 
                 # Group calibrants by retention time range.
