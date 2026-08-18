@@ -149,7 +149,7 @@ class MainWindow(QMainWindow):
         
         if enabled:
             # MS-only mode: disable all LC-related features
-            self.logger.info("Switching to MS-only mode")
+            self.logger.info("Using MS-only mode")
             
             # Disable entire Alignment section with red text and hide spinbox values
             self.ui.frame_alignment.setEnabled(False)
@@ -195,7 +195,7 @@ class MainWindow(QMainWindow):
             )
         else:
             # LC-MS mode: enable all features
-            self.logger.info("Switching to LC-MS mode")
+            self.logger.info("Using LC-MS mode")
             
             # Enable Alignment section and reset styling
             self.ui.frame_alignment.setEnabled(True)
