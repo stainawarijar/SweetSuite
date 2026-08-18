@@ -210,18 +210,22 @@ class MassSpectrum():
 
     def plot_calibration(
         self,
-        calibration_fit: np.ndarray | None
+        calibration_fit: np.ndarray | None,
+        plot_ppm: bool = True
     ) -> Figure | None:
         """Plot the calibration fit.
 
-        Required m/z corrections are plotted against the observed m/z values.
-        Calibrant data points are colored by their retention time window if
-        applicable. The quadratic fit is shown as a smooth curve. The required
-        calibrant m/z range is shown by light shading.
+        Required m/z corrections or mass errors (ppm) are plotted against the 
+        observed m/z values. Calibrant data points are colored by their 
+        retention time window if applicable. The quadratic fit is shown as a 
+        smooth curve. The required calibrant m/z range is shown by light 
+        shading.
 
         Args:
             calibration_fit: Quadratic fit coefficients in the order
                 [quadratic, linear, intercept].
+            plot_ppm: If `True`, plot mass errors in ppm instead of required
+                m/z corrections.
 
         Returns:
             A matplotlib Figure. `None` if `calibration_fit` is `None`.
@@ -231,6 +235,11 @@ class MassSpectrum():
 
         # Data for plot
         calibrants = self.calibrants_to_fit
+
+        mz_exact = np.array(
+            [cal.mz_exact for cal in calibrants],
+            dtype=float
+        )
 
         mz_observed = np.array(
             [cal.mz_observed for cal in calibrants],
@@ -265,6 +274,16 @@ class MassSpectrum():
         # Apply the fit to the specified m/z values.
         delta_fitted = np.polyval(calibration_fit, mz_plot)
 
+        # Determine values to plot.
+        if plot_ppm:
+            y_values =  -mz_delta / mz_exact * 1e6
+            y_fitted = (-delta_fitted / (mz_plot + delta_fitted) * 1e6)
+            y_label = "Mass error (ppm)"
+        else:
+            y_values = mz_delta
+            y_fitted = delta_fitted
+            y_label = r"Required m/z correction $\Delta m/z$"
+
         # Create figure.
         figure, axis = plt.subplots()
 
@@ -287,7 +306,7 @@ class MassSpectrum():
                 )
                 axis.scatter(
                     mz_observed[mask],
-                    mz_delta[mask],
+                    y_values[mask],
                     s=45,
                     edgecolor="black",
                     linewidths=0.4,
@@ -296,16 +315,16 @@ class MassSpectrum():
         else:
             axis.scatter(
                 mz_observed,
-                mz_delta,
+                y_values,
                 s=45,
                 edgecolor="black",
                 linewidths=0.4
             )
 
-        axis.plot(mz_plot, delta_fitted)
+        axis.plot(mz_plot, y_fitted)
 
         axis.set_xlabel(r"Observed $m/z$")
-        axis.set_ylabel(r"Required correction $\Delta m/z$")
+        axis.set_ylabel(y_label)
         axis.set_title(title)
 
         if color_by_time:
