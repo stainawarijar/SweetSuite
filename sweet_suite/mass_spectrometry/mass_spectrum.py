@@ -29,7 +29,8 @@ class MassSpectrum():
         min_calibrant_mz_coverage: float | None,
         time: float | None = None,
         time_window: float | None = None,
-        calibrants_to_fit: list[Calibrant] | None = None
+        calibrants_to_fit: list[Calibrant] | None = None,
+        plot_mz_corrections: bool = False
     ):
         """Initialize a mass spectrum."""
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -46,6 +47,7 @@ class MassSpectrum():
         self.calibrant_mz_bounds = self.get_calibrant_mz_bounds()
         self.local_calibrants = self.get_local_calibrants()
         self.calibrants_to_fit = calibrants_to_fit
+        self.plot_mz_corrections = plot_mz_corrections
         self.apply_calibration()
 
     def apply_calibration(self) -> None:
@@ -210,8 +212,7 @@ class MassSpectrum():
 
     def plot_calibration(
         self,
-        calibration_fit: np.ndarray | None,
-        plot_ppm: bool = True
+        calibration_fit: np.ndarray | None
     ) -> Figure | None:
         """Plot the calibration fit.
 
@@ -224,8 +225,6 @@ class MassSpectrum():
         Args:
             calibration_fit: Quadratic fit coefficients in the order
                 [quadratic, linear, intercept].
-            plot_ppm: If `True`, plot mass errors in ppm instead of required
-                m/z corrections.
 
         Returns:
             A matplotlib Figure. `None` if `calibration_fit` is `None`.
@@ -274,8 +273,8 @@ class MassSpectrum():
         # Apply the fit to the specified m/z values.
         delta_fitted = np.polyval(calibration_fit, mz_plot)
 
-        # Determine values to plot.
-        if plot_ppm:
+        # Determine values to plot: m/z corrections or ppm errors.
+        if not self.plot_mz_corrections:
             y_values =  -mz_delta / mz_exact * 1e6
             y_fitted = (-delta_fitted / (mz_plot + delta_fitted) * 1e6)
             y_label = "Mass error (ppm)"

@@ -70,6 +70,7 @@ class BatchWorker(QObject):
         mass_modifier: str | None = None,
         use_peak_height: bool = False,
         save_xy: bool = False,
+        plot_mz_corrections: bool = False,
         parent = None
     ):
         super().__init__(parent)
@@ -102,6 +103,7 @@ class BatchWorker(QObject):
         self.min_calibrant_mz_coverage = min_calibrant_mz_coverage
         self.use_peak_height = use_peak_height
         self.save_xy = save_xy
+        self.plot_mz_corrections = plot_mz_corrections
         self.excel_path = self.get_output_excel_path()
         self.stop_requested = False
 
@@ -835,7 +837,8 @@ class BatchWorker(QObject):
                         calibrants_df=calibrants_df,
                         min_calibrant_mz_coverage=self.min_calibrant_mz_coverage,
                         time=sum_spectrum.time,
-                        time_window=sum_spectrum.time_window
+                        time_window=sum_spectrum.time_window,
+                        plot_mz_corrections=self.plot_mz_corrections
                     )
 
                     mass_spectra.append(mass_spectrum)

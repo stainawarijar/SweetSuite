@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>401</width>
-    <height>330</height>
+    <height>369</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,13 +29,17 @@
 
 #frame_3 {
     border: 1px solid #b0b0b0;
+}
+
+#frame_4 {
+    border: 1px solid #b0b0b0;
 }</string>
   </property>
   <widget class="QFrame" name="frame">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>20</y>
+     <y>10</y>
      <width>381</width>
      <height>161</height>
     </rect>
@@ -330,7 +334,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>190</y>
+     <y>180</y>
      <width>381</width>
      <height>41</height>
     </rect>
@@ -359,7 +363,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>240</y>
+     <y>230</y>
      <width>381</width>
      <height>41</height>
     </rect>
@@ -391,7 +395,7 @@
    <property name="geometry">
     <rect>
      <x>300</x>
-     <y>290</y>
+     <y>330</y>
      <width>91</width>
      <height>31</height>
     </rect>
@@ -404,7 +408,7 @@
    <property name="geometry">
     <rect>
      <x>200</x>
-     <y>290</y>
+     <y>330</y>
      <width>91</width>
      <height>31</height>
     </rect>
@@ -418,6 +422,38 @@ font-size: 10.5pt;</string>
    <property name="text">
     <string>Cancel</string>
    </property>
+  </widget>
+  <widget class="QFrame" name="frame_4">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>280</y>
+     <width>381</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
+   </property>
+   <property name="frameShape">
+    <enum>QFrame::StyledPanel</enum>
+   </property>
+   <property name="frameShadow">
+    <enum>QFrame::Raised</enum>
+   </property>
+   <widget class="QCheckBox" name="checkBox_plot_mz_corrections">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>10</y>
+      <width>361</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Plot required m/z corrections in calibration figures</string>
+    </property>
+   </widget>
   </widget>
  </widget>
  <resources/>

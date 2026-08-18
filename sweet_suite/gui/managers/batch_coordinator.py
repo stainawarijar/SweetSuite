@@ -164,7 +164,8 @@ class BatchCoordinator:
                 float(self.advanced_ui.constant_coeff.value()) * 10 ** float(self.advanced_ui.constant_exponent.value())
             ),
             use_peak_height=bool(self.advanced_ui.checkBox_peakHeights.isChecked()),
-            save_xy=bool(self.advanced_ui.checkBox_save_xy.isChecked())
+            save_xy=bool(self.advanced_ui.checkBox_save_xy.isChecked()),
+            plot_mz_corrections=bool(self.advanced_ui.checkBox_plot_mz_corrections.isChecked())
         )
         # Move batch worker to thread
         self.batch_thread = QThread()
