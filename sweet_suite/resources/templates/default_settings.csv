@@ -9,6 +9,7 @@ background_mass_window,10.0
 calibration_mass_window,0.2
 quantitation_mz_window,0.065
 min_calibrant_number,4
+min_calibrant_mz_coverage,0.8
 min_isotopic_fraction,0.8
 quantitate_aligned_only,True
 quadratic_mass_window,False
@@ -20,3 +21,4 @@ quadratic_constant_coeff,0.0
 quadratic_constant_exp,0
 use_peak_height,False
 save_xy,False
+plot_mz_corrections,False

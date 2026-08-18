@@ -50,7 +50,7 @@ class SettingsManager:
     def export_settings(self) -> None:
         """Export all settings to a CSV file, with option to rename."""
         current_datetime = datetime.now().strftime("%d-%m-%Y_%H%M")
-        default_filename = f"{current_datetime}_sweet_suite_settings.csv"
+        default_filename = f"{current_datetime}_SweetSuite_settings.csv"
         save_path, _ = QFileDialog.getSaveFileName(
             self.parent,
             "Export settings to CSV",
@@ -222,6 +222,9 @@ class SettingsManager:
             "min_calibrant_number": int(
                 self.ui.min_calibrant_number.value()
             ),
+            "min_calibrant_mz_coverage": float(
+                self.ui.min_mz_coverage.value()
+            ),
             "min_isotopic_fraction": float(
                 self.ui.min_isotopic_fraction.value()
             ),
@@ -255,6 +258,9 @@ class SettingsManager:
             ),
             "save_xy": bool(
                 self.advanced_ui.checkBox_save_xy.isChecked()
+            ),
+            "plot_mz_corrections": bool(
+                self.advanced_ui.checkBox_plot_mz_corrections.isChecked()
             )
         }
     
@@ -294,6 +300,9 @@ class SettingsManager:
         self.ui.min_calibrant_number.setValue(int(settings.get(
             "min_calibrant_number", self.ui.min_calibrant_number.value()
         )))
+        self.ui.min_mz_coverage.setValue(float(settings.get(
+            "min_calibrant_mz_coverage", self.ui.min_mz_coverage.value()
+        )))
         self.ui.min_isotopic_fraction.setValue(float(settings.get(
             "min_isotopic_fraction", self.ui.min_isotopic_fraction.value()
         )))
@@ -332,4 +341,11 @@ class SettingsManager:
         self.advanced_ui.checkBox_save_xy.setChecked(self.parse_bool(
             settings.get("save_xy", self.advanced_ui.checkBox_save_xy.isChecked()),
             default=self.advanced_ui.checkBox_save_xy.isChecked()
+        ))
+        self.advanced_ui.checkBox_plot_mz_corrections.setChecked(self.parse_bool(
+            settings.get(
+                "plot_mz_corrections",
+                self.advanced_ui.checkBox_plot_mz_corrections.isChecked()
+            ),
+            default=self.advanced_ui.checkBox_plot_mz_corrections.isChecked()
         ))
