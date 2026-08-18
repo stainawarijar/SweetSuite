@@ -9,7 +9,8 @@ class MzxmlDataBlock:
     byte order, and encoding precision, as well as the encoded MS data.
 
     Attributes:
-        contents (str): Raw XML contents of the scan block.
+        contents (str | None): Raw XML contents of the scan block during
+            initialization. Set to `None` after decoding to release memory.
         retention_time (float): Retention time of the scan in seconds.
         compression (bool): Whether the data is compressed (zlib).
         byte_order (str): Byte order of the encoded data ('little' or 'big').

@@ -10,7 +10,11 @@ from ..workers.batch_worker import BatchWorker
 
 
 class BatchCoordinator:
-    """Handles batch processing workflow and coordination."""
+    """Coordinate batch processing between the GUI and its worker thread.
+
+    The coordinator validates startup, manages the progress dialog and worker
+    lifecycle, and forwards progress, completion, abort, and error events.
+    """
     
     def __init__(self, parent, ui, advanced_ui, logger):
         """Initialize batch coordinator. 

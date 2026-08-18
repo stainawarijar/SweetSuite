@@ -146,10 +146,14 @@ class BatchWorker(QObject):
         m/z for an RT group.
 
         Args:
-            calibrants_by_rt: ...
-            rt: ...
+            calibrants_by_rt: Mapping from `(retention_time, time_window)`
+                tuples to the calibrants associated with each RT group.
+            rt: `(retention_time, time_window)` key identifying the group.
 
         This function is used during calibration of LC-MS sum spectra.
+
+        Returns:
+            The minimum and maximum exact m/z among the group's calibrants.
         """
         group_mzs = [
             cal.mz_exact for cal in calibrants_by_rt[rt]

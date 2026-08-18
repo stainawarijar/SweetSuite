@@ -9,7 +9,11 @@ from ...utils import utils
 
 
 class SettingsManager:
-    """Handles settings import, export, and reset operations."""
+    """Import, export, apply, collect, and reset GUI settings.
+
+    Settings are represented as CSV-compatible values and include controls
+    from both the main window and advanced-settings dialog.
+    """
 
     _BOOL_TRUE  = {"true",  "1", "yes"}
     _BOOL_FALSE = {"false", "0", "no"}

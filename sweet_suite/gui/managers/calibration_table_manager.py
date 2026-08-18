@@ -9,7 +9,11 @@ from ...utils import utils
 
 
 class CalibrationTableManager:
-    """Handles calibration table population and operations."""
+    """Populate and read the main-window calibration table.
+
+    The manager converts analyte or reference data into editable calibrant
+    rows and applies calibration signal-to-noise settings to those rows.
+    """
     
     def __init__(self, parent, ui):
         """Initialize calibration table manager.

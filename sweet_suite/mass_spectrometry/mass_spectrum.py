@@ -14,7 +14,43 @@ from .isotopic_peak import IsotopicPeak
 class MassSpectrum():
     """Represents a mass spectrum.
 
-    TODO: FILL THIS IN...
+    A `MassSpectrum` stores uncalibrated m/z-intensity data, selects local
+    calibrants for the spectrum's retention-time window, and optionally fits
+    and applies a quadratic m/z calibration. It also provides methods for
+    quantifying analytes, plotting the calibration, and exporting spectrum
+    data.
+
+    Attributes:
+        name (str): Name used to identify the spectrum and create output
+            filenames.
+        file_raw (str): Name of the raw data file containing the spectrum.
+        data_uncalibrated (np.ndarray): 2D array with uncalibrated m/z values
+            in the first column and intensities in the second column.
+        background_mass_window (float): Mass window (Da) used to estimate
+            background and noise around peaks.
+        calibrate (bool): Whether calibration was requested for the spectrum.
+        calibration_mass_window (float): Mass window (Da) used to locate
+            calibrant peaks.
+        calibrants_df (pd.DataFrame): Potential calibrants, with `mz`,
+            `charge`, and `mz_window` columns.
+        min_calibrant_mz_coverage (float | None): Minimum fraction of the
+            available calibrant m/z range that fitted calibrants must cover.
+        time (float | None): Retention time of the spectrum; `None` for
+            MS-only data.
+        time_window (float | None): Retention-time window of the spectrum;
+            `None` for MS-only data.
+        calibrant_mz_bounds (tuple[float, float] | None): Required lower and
+            upper m/z coverage bounds for calibration.
+        local_calibrants (list[Calibrant]): Calibrants available within the
+            spectrum's m/z range and retention-time window.
+        calibrants_to_fit (list[Calibrant] | None): Calibrants used to fit the
+            calibration model.
+        plot_mz_corrections (bool): If true, the calibration plot shows m/z
+            corrections instead of mass errors in ppm.
+        data_calibrated (np.ndarray | None): Calibrated spectrum data, or
+            `None` when calibration cannot be performed.
+        calibration_plot (Figure | None): Plot of the calibration fit, or
+            `None` when calibration cannot be performed.
     """
 
     def __init__(
@@ -53,9 +89,9 @@ class MassSpectrum():
     def apply_calibration(self) -> None:
         """Calibrate the data using a local calibration fit.
         
-        If `self.calibrants_to_fit` is `None` or an empty list, then
-        `local_calibration_fit`, `data_calibrated` and `calibration_fit`
-        will all be `None` as well.
+        The fitted coefficients are used to populate `data_calibrated` and
+        `calibration_plot`. If `self.calibrants_to_fit` is `None` or empty,
+        both attributes are set to `None`.
         """
         fit = self.fit_calibration()
         self.data_calibrated = self.calibrate_data(fit)
@@ -65,12 +101,12 @@ class MassSpectrum():
         """Determine the required calibrant m/z coverage bounds.
 
         The bounds are based on the min. and max. m/z values of all potential
-        calibrant peaks, and on `self.calibrant_mz_coverage`.
+        calibrant peaks, and on `self.min_calibrant_mz_coverage`.
 
         Example:
             If `mz_min = 200` and `mz_max = 1200` for the potential local 
             calibrant peaks, that is a range of 1000 Th if all peaks are used.
-            If `self.calibrant_mz_coverage = 0.8`, then a range of at least
+            If `self.min_calibrant_mz_coverage = 0.8`, a range of at least
             800 Th should be covered by the calibrant peaks that are actually
             used during the calibration. The lower bound becomes 300 Th, and
             the upper bound becomes 1100 Th.
@@ -355,7 +391,10 @@ class MassSpectrum():
         (IPQ), mass error in parts-per-million (ppm).
         
         Args:
-            analytes_ref: A data frame with columns ...
+            analytes_ref: Reference data with one row per isotopic peak and
+                columns `peak`, `mz`, `mz_window`, and `relative_area`.
+                For LC-MS data, `time` and `time_window` columns identify the
+                sum spectrum in which each peak should be quantified.
             use_peak_height: If True, use maximum intensity of each isotopic
                 peak instead of the trapezoidal area for quantitation.
         

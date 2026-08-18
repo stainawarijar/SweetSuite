@@ -68,7 +68,7 @@ class IsotopicPeak:
     
     def get_area(self) -> float:
         """Integrate the region [exact m/z ± quantitation window] using the
-        trapezoidal tule and return the total area. 
+        trapezoidal rule and return the total area.
         """
         return np.trapezoid(y=self.data[:, 1], x=self.data[:, 0])
 
@@ -79,9 +79,9 @@ class IsotopicPeak:
         A local maximum is defined as a point whose intensity is strictly 
         greater than both its immediate neighbours. Among all local maxima, 
         the one with the highest intensity is selected. 
-        If no local maximum is found (e.g. the window captures only a monotone 
-        slope), ...
-        Returns `np.nan` if `self.data` is empty. 
+        If no local maximum is found (for example, when the window contains
+        only a monotonic slope), `0.0` is returned.
+        Returns `np.nan` if `self.data` is empty.
         """
         if len(self.data) == 0:
             self.logger.warning(

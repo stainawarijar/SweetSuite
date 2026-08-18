@@ -69,8 +69,7 @@ class Eic:
         self.signal_to_noise = self.get_signal_to_noise()
     
     def get_peak_data(self) -> np.ndarray:
-        """Returns a subset of the chromatographic run with only those
-        retention times that are inside the specified alignment rime range."""
+        """Return data within the specified alignment time range."""
         start_idx = np.searchsorted(
             self.data[:, 0],
             self.time_required - self.alignment_time_window,

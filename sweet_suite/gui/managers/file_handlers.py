@@ -6,7 +6,11 @@ from ..ui.ui_helpers import UIHelpers
 
 
 class FileHandlers:
-    """Handles file dialog operations and validation."""
+    """Manage input-file selection, validation, and clearing for the GUI.
+
+    This includes alignment lists, analyte lists, reference files, block
+    directories, and raw mzXML or XY data paths.
+    """
     
     def __init__(self, parent, ui):
         """Initialize file handlers. 

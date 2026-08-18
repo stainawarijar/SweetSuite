@@ -13,7 +13,8 @@ class Calibrant(IsotopicPeak):
     Attributes:
         time (float | None): Retention time of corresponding sum spectrum.
             `None` in case of MS-only data.
-        background_mass_window (float): ...
+        background_mass_window (float): Mass window (Da) used to estimate
+            background and noise around the calibrant peak.
         calibration_mass_window (float): Mass window (Da) used to derive 
             the calibration m/z window.
         calibration_mz_window (float): m/z window (Th), equal to
@@ -45,7 +46,8 @@ class Calibrant(IsotopicPeak):
             time_window: Retention time window of the corresponding sum 
                 spectrum. Set to `None` in case of MS-only data.
             spectrum: 2D array with m/z and intensity columns.
-            background_mass_window: ...
+            background_mass_window: Mass window (Da) used to estimate
+                background and noise around the calibrant peak.
             quantitation_mz_window: m/z window (Th) used for extraction.
             calibration_mass_window: Mass window (Da) used to compute the 
                 calibration m/z window.

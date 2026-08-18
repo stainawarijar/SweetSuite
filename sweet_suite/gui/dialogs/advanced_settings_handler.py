@@ -5,7 +5,11 @@ from ..qtdesigner_files.gui_advanced_settings import Ui_advanced_settings
 
 
 class AdvancedSettingsHandler:
-    """Handles advanced settings dialog setup and operations."""
+    """Manage the advanced-settings dialog for the main window.
+
+    The handler configures dialog behavior, connects its controls, and
+    restores the previous settings when the user cancels their changes.
+    """
     
     def __init__(self, parent):
         """Initialize advanced settings handler. 

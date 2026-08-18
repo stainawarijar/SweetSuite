@@ -24,7 +24,7 @@ class Mzxml:
     Attributes:
         path (str): Path to the mzXML file.
         file_name (str): File name without extension.
-        times_bytes (list[float, dict]): A list of containing tuples 
+        times_bytes (list[tuple[float, dict]]): A list of tuples
             `(time, decoded_data)` where `time` is the retention time of an
             mzXML data block and `decoded_data` is a dictionary containing 
             decoded data (bytes), compression (bool), endian (str) and 
@@ -58,9 +58,9 @@ class Mzxml:
             'compression' (bool), 'endian' (str), and 'precision' (str).
 
         Returns:
-            List of tuples containing retention times and corresponding 2D 
-            arrays with m/z values in the first column and intensity values 
-            in the second column.
+            A list of `(retention_time, spectrum)` tuples. Each spectrum is a
+            2D array with m/z values in the first column and intensities in
+            the second column.
         """
         data_required = []
         for rt, bytes_dict in times_bytes:
