@@ -222,9 +222,6 @@ class SettingsManager:
             "min_calibrant_number": int(
                 self.ui.min_calibrant_number.value()
             ),
-            "min_calibrant_mz_coverage": float(
-                self.ui.min_mz_coverage.value()
-            ),
             "min_isotopic_fraction": float(
                 self.ui.min_isotopic_fraction.value()
             ),
@@ -299,9 +296,6 @@ class SettingsManager:
         )))
         self.ui.min_calibrant_number.setValue(int(settings.get(
             "min_calibrant_number", self.ui.min_calibrant_number.value()
-        )))
-        self.ui.min_mz_coverage.setValue(float(settings.get(
-            "min_calibrant_mz_coverage", self.ui.min_mz_coverage.value()
         )))
         self.ui.min_isotopic_fraction.setValue(float(settings.get(
             "min_isotopic_fraction", self.ui.min_isotopic_fraction.value()

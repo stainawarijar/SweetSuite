@@ -33,14 +33,10 @@ class MassSpectrum():
             calibrant peaks.
         calibrants_df (pd.DataFrame): Potential calibrants, with `mz`,
             `charge`, and `mz_window` columns.
-        min_calibrant_mz_coverage (float | None): Minimum fraction of the
-            available calibrant m/z range that fitted calibrants must cover.
         time (float | None): Retention time of the spectrum; `None` for
             MS-only data.
         time_window (float | None): Retention-time window of the spectrum;
             `None` for MS-only data.
-        calibrant_mz_bounds (tuple[float, float] | None): Required lower and
-            upper m/z coverage bounds for calibration.
         local_calibrants (list[Calibrant]): Calibrants available within the
             spectrum's m/z range and retention-time window.
         calibrants_to_fit (list[Calibrant] | None): Calibrants used to fit the
@@ -62,10 +58,10 @@ class MassSpectrum():
         calibrate: bool,
         calibration_mass_window: float,
         calibrants_df: pd.DataFrame,
-        min_calibrant_mz_coverage: float | None,
         time: float | None = None,
         time_window: float | None = None,
         calibrants_to_fit: list[Calibrant] | None = None,
+        calibration_fit: np.ndarray | None = None,
         plot_mz_corrections: bool = False
     ):
         """Initialize a mass spectrum."""
@@ -77,61 +73,39 @@ class MassSpectrum():
         self.calibrate = calibrate
         self.calibration_mass_window = calibration_mass_window
         self.calibrants_df = calibrants_df
-        self.min_calibrant_mz_coverage = min_calibrant_mz_coverage
         self.time = time
         self.time_window = time_window
-        self.calibrant_mz_bounds = self.get_calibrant_mz_bounds()
         self.local_calibrants = self.get_local_calibrants()
         self.calibrants_to_fit = calibrants_to_fit
+        self.calibration_fit = calibration_fit
         self.plot_mz_corrections = plot_mz_corrections
         self.apply_calibration()
 
-    def apply_calibration(self) -> None:
-        """Calibrate the data using a local calibration fit.
+    def apply_calibration(self, plot: bool = True) -> None:
+        """Calibrate the data using a calibration fit, but only if fit 
+        coefficients or a list of calibrants to fit are provided.
         
+        Args:
+            plot: Whether to create a calibration figure or not. 
+                Set to `True` by default.
+
         The fitted coefficients are used to populate `data_calibrated` and
-        `calibration_plot`. If `self.calibrants_to_fit` is `None` or empty,
-        both attributes are set to `None`.
+        `calibration_plot`. If a calibration fit is in `self.calibration_fit`
+        then that fit is used. Otherwise, fitting is attempted on provided
+        `self.calibrants_to_fit`. If neither are provided then `fit`,
+        `self.data_calibrated` and `self.calibration_plot` are all `None`.
         """
-        fit = self.fit_calibration()
+        if self.calibration_fit is not None:
+            fit = self.calibration_fit
+        else:
+            fit = self.fit_calibration()  # Based on `self.calibrants_to_fit`
+
         self.data_calibrated = self.calibrate_data(fit)
-        self.calibration_plot = self.plot_calibration(fit)
 
-    def get_calibrant_mz_bounds(self) -> tuple[float, float] | None:
-        """Determine the required calibrant m/z coverage bounds.
-
-        The bounds are based on the min. and max. m/z values of all potential
-        calibrant peaks, and on `self.min_calibrant_mz_coverage`.
-
-        Example:
-            If `mz_min = 200` and `mz_max = 1200` for the potential local 
-            calibrant peaks, that is a range of 1000 Th if all peaks are used.
-            If `self.min_calibrant_mz_coverage = 0.8`, a range of at least
-            800 Th should be covered by the calibrant peaks that are actually
-            used during the calibration. The lower bound becomes 300 Th, and
-            the upper bound becomes 1100 Th.
-
-        Returns:
-            The minimum and maximum m/z values that the calibrants used for
-            calibration should cover. Returns `None` when no local calibrants
-            are specified (empty `calibrants_df`) or if 
-            `min_calibrant_mz_coverage` is `None`.
-        """
-        if self.calibrants_df.empty or self.min_calibrant_mz_coverage is None:
-            return
-
-        mz_min = self.calibrants_df["mz"].min()
-        mz_max = self.calibrants_df["mz"].max()
-
-        mz_range = mz_max - mz_min
-
-        margin_fraction = (1 - self.min_calibrant_mz_coverage) / 2
-        margin = mz_range * margin_fraction
-
-        required_min = mz_min + margin
-        required_max = mz_max - margin
-
-        return (required_min, required_max)
+        if plot:
+            self.calibration_plot = self.plot_calibration(fit)
+        else:
+            self.calibration_plot = None
 
     def get_local_calibrants(self) -> list[Calibrant]:
         """Return a list with instances of the `Calibrant` class, whose 
@@ -190,11 +164,7 @@ class MassSpectrum():
 
         The model predicts the required m/z correction `mz_exact - mz_observed`
         as a quadratic function of the observed m/z, using calibrants specified
-        in `self.calibrants_to_fit`. In the case of LC-MS data, this may 
-        include non-local calibrants when the minimum number of calibrants
-        or the minimum required m/z coverage is not reached using only local
-        calibrants (meaning calibrants corresponding to the sum spectrum 
-        retention time window).
+        in `self.calibrants_to_fit`.
 
         Returns:
             An array containing the model coefficients [quadratic, linear, 
@@ -291,17 +261,11 @@ class MassSpectrum():
             dtype=float
         )
 
-        # In case of LC-MS data, color by retention time and include time
-        # in title.
+        # In case of LC-MS data, color by retention time.
         if self.time is None:
             color_by_time = False
-            title = self.file_raw
         else:
             color_by_time = True
-            title = (
-                f"{self.file_raw} - "
-                f"({self.time:g} ± {self.time_window:g} s)"
-            )
 
         # Create evenly spaced m/z values for drawing smooth fitted curve.
         mz_plot = np.linspace(mz_observed.min(), mz_observed.max(), 500)
@@ -311,7 +275,7 @@ class MassSpectrum():
 
         # Determine values to plot: m/z corrections or ppm errors.
         if not self.plot_mz_corrections:
-            y_values =  -mz_delta / mz_exact * 1e6
+            y_values = -mz_delta / mz_exact * 1e6
             y_fitted = (-delta_fitted / (mz_plot + delta_fitted) * 1e6)
             y_label = "Mass error (ppm)"
         else:
@@ -321,17 +285,6 @@ class MassSpectrum():
 
         # Create figure.
         figure, axis = plt.subplots()
-
-        # Show minimum required calibrant m/z coverage as a shaded region.
-        if self.calibrant_mz_bounds is not None:
-            mz_min, mz_max = self.calibrant_mz_bounds
-            axis.axvspan(
-                mz_min,
-                mz_max,
-                color="lightgrey",
-                alpha=0.3,
-                zorder=0
-            )
 
         if color_by_time:
             for time_value, window_value in np.unique(time_windows, axis=0):
@@ -356,14 +309,20 @@ class MassSpectrum():
                 linewidths=0.4
             )
 
-        axis.plot(mz_plot, y_fitted)
+        axis.plot(mz_plot, y_fitted, color="black")
 
         axis.set_xlabel(r"Observed $m/z$")
         axis.set_ylabel(y_label)
-        axis.set_title(title)
+        axis.set_title(f"{self.file_raw}.mzXML")
 
         if color_by_time:
-            axis.legend(title="Retention time")
+            axis.legend(
+                title="Sum spectrum",
+                loc="center left",
+                bbox_to_anchor=(1.02, 0.5),
+                fontsize=9,
+                title_fontsize=9
+            )
 
         axis.set_axisbelow(True)
         axis.grid(

@@ -62,7 +62,6 @@ class BatchWorker(QObject):
         calibrant_sn_cutoff: float,
         quantitation_mz_window: float,
         min_calibrant_number: int,
-        min_calibrant_mz_coverage: float,
         min_isotopic_fraction: float,
         quantitate_aligned_only: bool,
         quadratic_mz_window: bool,
@@ -100,65 +99,11 @@ class BatchWorker(QObject):
         self.quantitate_aligned_only = quantitate_aligned_only
         self.quadratic_mz_window = quadratic_mz_window
         self.quadratic_coeffs = quadratic_coeffs
-        self.min_calibrant_mz_coverage = min_calibrant_mz_coverage
         self.use_peak_height = use_peak_height
         self.save_xy = save_xy
         self.plot_mz_corrections = plot_mz_corrections
         self.excel_path = self.get_output_excel_path()
         self.stop_requested = False
-
-    @staticmethod
-    def sufficient_calibrants(
-        calibrants: list[Calibrant],
-        min_number: int,
-        mz_bounds: tuple[float, float] | None
-    ) -> bool:
-        """Helper function used to check whether calibrants are sufficient for 
-        calibration.
-
-        Args:
-            calibrants: Calibrants selected for fitting.
-            min_number: Minimum required number of calibrants.
-            mz_bounds: Minimum and maximum m/z values that should be covered.
-                `None` if no m/z coverage requirement applies.
-        
-        Returns:
-            Whether both the minimum calibrant number and m/z range are met.
-        """
-        if len(calibrants) < min_number:
-            return False
-
-        mz = [cal.mz_exact for cal in calibrants]
-        required_min, required_max = mz_bounds
-
-        sufficient = (
-            min(mz) <= required_min and max(mz) >= required_max
-        )
-
-        return sufficient
-
-    @staticmethod
-    def group_mz_bounds(
-        calibrants_by_rt: dict,
-        rt: tuple[float, float]
-    ) -> tuple[float, float]:
-        """Helper function that returns the minimum and maximum calibrant
-        m/z for an RT group.
-
-        Args:
-            calibrants_by_rt: Mapping from `(retention_time, time_window)`
-                tuples to the calibrants associated with each RT group.
-            rt: `(retention_time, time_window)` key identifying the group.
-
-        This function is used during calibration of LC-MS sum spectra.
-
-        Returns:
-            The minimum and maximum exact m/z among the group's calibrants.
-        """
-        group_mzs = [
-            cal.mz_exact for cal in calibrants_by_rt[rt]
-        ]
-        return (min(group_mzs), max(group_mzs))
 
     def get_output_excel_path(self) -> str | None:
         """Set path to Excel file to which final results will be written.
@@ -839,7 +784,6 @@ class BatchWorker(QObject):
                         calibrate=self.sum_spectra_calibration[pair]["calibrate"],
                         calibration_mass_window=self.calibration_mass_window,
                         calibrants_df=calibrants_df,
-                        min_calibrant_mz_coverage=self.min_calibrant_mz_coverage,
                         time=sum_spectrum.time,
                         time_window=sum_spectrum.time_window,
                         plot_mz_corrections=self.plot_mz_corrections
@@ -847,15 +791,15 @@ class BatchWorker(QObject):
 
                     mass_spectra.append(mass_spectrum)
                 
-                # Collect all calibrants with S/N at or above threshold, for
-                # sum spectra that the user chose to calibrate,
+                # Collect all calibrants with S/N at or above threshold, from
+                # sum spectra that the user chose to calibrate.
                 calibrants = []
                 for ms in mass_spectra:
                     # If calibration is disabled for the sum spectrum, don't
                     # use its calibrants anywhere.
                     if not ms.calibrate:
                         continue
-                    # For sum-spectra we use the S/N cut-off specified in the
+                    # For sum spectra we use the S/N cut-off specified in the
                     # table, not the global value.
                     sn_cutoff = self.sum_spectra_calibration[
                         (ms.time, ms.time_window)
@@ -864,182 +808,55 @@ class BatchWorker(QObject):
                         if cal.signal_to_noise >= sn_cutoff:
                             calibrants.append(cal)
 
-                # Group calibrants by retention time range.
-                calibrants_by_rt = {}
-                for cal in calibrants:
-                    rt = (cal.time, cal.time_window)
-                    # `setdefault` creates the `rt` key with an empty list 
-                    # as its value if the key does not yet exist.
-                    # If it does exist, it returns the existing list.
-                    # In either case, `cal` is appended to that list.
-                    calibrants_by_rt.setdefault(rt, []).append(cal)
+                # Check against minimum number of calibrants.
+                if len(calibrants) < self.min_calibrant_number:
+                    self.logger.warning(
+                        f"Failed calibration fit for {os.path.basename(path)}: "
+                        "not enough calibrants above S/N cut-off."
+                    )
+                    continue
 
-                # Per MS, first collect calibrants assigned to its exact
-                # RT window. If the minimum calibrant number and m/z range
-                # are not met, keep adding calibrants from the nearest
-                # retention times until both requirements are satisfied.
+                # Loop over mass spectra and apply calibration.
+                # The calibration fit is the same for each mass spectrum,
+                # because each uses the same calibrants. So we only need
+                # to fit once. 
+                calibration_fit = None
+                calibration_plot = None
+
                 for ms in mass_spectra:
                     if not ms.calibrate:
+                        self.logger.info(
+                            f"Skipped calibration of sum spectrum ({ms.time:g}"
+                            f" ± {ms.time_window:g} s) for "
+                            f"{os.path.basename(path)}"
+                        )
                         continue
 
-                    # MS is uniquely defined by `time` and `time_window`
-                    # combination.
-                    ms_rt = (ms.time, ms.time_window)
-
-                    # Start with calibrants assigned to this exact RT.
-                    calibrants = list(
-                        calibrants_by_rt.get(ms_rt, [])
-                    )
-
-                    # Sort all other calibrant RT groups by distance from
-                    # the spectrum RT.
-                    remaining_rts = sorted(
-                        (rt for rt in calibrants_by_rt if rt != ms_rt),
-                        key=lambda rt: abs(rt[0] - ms.time)
-                    )
-
-                    # Loop to ensure sufficient calibrants (minimum number
-                    # and m/z coverage).
-                    while not BatchWorker.sufficient_calibrants(
-                        calibrants=calibrants,
-                        min_number=self.min_calibrant_number,
-                        mz_bounds=ms.calibrant_mz_bounds
-                    ):
-                        if not remaining_rts:
-                            break  # No more calibrants RT groups available.
-
-                        # If min calibrant number is not yet reached,
-                        # simply add nearest remaining RT group.
-                        if len(calibrants) < self.min_calibrant_number:
-                            nearest_dist = abs(remaining_rts[0][0] - ms.time)
-                            # Add all groups that are at the same RT distance.
-                            rts_to_add = [
-                                rt for rt in remaining_rts
-                                if abs(rt[0] - ms.time) == nearest_dist
-                            ]
-
-                        else:
-                            # Minimum calibrant number is reached, so any
-                            # additional calibrants are needed only for m/z
-                            # coverage.
-                            required_min, required_max = ms.calibrant_mz_bounds
-                            mz_values = [
-                                cal.mz_exact for cal in calibrants
-                            ]
-                            lower_missing = min(mz_values) > required_min
-                            upper_missing = max(mz_values) < required_max
-
-                            if lower_missing and upper_missing:
-                                # First prefer groups that can cover both 
-                                # missing bounds.
-                                candidates = [
-                                    rt for rt in remaining_rts
-                                    if (
-                                        BatchWorker.group_mz_bounds(
-                                            calibrants_by_rt, rt
-                                        )[0] <= required_min
-                                        and BatchWorker.group_mz_bounds(
-                                            calibrants_by_rt, rt
-                                        )[1] >= required_max
-                                    )
-                                ]
-
-                                # Else consider groups that help either bound.
-                                if not candidates:
-                                    candidates = [
-                                        rt for rt in remaining_rts
-                                        if (
-                                            BatchWorker.group_mz_bounds(
-                                                calibrants_by_rt, rt
-                                            )[0] <= required_min
-                                            or BatchWorker.group_mz_bounds(
-                                                calibrants_by_rt, rt
-                                            )[1] >= required_max
-                                        )
-                                    ]
-                                    
-                            elif lower_missing:
-                                candidates = [
-                                    rt for rt in remaining_rts
-                                    if BatchWorker.group_mz_bounds(
-                                        calibrants_by_rt, rt
-                                    )[0] <= required_min
-                                ]
-
-                            elif upper_missing:
-                                candidates = [
-                                    rt for rt in remaining_rts
-                                    if BatchWorker.group_mz_bounds(
-                                        calibrants_by_rt, rt
-                                    )[1] >= required_max
-                                ]
-
-                            else:
-                                # Should normally already have been caught
-                                # by `sufficient_calibrants()`
-                                break 
-
-                            if not candidates:
-                                # Required m/z coverage cannot be obtained from
-                                # any of the remaining groups.
-                                break
-
-                            # Add the nearest useful RT group(s). When multiple
-                            # groups are at equal distance, add all of them.
-                            nearest_distance = min(
-                                abs(rt[0] - ms.time) for rt in candidates
-                            )
-
-                            rts_to_add = [
-                                rt for rt in candidates
-                                if abs(rt[0] - ms.time) == nearest_distance
-                            ]
-
-                        for rt in rts_to_add:
-                            calibrants.extend(calibrants_by_rt[rt])
-                            remaining_rts.remove(rt)
-
-                    # Calibrate if min number of calibrants is available.
-                    if len(calibrants) >= self.min_calibrant_number:
-                        ms.calibrants_to_fit = calibrants
-                        ms.apply_calibration()
-
-                        # If the m/z bounds were not met, log a warning 
-                        # message but keep the calibration.
-                        if BatchWorker.sufficient_calibrants(
-                            calibrants=calibrants,
-                            min_number=self.min_calibrant_number,
-                            mz_bounds=ms.calibrant_mz_bounds
-                        ):
-                            self.logger.info(
-                                f"Calibrated sum spectrum ({ms.time:g}"
-                                f" ± {ms.time_window:g} s) for "
-                                f"{os.path.basename(path)}"
-                            )
-                        else:
-                            self.logger.warning(
-                                f"Calibrated sum spectrum ({ms.time:g}"
-                                f" ± {ms.time_window:g} s) for "
-                                f"{os.path.basename(path)}, but required "
-                                "m/z coverage was not reached."
-                            )
-
+                    if calibration_fit is not None:
+                        ms.calibration_fit = calibration_fit
+                        ms.apply_calibration(plot=False)
                     else:
-                        self.logger.info(
-                            f"Failed calibrating sum spectrum ({ms.time:g}"
-                            f" ± {ms.time_window:g} s) for "
-                            f"{os.path.basename(path)}: "
-                            "too few calibrants above S/N cut-off."
-                        )
+                        ms.calibrants_to_fit = calibrants
+                        calibration_fit = ms.fit_calibration()
+                        ms.calibration_fit = calibration_fit
+                        ms.apply_calibration(plot=True)
+                        calibration_plot = ms.calibration_plot
+                        ms.calibration_plot = None  # Free up memory
 
-                    # Save calibration fit figure to PDF.
-                    if ms.calibration_plot is not None:
-                        try:
-                            pdf.savefig(ms.calibration_plot)
-                        finally:
-                            # Close figure and free up memory.
-                            plt.close(ms.calibration_plot)
-                            ms.calibration_plot = None
+                    self.logger.info(
+                        f"Calibrated sum spectrum ({ms.time:g}"
+                        f" ± {ms.time_window:g} s) for "
+                        f"{os.path.basename(path)}"
+                    )
+
+                # Save calibration plot to PDF.
+                # Need to check explicitly if the plot exists, because it is
+                # possible that `ms.calibrate` is `False` everywhere.
+                if calibration_plot is not None:
+                    try:
+                        pdf.savefig(calibration_plot)
+                    finally:
+                        plt.close(calibration_plot)
 
                 # Write .xy files when requested.
                 if self.save_xy:
@@ -1204,7 +1021,6 @@ class BatchWorker(QObject):
                     calibrate=(not calibrants_df.empty),
                     calibration_mass_window=self.calibration_mass_window,
                     calibrants_df=calibrants_df,
-                    min_calibrant_mz_coverage=None,
                     time=None,
                     time_window=None
                 )

@@ -155,11 +155,6 @@ class UISetup:
             "Minimum number of calibrants to use when calibrating a sum spectrum.\n"
             "When less calibrants have a S/N above the cut-off, calibration fails."
         )
-        ui.min_mz_coverage.setToolTip(
-            "Minimum fraction of the local calibrant m/z range that must be covered.\n"
-            "Nearby retention time groups are added when needed to reach this coverage.\n"
-            "Calibration can still proceed with a warning if the required coverage is not reached."
-        )
         ui.calibrant_sn_cutoff.setToolTip(
             "Minimum signal-to-noise required for a calibrant to be used.\n"
             "Can be modified per retention time window in the table below."
