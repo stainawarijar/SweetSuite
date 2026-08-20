@@ -14,11 +14,14 @@ from .isotopic_peak import IsotopicPeak
 class MassSpectrum():
     """Represents a mass spectrum.
 
-    A `MassSpectrum` stores uncalibrated m/z-intensity data, selects local
-    calibrants for the spectrum's retention-time window, and optionally fits
-    and applies a quadratic m/z calibration. It also provides methods for
-    quantifying analytes, plotting the calibration, and exporting spectrum
-    data.
+    A `MassSpectrum` stores uncalibrated m/z-intensity data and creates
+    calibrant observations for the spectrum's retention-time window. It can
+    fit a quadratic m/z calibration from explicitly assigned calibrants or
+    apply supplied calibration coefficients. In LC-MS processing,
+    `BatchWorker` pools calibrants across enabled sum spectra, fits one global
+    calibration per mzXML file, and supplies that fit to every enabled sum
+    spectrum. The class also provides methods for quantifying analytes,
+    plotting the calibration, and exporting spectrum data.
 
     Attributes:
         name (str): Name used to identify the spectrum and create output

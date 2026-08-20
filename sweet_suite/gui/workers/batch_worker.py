@@ -666,6 +666,11 @@ class BatchWorker(QObject):
         """
         Perform calibration and quantitation on the mzXML files.
 
+        For each mzXML file, calibrants that pass their retention-window S/N
+        thresholds are pooled across all enabled sum spectra. One quadratic
+        calibration is fitted from that global pool and applied to every
+        enabled sum spectrum in the file before analyte quantitation.
+
         Args:
             analytes_ref_path: Path to the analytes reference Excel file.
             mzxml_file_paths: List of paths to mzXML files.

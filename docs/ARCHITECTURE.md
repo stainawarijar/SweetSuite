@@ -326,15 +326,17 @@ S/N computation is intensity-based regardless of this flag.
 #### `mass_spectrum.py` — `MassSpectrum`
 
 The central spectrum-level quantitation object. It stores raw `(m/z, intensity)`
-data, creates locally available `Calibrant` objects from the supplied calibrant
-table, fits and applies calibration when selected calibrants are assigned, and
-quantifies analytes from a reference DataFrame.
+data, creates `Calibrant` observations from the calibrant table supplied for
+its retention-time window, fits or applies calibration when calibrants or fit
+coefficients are assigned, and quantifies analytes from a reference DataFrame.
 
 1. **Calibration** — `fit_calibration()` fits the required correction
    `mz_exact - mz_observed` as a quadratic function of observed m/z. The fitted
-   correction is added to every observed m/z value. `BatchWorker`, rather than
-   `MassSpectrum`, applies S/N thresholds, enforces the minimum calibrant count,
-   checks m/z coverage, and assigns `calibrants_to_fit`.
+   correction is added to every observed m/z value. In LC-MS mode,
+   `BatchWorker` applies the per-window S/N thresholds, pools qualifying
+   calibrants from all enabled sum spectra in an mzXML file, enforces the
+   minimum calibrant count on that pool, fits once, and supplies the resulting
+   coefficients to every enabled `MassSpectrum` for that file.
 2. **Peak quantitation** — for each row in the reference DataFrame, creates an
    `IsotopicPeak`, computes its area, maximum intensity, mass error, background,
    and noise, and stores the results. An analyte is skipped when its required
@@ -509,12 +511,13 @@ These files should not be edited by hand; re-generate them with
   quantitation of each spectrum, writing the (potentially calibrated) spectrum
   as a tab-delimited `.xy` file into a `xy_<timestamp>/` subdirectory. In
   MS-only mode this only fires when calibrants are present.
-  In LC-MS mode, the worker first collects calibrants that pass the per-window
-  S/N threshold. Each sum spectrum starts with calibrants from its own RT
-  window; when the minimum count or required m/z coverage is not met, calibrant
-  groups from the nearest RT windows are added until the requirements are met
-  or no groups remain. The selected calibrants are assigned to
-  `MassSpectrum.calibrants_to_fit` before calibration is applied.
+  In LC-MS mode, each enabled sum spectrum creates observations for the
+  calibrants assigned to its RT window. The worker pools observations that pass
+  their window-specific S/N thresholds across all enabled sum spectra in an
+  mzXML file. If the global pool meets the minimum calibrant count, one
+  quadratic fit is calculated and applied to every enabled sum spectrum in
+  that file. Disabled windows neither contribute calibrants nor receive the
+  global fit.
   When a pre-loaded reference DataFrame (`analytes_ref_df`) is available,
   the reference generation step is skipped and the DataFrame is written
   directly to disk via `write_ref_df()`.
@@ -593,7 +596,7 @@ BatchCoordinator.start_batch_process()
         Mzxml.create_sum_spectrum(time, time_window, resolution)
           └─ SumSpectrum (per RT window)
 
-     d. Calibration + quantitation  [per SumSpectrum]
+     d. Calibration + quantitation  [one global fit per mzXML file]
         MassSpectrum(
             name, file_raw, data_uncalibrated,
             background_mass_window, calibrate,
@@ -602,12 +605,13 @@ BatchCoordinator.start_batch_process()
           └─ Calibrant (per locally available calibrant peak)
                └─ IsotopicPeak: extract data, spline max → mz_observed
         BatchWorker:
-          └─ filter calibrants by S/N
-          └─ borrow nearest RT groups as needed for count and m/z coverage
-          └─ assign MassSpectrum.calibrants_to_fit
+          └─ pool calibrants from enabled sum spectra
+          └─ filter each window's calibrants by its S/N threshold
+          └─ enforce the minimum count on the global pool
+          └─ assign the pool once to MassSpectrum.calibrants_to_fit
         MassSpectrum:
-          └─ numpy.polyfit(mz_observed, mz_exact − mz_observed) → correction
-          └─ add fitted correction to observed m/z → data_calibrated
+          └─ numpy.polyfit(...) once → global correction coefficients
+          └─ apply the same correction to every enabled sum spectrum
           └─ IsotopicPeak (per reference row): area, background, noise
           └─ Analyte (per analyte+charge): aggregate metrics
           └─ plot_calibration() → calibration PDF figure
