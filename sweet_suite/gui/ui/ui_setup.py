@@ -137,7 +137,7 @@ class UISetup:
             "window (Da) divided by the analyte charge state."
         )
         ui.calibration_mass_window.setToolTip(
-            "Determines the m/z window used around the exact m/z of a calibrant"
+            "Determines the m/z window used around the exact m/z of a calibrant "
             "peak to determine its observed m/z.\nThe calibration m/z window equals "
             "the mass window (Da) divided by the calibrant charge state."
         )

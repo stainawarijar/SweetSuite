@@ -81,13 +81,23 @@ class MassSpectrum():
         self.plot_mz_corrections = plot_mz_corrections
         self.apply_calibration()
 
-    def apply_calibration(self, plot: bool = True) -> None:
+    def apply_calibration(
+        self,
+        plot: bool = True,
+        color_map: dict[
+            tuple[float, float],
+            tuple[float, float, float, float]
+        ] | None = None
+    ) -> None:
         """Calibrate the data using a calibration fit, but only if fit 
         coefficients or a list of calibrants to fit are provided.
         
         Args:
             plot: Whether to create a calibration figure or not. 
                 Set to `True` by default.
+            color_map: An optional dictionary that maps (time, window)
+                combinations to colors. These are used for coloring
+                data points in the calibration fit figure.
 
         The fitted coefficients are used to populate `data_calibrated` and
         `calibration_plot`. If a calibration fit is in `self.calibration_fit`
@@ -100,10 +110,13 @@ class MassSpectrum():
         else:
             fit = self.fit_calibration()  # Based on `self.calibrants_to_fit`
 
-        self.data_calibrated = self.calibrate_data(fit)
+        self.data_calibrated = self.calibrate_data(calibration_fit=fit)
 
         if plot:
-            self.calibration_plot = self.plot_calibration(fit)
+            self.calibration_plot = self.plot_calibration(
+                calibration_fit=fit, 
+                color_map=color_map
+            )
         else:
             self.calibration_plot = None
 
@@ -218,7 +231,11 @@ class MassSpectrum():
 
     def plot_calibration(
         self,
-        calibration_fit: np.ndarray | None
+        calibration_fit: np.ndarray | None,
+        color_map: dict[
+            tuple[float, float],
+            tuple[float, float, float, float]
+        ] | None = None
     ) -> Figure | None:
         """Plot the calibration fit.
 
@@ -231,6 +248,8 @@ class MassSpectrum():
         Args:
             calibration_fit: Quadratic fit coefficients in the order
                 [quadratic, linear, intercept].
+            color_map: An optional dictionary that maps (time, window)
+                combinations to colors. 
 
         Returns:
             A matplotlib Figure. `None` if `calibration_fit` is `None`.
@@ -281,7 +300,7 @@ class MassSpectrum():
         else:
             y_values = mz_delta
             y_fitted = delta_fitted
-            y_label = r"Required m/z correction $\Delta m/z$"
+            y_label = r"Required correction $\Delta m/z$"
 
         # Create figure.
         figure, axis = plt.subplots()
@@ -292,10 +311,14 @@ class MassSpectrum():
                     (time_windows[:, 0] == time_value) &
                     (time_windows[:, 1] == window_value)
                 )
+
+                key = (float(time_value), float(window_value))
+
                 axis.scatter(
                     mz_observed[mask],
                     y_values[mask],
                     s=45,
+                    color=color_map[key] if color_map is not None else None,
                     edgecolor="black",
                     linewidths=0.4,
                     label=f"{time_value:g} ± {window_value:g} s"

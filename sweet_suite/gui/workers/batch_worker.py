@@ -677,6 +677,14 @@ class BatchWorker(QObject):
         # Get distinct retention times ranges as a list of tuples.
         rt_ranges = list(self.sum_spectra_calibration.keys())
 
+        # Map each RT range to a unique color, these will be used in the
+        # calibation fit figures.
+        cmap = plt.get_cmap("tab10")
+        rt_colors = {
+            rt_range: cmap(i)
+            for i, rt_range in enumerate(rt_ranges)
+        }
+
         # Read in analytes reference Excel file.
         # Then extract the data for the calibrants.
         analytes_ref = pd.read_excel(analytes_ref_path)
@@ -839,7 +847,7 @@ class BatchWorker(QObject):
                         ms.calibrants_to_fit = calibrants
                         calibration_fit = ms.fit_calibration()
                         ms.calibration_fit = calibration_fit
-                        ms.apply_calibration(plot=True)
+                        ms.apply_calibration(plot=True, color_map=rt_colors)
                         calibration_plot = ms.calibration_plot
                         ms.calibration_plot = None  # Free up memory
 
@@ -1022,7 +1030,8 @@ class BatchWorker(QObject):
                     calibration_mass_window=self.calibration_mass_window,
                     calibrants_df=calibrants_df,
                     time=None,
-                    time_window=None
+                    time_window=None,
+                    plot_mz_corrections=self.plot_mz_corrections
                 )
 
                 # Check number of calibrants above S/N cut-off.
