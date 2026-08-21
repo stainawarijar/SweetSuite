@@ -1025,7 +1025,6 @@ class BatchWorker(QObject):
                     finally:
                         plt.close(calibration_plot)
                 elif calibrate_any:
-                    # TODO: Add failed plot also to XY quantitation function
                     failed_plot = self.plot_failed_calibration(
                         file_name=mzxml.file_name,
                         calibrants=calibrants,
@@ -1218,17 +1217,19 @@ class BatchWorker(QObject):
                     self.logger.info(
                         f"Calibrated spectrum {file_name}"
                     )
+
                 # If not enough calibrants: either no calibrants were specified
                 # and calibration can be skipped, or not enough calibrants
-                # had sufficient S/N/
+                # had sufficient S/N.
                 elif calibrants_df.empty:
                     self.logger.info(
                         f"Skipped calibration of spectrum {file_name}"
                     )
+                    
                 else:
-                    self.logger.info(
-                        f"Failed calibrating spectrum {file_name}: "
-                        "too few calibrants above S/N cut-off."
+                    self.logger.warning(
+                        f"Failed calibration fit for {file_name}: "
+                        "not enough calibrants above S/N cut-off."
                     )
 
                 # Save calibration fit figure to PDF.
@@ -1238,6 +1239,15 @@ class BatchWorker(QObject):
                     finally:
                         plt.close(spectrum.calibration_plot)
                         spectrum.calibration_plot = None
+                elif not calibrants_df.empty:
+                    failed_plot = self.plot_failed_calibration(
+                        file_name=file_name,
+                        calibrants=calibrants
+                    )
+                    try:
+                        pdf.savefig(failed_plot)
+                    finally:
+                        plt.close
 
                 # Write .xy files when requested, but only when calibration
                 # was attempted (otherwise data is just duplicated).
