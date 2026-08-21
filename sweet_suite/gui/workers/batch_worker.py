@@ -6,6 +6,7 @@ import warnings
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -657,6 +658,147 @@ class BatchWorker(QObject):
                 self.alignment_progress.emit(percent)
         
         return True
+
+    def plot_failed_calibration(
+        self,
+        file_name: str,
+        calibrants: list[Calibrant],
+        color_by_time: bool = False,
+        color_map: dict[
+            tuple[float, float],
+            tuple[float, float, float, float]
+        ] | None = None
+    ) -> Figure:
+        """Plot calibrants for a failed calibration attempt.
+
+        Required m/z corrections or mass errors (ppm) are plotted against the
+        observed m/z values for calibrants that passed the S/N threshold but 
+        were insufficient for calibration fitting. Calibrant data points are 
+        colored by their retention time window if applicable. 
+        No fitted curve is shown.
+
+        Args:
+            calibrants: Calibrants that passed the S/N threshold.
+            file_name: Name of raw file, used as a title for the plot.
+            color_by_time: Whether to color the data points by retention    
+                time window.
+            color_map: An optional dictionary that maps (time, window)
+                combinations to colors.
+
+        Returns:
+            A matplotlib Figure.
+        """
+        figure, axis = plt.subplots()
+
+        # If no calibrants are available, still return a failure page.
+        if not calibrants:
+            axis.set_title(
+                f"{file_name}\n"
+                "Calibration failed: no calibrants passed the S/N threshold",
+                color="red",
+                fontweight="bold",
+                fontsize=11
+            )
+            axis.axis("off")
+            axis.text(
+                0.5,
+                0.5,
+                "No calibrants available for plotting.",
+                ha="center",
+                va="center",
+                transform=axis.transAxes
+            )
+            figure.tight_layout()
+            return figure
+
+        mz_exact = np.array(
+            [cal.mz_exact for cal in calibrants],
+            dtype=float
+        )
+
+        mz_observed = np.array(
+            [cal.mz_observed for cal in calibrants],
+            dtype=float
+        )
+
+        mz_delta = np.array(
+            [cal.mz_exact - cal.mz_observed for cal in calibrants],
+            dtype=float
+        )
+
+        # Determine values to plot: m/z corrections or ppm errors.
+        if not self.plot_mz_corrections:
+            y_values = -mz_delta / mz_exact * 1e6
+            y_label = "Mass error (ppm)"
+        else:
+            y_values = mz_delta
+            y_label = r"Required correction $\Delta m/z$"
+
+        # Light red background to indicate failure.
+        axis.set_facecolor("#fde8e8")
+
+        if color_by_time:
+            time_windows = np.array(
+                [(cal.time, cal.time_window) for cal in calibrants],
+                dtype=float
+            )
+            for time_value, window_value in np.unique(time_windows, axis=0):
+                mask = (
+                    (time_windows[:, 0] == time_value) &
+                    (time_windows[:, 1] == window_value)
+                )
+
+                key = (float(time_value), float(window_value))
+
+                axis.scatter(
+                    mz_observed[mask],
+                    y_values[mask],
+                    s=45,
+                    color=color_map[key] if color_map is not None else None,
+                    edgecolor="black",
+                    linewidths=0.4,
+                    label=f"{time_value:g} ± {window_value:g} s"
+                )
+        else:
+            axis.scatter(
+                mz_observed,
+                y_values,
+                s=45,
+                edgecolor="black",
+                linewidths=0.4
+            )
+
+        axis.set_xlabel(r"Observed $m/z$")
+        axis.set_ylabel(y_label)
+
+        axis.set_title(
+            f"{file_name}\n"
+            "Calibration failed: insufficient number of suitable calibrants",
+            color="red",
+            fontweight="bold",
+            fontsize=11
+        )
+
+        if color_by_time:
+            axis.legend(
+                title="Sum spectrum",
+                loc="center left",
+                bbox_to_anchor=(1.02, 0.5),
+                fontsize=9,
+                title_fontsize=9
+            )
+
+        axis.set_axisbelow(True)
+        axis.grid(
+            True,
+            which="major",
+            linewidth=0.5,
+            alpha=0.2
+        )
+
+        figure.tight_layout()
+
+        return figure
     
     def quantitate_mzxml_files(
         self,
@@ -803,36 +945,42 @@ class BatchWorker(QObject):
                     )
 
                     mass_spectra.append(mass_spectrum)
-                
+
                 # Collect all calibrants with S/N at or above threshold, from
                 # sum spectra that the user chose to calibrate.
-                calibrants = []
-                for ms in mass_spectra:
-                    # If calibration is disabled for the sum spectrum, don't
-                    # use its calibrants anywhere.
-                    if not ms.calibrate:
-                        continue
-                    # For sum spectra we use the S/N cut-off specified in the
-                    # table, not the global value.
-                    sn_cutoff = self.sum_spectra_calibration[
-                        (ms.time, ms.time_window)
-                    ]["sn_cutoff"]
-                    for cal in ms.local_calibrants:
-                        if cal.signal_to_noise >= sn_cutoff:
-                            calibrants.append(cal)
+                # But this is only necessary if at least one sum spectrum
+                # should be calibrated.
+                calibrate_any = any(ms.calibrate for ms in mass_spectra)
 
-                # Check against minimum number of calibrants.
-                if len(calibrants) < self.min_calibrant_number:
-                    self.logger.warning(
-                        f"Failed calibration fit for {os.path.basename(path)}: "
-                        "not enough calibrants above S/N cut-off."
-                    )
-                    continue
+                if calibrate_any:
+                    calibrants = []
+                    for ms in mass_spectra:
+                        # If calibration is disabled for the sum spectrum, 
+                        # don't use its calibrants anywhere.
+                        if not ms.calibrate:
+                            continue
 
+                        # For sum spectra we use the S/N cut-off specified in 
+                        # the table, not the global value.
+                        sn_cutoff = self.sum_spectra_calibration[
+                            (ms.time, ms.time_window)
+                        ]["sn_cutoff"]
+
+                        for cal in ms.local_calibrants:
+                            if cal.signal_to_noise >= sn_cutoff:
+                                calibrants.append(cal)
+
+                    # Check against minimum number of calibrants.
+                    if len(calibrants) < self.min_calibrant_number:
+                        self.logger.warning(
+                            f"Failed calibration fit for "
+                            f"{os.path.basename(path)}: "
+                            "not enough calibrants above S/N cut-off."
+                        )
+                
                 # Loop over mass spectra and apply calibration.
                 # The calibration fit is the same for each mass spectrum,
-                # because each uses the same calibrants. So we only need
-                # to fit once. 
+                # so fitting is needed only once.
                 calibration_fit = None
                 calibration_plot = None
 
@@ -848,6 +996,12 @@ class BatchWorker(QObject):
                     if calibration_fit is not None:
                         ms.calibration_fit = calibration_fit
                         ms.apply_calibration(plot=False)
+
+                    elif len(calibrants) < self.min_calibrant_number:
+                        # Calibration fit failed. `ms.calibrate`` is still 
+                        # `True`, so it will not be quantified later.
+                        continue
+
                     else:
                         ms.calibrants_to_fit = calibrants
                         calibration_fit = ms.fit_calibration()
@@ -870,7 +1024,19 @@ class BatchWorker(QObject):
                         pdf.savefig(calibration_plot)
                     finally:
                         plt.close(calibration_plot)
-
+                elif calibrate_any:
+                    # TODO: Add failed plot also to XY quantitation function
+                    failed_plot = self.plot_failed_calibration(
+                        file_name=mzxml.file_name,
+                        calibrants=calibrants,
+                        color_by_time=True,
+                        color_map=rt_colors
+                    )
+                    try:
+                        pdf.savefig(failed_plot)
+                    finally:
+                        plt.close()
+                
                 # Write .xy files when requested.
                 if self.save_xy:
                     for ms in mass_spectra:

@@ -278,11 +278,6 @@ class MassSpectrum():
             dtype=float
         )
 
-        time_windows = np.array(
-            [(cal.time, cal.time_window) for cal in calibrants],
-            dtype=float
-        )
-
         # In case of LC-MS data, color by retention time.
         if self.time is None:
             color_by_time = False
@@ -309,6 +304,10 @@ class MassSpectrum():
         figure, axis = plt.subplots()
 
         if color_by_time:
+            time_windows = np.array(
+                [(cal.time, cal.time_window) for cal in calibrants],
+                dtype=float
+            )
             for time_value, window_value in np.unique(time_windows, axis=0):
                 mask = (
                     (time_windows[:, 0] == time_value) &
@@ -388,15 +387,14 @@ class MassSpectrum():
             `None` if the mass spectrum failed to calibrate.
         """
         # Determine which MS data to use.
-        if self.data_calibrated is None:
-            if self.calibrate:
-                # Calibration failed, return None.
-                return
-            else:
-                # No calibration, so use uncalibrated data.
-                spectrum = self.data_uncalibrated
-        else:
+        if self.data_calibrated is not None:
             spectrum = self.data_calibrated
+        elif self.calibrate:
+            # Calibration failed, return `None`.
+            return
+        else:
+            # No calibration, so use uncalibrated data.
+            spectrum = self.data_uncalibrated
         
         # In case of LC data: get analytes ref only for RT range.
         if (self.time is not None and self.time_window is not None):
