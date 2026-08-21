@@ -1247,7 +1247,7 @@ class BatchWorker(QObject):
                     try:
                         pdf.savefig(failed_plot)
                     finally:
-                        plt.close
+                        plt.close()
 
                 # Write .xy files when requested, but only when calibration
                 # was attempted (otherwise data is just duplicated).
