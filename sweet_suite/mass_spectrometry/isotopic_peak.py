@@ -86,7 +86,7 @@ class IsotopicPeak:
         if len(self.data) == 0:
             self.logger.warning(
                 f"No data found around m/z {self.mz_exact} within "
-                f"quantitation window {self.quantitation_window}. "
+                f"quantitation window {self.quantitation_mz_window}. "
                 "The window may be too small."
             )
             return np.nan
