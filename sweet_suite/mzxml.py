@@ -45,7 +45,7 @@ class Mzxml:
         self.retention_times = self.get_retention_times()
     
     @staticmethod
-    def create_mass_spectra(times_bytes: list[float, dict]) -> np.ndarray:
+    def create_mass_spectra(times_bytes: list[tuple[float, dict]]) -> list[tuple[float, np.ndarray]]:
         """Creates mass spectra from compressed bytes data.
 
         Processes a list of retention time and bytes dictionary pairs to extract
@@ -83,14 +83,15 @@ class Mzxml:
         """Return extensionless file name from the file path."""
         return Path(self.path).stem
 
-    def read_data_blocks(self) -> list[float, dict]:
+    def read_data_blocks(self) -> list[tuple[float, dict]]:
         """Read data blocks from mzXML file.
 
         Returns:
-            A list of containing tuples `(time, decoded_data)` where `time`
-            is the retention time of a data block and `decoded_data` is 
-            a dictionary containing decoded data (bytes), compression (bool),
-            endian (str) and encoding precision (str).
+            A list of `(time, decoded_data)` tuples, one per scan, where:
+            - `time` (float): retention time of the scan.
+            - `decoded_data` (dict): dictionary with keys `'bytes'`
+                (compressed data), `'compression'` (bool), `'endian'` (str),
+                and `'precision'` (str).
         """
         times_bytes = []
 
