@@ -365,8 +365,10 @@ are produced by `MassSpectrum.plot_calibration()`.
 - **`build_quantitation_table()`** — iterates over a list of `MassSpectrum`
   objects and their `Analyte` children to produce a long-format `DataFrame`
   with one row per `(file, analyte, charge)` combination. Columns include
-  `mz_exact`, `isotopic_fraction`, and whichever output parameters the user
-  selected (e.g. `total_area`, `signal_to_noise`, `mass_error_ppm`, `IPQ`).
+  `file`, `analyte`, `charge`, `mz_monoisotopic`, `mz_most_abundant`, 
+  `isotopic_fraction`, `total_area_background_subtracted`, `mass_error_ppm`,
+  `isotopic_pattern_quality`, `signal_to_noise`, `total_area`, 
+  `total_background` and `total_noise`.
   Accepts a `use_peak_height: bool` parameter that is forwarded to
   `MassSpectrum.quantify_analytes()` and from there to each `Analyte`. The
   reference table supplies a base row for every analyte/charge pair, so failed
