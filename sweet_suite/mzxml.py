@@ -4,7 +4,6 @@ import zlib
 
 from matplotlib.figure import Figure
 import numpy as np
-from scipy.interpolate import interp1d
 
 from .chromatography import alignment
 from .chromatography.alignment_feature import AlignmentFeature
