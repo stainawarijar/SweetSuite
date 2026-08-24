@@ -76,15 +76,28 @@ class Calibrant(IsotopicPeak):
         return float(self.spline_maximum[1])
     
     def get_signal_to_noise(self) -> float:
-        """Return signal-to-noise of the calibrant peak."""
-        # Get background and noise data.
+        """Return signal-to-noise of the calibrant peak.
+        
+        Returns:
+        - S/N value of the calibrant peak as a float.
+        - `0.0` in case of a non-positive background-subtracted signal.
+        - `np.nan` when background-subtracted signal is positive but noise
+            is zero or non-finite.
+        """
         background_and_noise = self.get_background_and_noise(
             target_mz=self.spline_maximum[0],
             background_mass_window=self.background_mass_window
         )
-        # Calculate S/N
+        
         background_avg_intensity = background_and_noise[0] 
         noise = background_and_noise[2]
-        sn = (self.signal - background_avg_intensity) / noise
 
-        return sn
+        signal_minus_background = self.signal - background_avg_intensity
+
+        if signal_minus_background <= 0:
+            return 0.0
+
+        if noise == 0 or not np.isfinite(noise):
+            return np.nan
+
+        return signal_minus_background / noise

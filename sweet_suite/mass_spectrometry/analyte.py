@@ -141,51 +141,51 @@ class Analyte:
         return values_sum
 
     def get_signal_to_noise(self) -> float:
-        """Return the signal-to-noise (S/N).
+        """Return the signal-to-noise (S/N) of the analyte.
         
         The S/N of the analyte is taken to be the S/N of the isotopic peak
-        with the highest theoretical relative area. 
+        with the highest theoretical relative abundance.
 
         Returns:
-            S/N value of the analyte as a float.
-            `0.0` in case of a negative S/N value.
-            `0.0` if background subtracted intensity is zero (analyte not
-            present).
-            `np.nan` when noise is non-positive (edge case that should
-            not happen).
+            - S/N value of the analyte as a float.
+            - `0.0` in case of a non-positive background-subtracted signal.
+            - `0.0` if background-subtracted analyte area is zero (analyte 
+            assumed to not be present).
+            - `np.nan` when background-subtracted signal is positive but noise
+                is zero or non-finite.
         """
-        # If background subtracted intensity is 0, the analyte is not there
-        # and we return `np.nan`
+        # If background subtracted area of analyte is zero, assume the analyte 
+        # is not there and return zero for S/N.
         if self.total_area_background_subtracted == 0:
             return 0.0
 
-        # Get noise and average background intensity.
-        average_background_intensity = self.background_and_noise[0]
-        noise = self.background_and_noise[2]
-
-        # Check for non-positive noise.
-        if noise <= 0:
-            self.logger.warning(
-                f"Non-positive noise for analyte {self.name}; "
-                "returning NaN for S/N."
-            )
-            # NOTE: Negative should not be possible because noise is calculated
-            # as a standard deviation of data points.
-            return np.nan
-        
         # Get maximum intensity for the most abundant isotopic peak.
         maximum_intensity = self.peaks.loc[
             self.peaks["relative_area_theoretical"].idxmax(), 
             "maximum_intensity"
         ]
-        
-        # Calculate S/N.
-        sn = (maximum_intensity - average_background_intensity) / noise
 
-        # In case of negative result, return zero.
-        if sn < 0:
+        # Get noise and average background intensity.
+        background_avg_intensity = self.background_and_noise[0]
+        noise = self.background_and_noise[2]
+
+        # Calculate background-subtracted signal.
+        signal_minus_background = maximum_intensity - background_avg_intensity
+
+        # If background subtracted signal is non-positive, return zero.
+        if signal_minus_background <= 0:
             return 0.0
-        return sn
+
+        # Guard against zero or non-finite noise values.
+        if noise == 0 or not np.isfinite(noise):
+            self.logger.warning(
+                f"Zero or non-finite noise value for analyte {self.name}; "
+                "returning NaN for S/N."
+            )
+            return np.nan
+        
+        # Return signal-to-noise
+        return signal_minus_background / noise
     
     def get_mass_error_ppm(self) -> float:
         """Return the mass error in parts per million (ppm).
