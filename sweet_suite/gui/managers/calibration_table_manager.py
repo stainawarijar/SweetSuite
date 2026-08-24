@@ -2,14 +2,18 @@ import os
 
 import pandas as pd
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QCheckBox, QSpinBox, QTableWidgetItem
+from PyQt6.QtWidgets import QPushButton, QSpinBox, QTableWidgetItem
 from PyQt6.QtGui import QIcon
 
 from ...utils import utils
 
 
 class CalibrationTableManager:
-    """Handles calibration table population and operations."""
+    """Populate and read the main-window calibration table.
+
+    The manager converts analyte or reference data into editable calibrant
+    rows and applies calibration signal-to-noise settings to those rows.
+    """
     
     def __init__(self, parent, ui):
         """Initialize calibration table manager.
@@ -98,37 +102,30 @@ class CalibrationTableManager:
             window_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(i, 1, window_item)
             
-            # Calibration checkboxes (enable if calibrants present).
-            checkbox = QCheckBox()
-            checkbox.setChecked(bool(calibrants_present))
-            checkbox.setEnabled(bool(calibrants_present))
-            checkbox.setStyleSheet("""
-                QCheckBox {
+            # Every LC-MS window is calibrated by default. Windows without
+            # local calibrants can use calibrants from nearby retention times.
+            calibrate_button = QPushButton("Yes")
+            calibrate_button.setCheckable(True)
+            calibrate_button.setChecked(True)
+            calibrate_button.setStyleSheet("""
+                QPushButton {
                     margin: 0px;
                     padding: 0px;
-                }
-                QCheckBox::indicator {
-                    width: 100%;
-                    height: 100%;
                     border: none;
-                }
-                QCheckBox::indicator:unchecked:enabled {
+                    border-radius: 0px;
                     background-color: #ff4444;
+                    color: white;
                 }
-                QCheckBox::indicator:checked:enabled {
+                QPushButton:checked {
                     background-color: #4CAF50;
-                }
-                QCheckBox::indicator:unchecked:disabled {
-                    background-color: #ff4444;
-                }
-                QCheckBox::indicator:checked:disabled {
-                    background-color: #4CAF50;
-                }
-                QCheckBox::indicator:disabled {
-                    background-color: #c0c0c0;
                 }
             """)
-            self.table.setCellWidget(i, 2, checkbox)
+            calibrate_button.toggled.connect(
+                lambda checked, button=calibrate_button: button.setText(
+                    "Yes" if checked else "No"
+                )
+            )
+            self.table.setCellWidget(i, 2, calibrate_button)
             
             # S/N cut-off spin box (enabled if calibrant present).
             spinbox = QSpinBox()
@@ -195,9 +192,9 @@ class CalibrationTableManager:
             except (AttributeError, ValueError):
                 continue  # Skip rows with invalid data (should not happen).
             
-            checkbox = self.table.cellWidget(row, 2)
-            if isinstance(checkbox, QCheckBox):
-                calibrate = checkbox.isChecked()
+            calibrate_button = self.table.cellWidget(row, 2)
+            if isinstance(calibrate_button, QPushButton):
+                calibrate = calibrate_button.isChecked()
             
             spinbox = self.table.cellWidget(row, 3)
             if isinstance(spinbox, QSpinBox):

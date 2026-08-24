@@ -4,11 +4,11 @@ from ..mass_spectrometry.mass_spectrum import MassSpectrum
 
 
 def build_quantitation_table(
-        filename: str,
-        mass_spectra: list[MassSpectrum],
-        analytes_ref: pd.DataFrame,
-        output_params: list[str],
-        use_peak_height: bool = False
+    filename: str,
+    mass_spectra: list[MassSpectrum],
+    analytes_ref: pd.DataFrame,
+    output_params: list[str],
+    use_peak_height: bool = False
 ) -> pd.DataFrame:
     """Create a table in long format with quantitation results for all 
     sum spectra of an mzXML file.
@@ -106,7 +106,10 @@ def build_quantitation_table(
     keep = {}  # (filename, analyte, charge): {parameters}
     skipped_labels: set[str] = set()
     for spectrum in mass_spectra:
-        analytes = spectrum.quantify_analytes(analytes_ref, use_peak_height=use_peak_height)
+        analytes = spectrum.quantify_analytes(
+            analytes_ref=analytes_ref, 
+            use_peak_height=use_peak_height
+        )
         skipped_labels.update(getattr(spectrum, "skipped_analytes", set()))
         if not analytes:
             continue  # Uncalibrated, grid keeps blank row for it.

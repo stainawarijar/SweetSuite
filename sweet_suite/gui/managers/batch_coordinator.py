@@ -10,7 +10,11 @@ from ..workers.batch_worker import BatchWorker
 
 
 class BatchCoordinator:
-    """Handles batch processing workflow and coordination."""
+    """Coordinate batch processing between the GUI and its worker thread.
+
+    The coordinator validates startup, manages the progress dialog and worker
+    lifecycle, and forwards progress, completion, abort, and error events.
+    """
     
     def __init__(self, parent, ui, advanced_ui, logger):
         """Initialize batch coordinator. 
@@ -163,7 +167,8 @@ class BatchCoordinator:
                 float(self.advanced_ui.constant_coeff.value()) * 10 ** float(self.advanced_ui.constant_exponent.value())
             ),
             use_peak_height=bool(self.advanced_ui.checkBox_peakHeights.isChecked()),
-            save_xy=bool(self.advanced_ui.checkBox_save_xy.isChecked())
+            save_xy=bool(self.advanced_ui.checkBox_save_xy.isChecked()),
+            plot_mz_corrections=bool(self.advanced_ui.checkBox_plot_mz_corrections.isChecked())
         )
         # Move batch worker to thread
         self.batch_thread = QThread()
@@ -318,11 +323,11 @@ class BatchCoordinator:
     
     # Event handlers
     def on_batch_error(
-            self,
-            title: str,
-            text: str,
-            informative_text: str,
-            icon: str
+        self,
+        title: str,
+        text: str,
+        informative_text: str,
+        icon: str
     ) -> None:
         """Handle errors from the batch worker."""
         self.logger.error(f"Batch error: {title} - {text} - {informative_text}")

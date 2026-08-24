@@ -24,7 +24,7 @@ class Mzxml:
     Attributes:
         path (str): Path to the mzXML file.
         file_name (str): File name without extension.
-        times_bytes (list[float, dict]): A list of containing tuples 
+        times_bytes (list[tuple[float, dict]]): A list of tuples
             `(time, decoded_data)` where `time` is the retention time of an
             mzXML data block and `decoded_data` is a dictionary containing 
             decoded data (bytes), compression (bool), endian (str) and 
@@ -45,7 +45,7 @@ class Mzxml:
         self.retention_times = self.get_retention_times()
     
     @staticmethod
-    def create_mass_spectra(times_bytes: list[float, dict]) -> np.ndarray:
+    def create_mass_spectra(times_bytes: list[tuple[float, dict]]) -> list[tuple[float, np.ndarray]]:
         """Creates mass spectra from compressed bytes data.
 
         Processes a list of retention time and bytes dictionary pairs to extract
@@ -58,9 +58,9 @@ class Mzxml:
             'compression' (bool), 'endian' (str), and 'precision' (str).
 
         Returns:
-            List of tuples containing retention times and corresponding 2D 
-            arrays with m/z values in the first column and intensity values 
-            in the second column.
+            A list of `(retention_time, spectrum)` tuples. Each spectrum is a
+            2D array with m/z values in the first column and intensities in
+            the second column.
         """
         data_required = []
         for rt, bytes_dict in times_bytes:
@@ -83,14 +83,15 @@ class Mzxml:
         """Return extensionless file name from the file path."""
         return Path(self.path).stem
 
-    def read_data_blocks(self) -> list[float, dict]:
+    def read_data_blocks(self) -> list[tuple[float, dict]]:
         """Read data blocks from mzXML file.
 
         Returns:
-            A list of containing tuples `(time, decoded_data)` where `time`
-            is the retention time of a data block and `decoded_data` is 
-            a dictionary containing decoded data (bytes), compression (bool),
-            endian (str) and encoding precision (str).
+            A list of `(time, decoded_data)` tuples, one per scan, where:
+            - `time` (float): retention time of the scan.
+            - `decoded_data` (dict): dictionary with keys `'bytes'`
+                (compressed data), `'compression'` (bool), `'endian'` (str),
+                and `'precision'` (str).
         """
         times_bytes = []
 
@@ -208,9 +209,9 @@ class Mzxml:
         return SumSpectrum(self.file_name, time, time_window, rounded)
     
     def get_alignment_fit_eics(
-            self,
-            alignment_features: list[AlignmentFeature],
-            min_peaks: int
+        self,
+        alignment_features: list[AlignmentFeature],
+        min_peaks: int
     ) -> tuple[np.ndarray | None, list[Eic]]:
         """Fit the required retention times as a function of observed
         retention times for a list of alignment features.
@@ -258,8 +259,8 @@ class Mzxml:
         return (fit_coeffs, eics)
 
     def plot_alignment_fit(
-            self,
-            fit_eics: tuple[np.ndarray | None, list[Eic]]
+        self,
+        fit_eics: tuple[np.ndarray | None, list[Eic]]
     ) -> Figure:
         """Visualize the curve fitting for retention alignment.
 
@@ -293,8 +294,8 @@ class Mzxml:
         return plot
 
     def align_retention_times(
-            self,
-            fit_eics: tuple[np.ndarray, list[Eic]]
+        self,
+        fit_eics: tuple[np.ndarray, list[Eic]]
     ) -> None:
         """Align retention times and write to a new mzXML file.
 
@@ -353,10 +354,3 @@ class Mzxml:
                     idx += 1
                 else:
                     new_file.write(line)
-
-
-
-
-    
-    
-        

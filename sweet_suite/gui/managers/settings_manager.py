@@ -9,7 +9,11 @@ from ...utils import utils
 
 
 class SettingsManager:
-    """Handles settings import, export, and reset operations."""
+    """Import, export, apply, collect, and reset GUI settings.
+
+    Settings are represented as CSV-compatible values and include controls
+    from both the main window and advanced-settings dialog.
+    """
 
     _BOOL_TRUE  = {"true",  "1", "yes"}
     _BOOL_FALSE = {"false", "0", "no"}
@@ -46,7 +50,7 @@ class SettingsManager:
     def export_settings(self) -> None:
         """Export all settings to a CSV file, with option to rename."""
         current_datetime = datetime.now().strftime("%d-%m-%Y_%H%M")
-        default_filename = f"{current_datetime}_sweet_suite_settings.csv"
+        default_filename = f"{current_datetime}_SweetSuite_settings.csv"
         save_path, _ = QFileDialog.getSaveFileName(
             self.parent,
             "Export settings to CSV",
@@ -251,6 +255,9 @@ class SettingsManager:
             ),
             "save_xy": bool(
                 self.advanced_ui.checkBox_save_xy.isChecked()
+            ),
+            "plot_mz_corrections": bool(
+                self.advanced_ui.checkBox_plot_mz_corrections.isChecked()
             )
         }
     
@@ -329,4 +336,10 @@ class SettingsManager:
             settings.get("save_xy", self.advanced_ui.checkBox_save_xy.isChecked()),
             default=self.advanced_ui.checkBox_save_xy.isChecked()
         ))
-
+        self.advanced_ui.checkBox_plot_mz_corrections.setChecked(self.parse_bool(
+            settings.get(
+                "plot_mz_corrections",
+                self.advanced_ui.checkBox_plot_mz_corrections.isChecked()
+            ),
+            default=self.advanced_ui.checkBox_plot_mz_corrections.isChecked()
+        ))

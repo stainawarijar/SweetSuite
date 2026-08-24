@@ -11,6 +11,10 @@ class Calibrant(IsotopicPeak):
     window around the theoretical m/z.
 
     Attributes:
+        time (float | None): Retention time of corresponding sum spectrum.
+            `None` in case of MS-only data.
+        background_mass_window (float): Mass window (Da) used to estimate
+            background and noise around the calibrant peak.
         calibration_mass_window (float): Mass window (Da) used to derive 
             the calibration m/z window.
         calibration_mz_window (float): m/z window (Th), equal to
@@ -25,8 +29,11 @@ class Calibrant(IsotopicPeak):
         self,
         mz_exact: float,
         charge: int,
+        time: float | None,
+        time_window: float | None,
         spectrum: np.ndarray,
-        integration_mz_window: float,
+        background_mass_window: float,
+        quantitation_mz_window: float,
         calibration_mass_window: float
     ):
         """Initialize a calibrant peak.
@@ -34,17 +41,27 @@ class Calibrant(IsotopicPeak):
         Args:
             mz_exact: Exact (theoretical) m/z of the peak.
             charge: Ion charge state.
+            time: Retention time of corresponding sum spectrum. Set to `None`
+                in case of MS-only data.
+            time_window: Retention time window of the corresponding sum 
+                spectrum. Set to `None` in case of MS-only data.
             spectrum: 2D array with m/z and intensity columns.
-            integration_mz_window: m/z window (Th) used for extraction.
+            background_mass_window: Mass window (Da) used to estimate
+                background and noise around the calibrant peak.
+            quantitation_mz_window: m/z window (Th) used for extraction.
             calibration_mass_window: Mass window (Da) used to compute the 
                 calibration m/z window.
         """                                                                       
-        super().__init__(mz_exact, charge, spectrum, integration_mz_window)
+        super().__init__(mz_exact, charge, spectrum, quantitation_mz_window)
+        self.time = time
+        self.time_window = time_window
+        self.background_mass_window = background_mass_window
         self.calibration_mass_window = calibration_mass_window
         self.calibration_mz_window = self.get_calibration_mz_window()
         self.spline_maximum = self.get_spline_maximum(self.calibration_mz_window)
         self.mz_observed = self.get_mz_observed()
         self.signal = self.get_signal()
+        self.signal_to_noise = self.get_signal_to_noise()
 
     def get_calibration_mz_window(self) -> float:
         """Return the calibration m/z window (Th)."""
@@ -57,3 +74,30 @@ class Calibrant(IsotopicPeak):
     def get_signal(self) -> float:
         """Return signal (intensity) at the spline maximum."""
         return float(self.spline_maximum[1])
+    
+    def get_signal_to_noise(self) -> float:
+        """Return signal-to-noise of the calibrant peak.
+        
+        Returns:
+        - S/N value of the calibrant peak as a float.
+        - `0.0` in case of a non-positive background-subtracted signal.
+        - `np.nan` when background-subtracted signal is positive but noise
+            is zero or non-finite.
+        """
+        background_and_noise = self.get_background_and_noise(
+            target_mz=self.spline_maximum[0],
+            background_mass_window=self.background_mass_window
+        )
+        
+        background_avg_intensity = background_and_noise[0] 
+        noise = background_and_noise[2]
+
+        signal_minus_background = self.signal - background_avg_intensity
+
+        if signal_minus_background <= 0:
+            return 0.0
+
+        if noise == 0 or not np.isfinite(noise):
+            return np.nan
+
+        return signal_minus_background / noise

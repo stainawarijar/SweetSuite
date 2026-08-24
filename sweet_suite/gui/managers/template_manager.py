@@ -8,7 +8,11 @@ from ...utils import utils
 
 
 class TemplateManager:
-    """Handles template file download operations."""
+    """Copy packaged alignment, analyte, and block templates for the user.
+
+    The manager prompts for a destination and reports whether the selected
+    template was copied successfully.
+    """
     
     TEMPLATES = {
         "alignment": ("alignment_template.xlsx", "Alignment template"),

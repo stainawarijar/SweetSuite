@@ -6,10 +6,10 @@ import numpy as np
 
 
 def plot_polynomial(
-        mzs_observed: list[float],
-        mzs_exact: list[float],
-        poly_func: np.poly1d,
-        title: str
+    mzs_observed: list[float],
+    mzs_exact: list[float],
+    poly_func: np.poly1d,
+    title: str
 ) -> Figure:
     """Plots a polynomial calibration curve for mass spectrometry data.
 
@@ -134,153 +134,6 @@ def plot_polynomial(
         else:
             # Worsened - dark red
             post_cal_cell.set_text_props(color='darkred', weight='bold')
-    
-    plt.tight_layout()
-    
-    return fig
-
-
-def plot_calibration_failure(
-        title: str,
-        mzs_observed: list[float],
-        mzs_exact: list[float]
-) -> Figure:
-    """Creates a plot showing calibration failure with diagnostic information.
-
-    This function generates a figure matching the successful calibration layout
-    but showing only uncalibrated data points and the target line in red,
-    along with a table showing pre-calibration mass errors.
-
-    Args:
-        title: Title for the plot (mass spectrum name).
-        mzs_observed: List of observed m/z values from mass spectrometry.
-        mzs_exact: List of exact (theoretical) m/z values.
-
-    Returns:
-        Matplotlib Figure object containing the uncalibrated calibration plot
-        with failure message and pre-calibration errors table.
-    """
-    # Convert to numpy arrays for calculations.
-    mz_array = np.array(mzs_observed)
-    mzs_exact_array = np.array(mzs_exact)
-    
-    # Check if there are any calibrants to display.
-    has_calibrants = len(mzs_observed) > 0
-    
-    if has_calibrants:
-        # Calculate pre-calibration mass errors (ppm).
-        pre_cal_errors = (mz_array - mzs_exact_array) / mzs_exact_array * 1e6
-        
-        # Sort data by m/z (high to low) for table.
-        sort_indices = np.argsort(mzs_exact_array)[::-1]
-        
-        # Create figure with gridspec for side-by-side layout.
-        # Scale height based on number of calibrants to accommodate table.
-        num_calibrants = len(mzs_observed)
-        fig_height = max(6, min(10, 4 + num_calibrants * 0.25))
-        fig = plt.figure(figsize=(12, fig_height))
-        gs = gridspec.GridSpec(1, 2, width_ratios=[2.5, 1], figure=fig)
-        
-        # Create plot on the left.
-        ax_plot = fig.add_subplot(gs[0])
-    else:
-        # No calibrants - single plot layout without table.
-        fig = plt.figure(figsize=(8, 6))
-        ax_plot = fig.add_subplot(1, 1, 1)
-    
-    # Handle case when there are calibrants to plot.
-    if has_calibrants:
-        # Plot only uncalibrated data points in red.
-        ax_plot.scatter(
-            mz_array, mzs_exact_array, label="Uncalibrated",
-            color="#CC0000", alpha=0.5, s=80
-        )
-        
-        # Plot target line in red.
-        # For a single data point, use observed m/z ± 50
-        min_mz = np.min(mz_array)
-        max_mz = np.max(mz_array)
-        
-        # If there's only one point, expand the range by ±50 m/z
-        if min_mz == max_mz:
-            min_mz = min_mz - 50
-            max_mz = max_mz + 50
-        
-        x_range = np.array([min_mz, max_mz])
-        ax_plot.plot(x_range, x_range, color="#CC0000", linestyle="--", label="Target", linewidth=2)
-        
-        # Set equal axis limits to keep the diagonal nature of the target line clear
-        ax_plot.set_xlim(min_mz, max_mz)
-        ax_plot.set_ylim(min_mz, max_mz)
-    else:
-        # No calibrants passed S/N threshold - set default axis limits.
-        ax_plot.set_xlim(0, 100)
-        ax_plot.set_ylim(0, 100)
-    
-    # Add failure message to top-left corner.
-    failure_text = (
-        "CALIBRATION FAILED\n"
-        "Not enough data points"
-    )
-    ax_plot.text(
-        0.02, 0.98, failure_text,
-        transform=ax_plot.transAxes,
-        fontsize=10,
-        verticalalignment='top',
-        bbox=dict(
-            boxstyle='round,pad=0.5',
-            facecolor='#FFE5E5',
-            edgecolor='#CC0000',
-            linewidth=2
-        ),
-        color='#CC0000',
-        weight='bold'
-    )
-    
-    ax_plot.set_xlabel("Observed m/z")
-    ax_plot.set_ylabel("Exact m/z")
-    ax_plot.set_title(title)
-    
-    # Disable scientific notation on both axes
-    ax_plot.xaxis.set_major_formatter(ScalarFormatter(useOffset=False))
-    ax_plot.yaxis.set_major_formatter(ScalarFormatter(useOffset=False))
-    ax_plot.ticklabel_format(style='plain', axis='both')
-    
-    # Only show legend if there are data points.
-    if has_calibrants:
-        ax_plot.legend(loc="lower right")
-        
-        # Create table on the right.
-        ax_table = fig.add_subplot(gs[1])
-        ax_table.axis('off')
-        
-        # Prepare table data (sorted high to low) - only m/z and pre-cal. ppm.
-        table_data = []
-        for idx in sort_indices:
-            table_data.append([
-                f"{mzs_exact_array[idx]:.4f}",
-                f"{pre_cal_errors[idx]:.2f}"
-            ])
-        
-        # Create table with only 2 columns.
-        table = ax_table.table(
-            cellText=table_data,
-            colLabels=["Exact m/z", "Pre-cal. ppm"],
-            loc="center",
-            cellLoc="center",
-            colWidths=[0.5, 0.5]
-        )
-        
-        # Style the table.
-        table.auto_set_font_size(False)
-        table.set_fontsize(9)
-        table.scale(1, 1.8)
-        
-        # Style header row.
-        for i in range(2):
-            cell = table[(0, i)]
-            cell.set_facecolor('#E8E8E8')
-            cell.set_text_props(weight='bold')
     
     plt.tight_layout()
     

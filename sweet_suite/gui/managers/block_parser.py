@@ -6,7 +6,11 @@ from ..ui.ui_helpers import UIHelpers
 
 
 class BlockParser:
-    """Handles parsing and validation of block files."""
+    """Parse and validate analyte block files selected in the GUI.
+
+    Parsed block settings are exposed to the main window and used to update
+    the available charge carriers and mass modifiers.
+    """
     
     def __init__(self, parent, ui):
         """Initialize block parser. 

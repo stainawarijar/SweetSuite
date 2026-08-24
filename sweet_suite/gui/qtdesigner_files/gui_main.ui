@@ -548,7 +548,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>310</y>
+       <y>250</y>
        <width>221</width>
        <height>22</height>
       </rect>
@@ -564,7 +564,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>290</y>
+       <y>230</y>
        <width>221</width>
        <height>16</height>
       </rect>
@@ -621,7 +621,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>230</y>
+       <y>170</y>
        <width>211</width>
        <height>16</height>
       </rect>
@@ -641,7 +641,7 @@ font-size: 10.5pt</string>
      <property name="geometry">
       <rect>
        <x>260</x>
-       <y>250</y>
+       <y>190</y>
        <width>221</width>
        <height>22</height>
       </rect>

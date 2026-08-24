@@ -2,119 +2,155 @@ import logging
 import os
 
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from .analyte import Analyte
 from .calibrant import Calibrant
 from .isotopic_peak import IsotopicPeak
-from .plotting import plot_polynomial, plot_calibration_failure
 
 
 class MassSpectrum():
     """Represents a mass spectrum.
 
+    A `MassSpectrum` stores uncalibrated m/z-intensity data and creates
+    calibrant observations for the spectrum's retention-time window. It can
+    fit a quadratic m/z calibration from explicitly assigned calibrants or
+    apply supplied calibration coefficients. In LC-MS processing,
+    `BatchWorker` pools calibrants across enabled sum spectra, fits one global
+    calibration per mzXML file, and supplies that fit to every enabled sum
+    spectrum. The class also provides methods for quantifying analytes,
+    plotting the calibration, and exporting spectrum data.
+
     Attributes:
-        name (str): Name of the mass spectrum.
-        file_raw (str): Name of the mzXML file from which the raw data 
-            originates, excluding file extension.
-        data_uncalibrated (np.ndarray): Array with uncalibrated MS data, 
-            the first column containing m/z values and the second column
-            containing intensities.
-        background_mass_window (float): The mass window (Da) to be used
-            for background determination around the lowest-mass peak.
-        calibration_mass_window (float): Mass window (Da) used to compute the 
-                calibration m/z window for each calibrant.
-        calibrants_list (list[tuple[float, float, float]]): List with tuples 
-            of the form `(m/z, charge, integration window)` for each calibrant.
-        min_calibrant_number (int): Minimum number of calibrants required for 
-            calibration. Calibration will fail if this threshold is not met.
-        min_calibrant_sn (float): Minimum signal-to-noise required for
-            a calibrant to actually be used for calibration.
-        time (float | None): Retention time for which the sum spectrum was 
-            created. Only applicable to LC data.
-        time_window (float | None): Retention time window that was used around
-            `time` to create the sum spectrum. Only applicable to LC data.
-        calibrants (list[Calibrant]): List with instances of the `Calibrant`
-            class. The list is empty when no calibration is performed.
-        calibrated (tuple[np.ndarray, Figure] | tuple[None, Figure] | tuple[None, None]): Tuple
-            containing an array with calibrated data and a figure showing
-            the calibration. `(None, Figure)` if calibration failed due to
-            insufficient calibrants (the figure shows which calibrants were
-            found). `(None, None)` if no calibrants were provided.
-        data_calibrated (np.ndarray | None): Array with calibrated MS data.
-            If calibration failed, this is set to `None`. When no calibration 
-            was performed (an empty `calibrants` list), this will be set to 
-            `data_uncalibrated`.
-        calibration_plot: Figure showing calibration of the mass spectrum
-            (observed vs exact m/z fit).
+        name (str): Name used to identify the spectrum and create output
+            filenames.
+        file_raw (str): Name of the raw data file containing the spectrum.
+        data_uncalibrated (np.ndarray): 2D array with uncalibrated m/z values
+            in the first column and intensities in the second column.
+        background_mass_window (float): Mass window (Da) used to estimate
+            background and noise around peaks.
+        calibrate (bool): Whether calibration was requested for the spectrum.
+        calibration_mass_window (float): Mass window (Da) used to locate
+            calibrant peaks.
+        calibrants_df (pd.DataFrame): Potential calibrants, with `mz`,
+            `charge`, and `mz_window` columns.
+        time (float | None): Retention time of the spectrum; `None` for
+            MS-only data.
+        time_window (float | None): Retention-time window of the spectrum;
+            `None` for MS-only data.
+        local_calibrants (list[Calibrant]): Calibrants available within the
+            spectrum's m/z range and retention-time window.
+        calibrants_to_fit (list[Calibrant] | None): Calibrants used to fit the
+            calibration model.
+        plot_mz_corrections (bool): If true, the calibration plot shows m/z
+            corrections instead of mass errors in ppm.
+        data_calibrated (np.ndarray | None): Calibrated spectrum data, or
+            `None` when calibration cannot be performed.
+        calibration_plot (Figure | None): Plot of the calibration fit, or
+            `None` when calibration cannot be performed.
     """
 
     def __init__(
-            self,
-            name: str,
-            file_raw: str,
-            data_uncalibrated: np.ndarray,
-            background_mass_window: float,
-            calibration_mass_window: float,
-            calibrants_list: list[tuple[float, float, float]],
-            min_calibrant_number: int,
-            min_calibrant_sn: float,
-            time: float | None,
-            time_window: float | None
+        self,
+        name: str,
+        file_raw: str,
+        data_uncalibrated: np.ndarray,
+        background_mass_window: float,
+        calibrate: bool,
+        calibration_mass_window: float,
+        calibrants_df: pd.DataFrame,
+        time: float | None = None,
+        time_window: float | None = None,
+        calibrants_to_fit: list[Calibrant] | None = None,
+        calibration_fit: np.ndarray | None = None,
+        plot_mz_corrections: bool = False
     ):
-        """
-        Initialize a mass spectrum.
-
-        Args:
-            name: Name of the mass spectrum.
-            file_raw: Name of the mzXML file from which the raw data originates, 
-                excluding file extension.
-            data_uncalibrated: Array with uncalibrated MS data, the first 
-                column containing m/z values and the second column containing 
-                intensities.
-            background_mass_window: The mass window (Da) to be used for 
-                background determination around the lowest-mass peak.
-            calibration_mass_window: Mass window (Da) used to compute the 
-                calibration m/z window for each calibrant.
-            calibrants_list: List with tuples of the form 
-                `(m/z, charge, integration window)` for each calibrant.
-            min_calibrant_number: The minimum number of calibrants required 
-                for calibration. Calibration will fail if this threshold is
-                not met.
-            min_calibrant_sn: Minimum signal-to-noise required for a calibrant 
-                to actually be used for calibration.
-            time: Retention time for which the sum spectrum was created. 
-                Only applicable to LC data.
-            time_window: Retention time window that was used around `time` 
-                to create the sum spectrum. Only applicable to LC data.
-        """
+        """Initialize a mass spectrum."""
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.name = name
         self.file_raw = file_raw
         self.data_uncalibrated = data_uncalibrated
         self.background_mass_window = background_mass_window
+        self.calibrate = calibrate
         self.calibration_mass_window = calibration_mass_window
-        self.calibrants_list = calibrants_list
-        self.min_calibrant_number = min_calibrant_number
-        self.min_calibrant_sn = min_calibrant_sn        
+        self.calibrants_df = calibrants_df
         self.time = time
         self.time_window = time_window
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self.calibrants = self.get_calibrants()
-        self.calibrated = self.calibrate()
-        self.data_calibrated = self.calibrated[0]
-        self.calibration_plot = self.calibrated[1]
+        self.local_calibrants = self.get_local_calibrants()
+        self.calibrants_to_fit = calibrants_to_fit
+        self.calibration_fit = calibration_fit
+        self.plot_mz_corrections = plot_mz_corrections
+        self.apply_calibration()
 
-    def get_calibrants(self) -> list[Calibrant]:
-        """Return a list with instances of the `Calibrant` class.
+    def apply_calibration(
+        self,
+        plot: bool = True,
+        color_map: dict[
+            tuple[float, float],
+            tuple[float, float, float, float]
+        ] | None = None
+    ) -> None:
+        """Calibrate the data using a calibration fit, but only if fit 
+        coefficients or a list of calibrants to fit are provided.
         
-        When no calibrants are provided in `self.calibrants_list`,
-        an empty list is returned.
+        Args:
+            plot: Whether to create a calibration figure or not. 
+                Set to `True` by default.
+            color_map: An optional dictionary that maps (time, window)
+                combinations to colors. These are used for coloring
+                data points in the calibration fit figure.
+
+        The fitted coefficients are used to populate `data_calibrated` and
+        `calibration_plot`. If a calibration fit is in `self.calibration_fit`
+        then that fit is used. Otherwise, fitting is attempted on provided
+        `self.calibrants_to_fit`. If neither are provided then `fit`,
+        `self.data_calibrated` and `self.calibration_plot` are all `None`.
         """
+        if self.calibration_fit is not None:
+            fit = self.calibration_fit
+        else:
+            fit = self.fit_calibration()  # Based on `self.calibrants_to_fit`
+
+        self.data_calibrated = self.calibrate_data(calibration_fit=fit)
+
+        if plot:
+            self.calibration_plot = self.plot_calibration(
+                calibration_fit=fit, 
+                color_map=color_map
+            )
+        else:
+            self.calibration_plot = None
+
+    def get_local_calibrants(self) -> list[Calibrant]:
+        """Return a list with instances of the `Calibrant` class, whose 
+        retention times correspond to the retention time of this MassSpectrum
+        instance (if applicable).
+        
+        When no calibrants are provided in `self.calibrants_df`, or when
+        `self.calibrate` is set to `False`, an empty list is returned.
+        """
+        if not self.calibrate:
+            return []  # To prevent unnecessary work below.
+
+        # Create list of (m/z, charge, m/z window) tuples.
+        tuples = list(
+            self.calibrants_df.itertuples(index=False, name=None)
+        )
+
+        if not tuples:
+            return []
+
+        # Determine m/z boundaries of mass spectrum.
         mz_min = np.min(self.data_uncalibrated[:, 0])
         mz_max = np.max(self.data_uncalibrated[:, 0])
+
         calibrants = []
-        for mz, charge, mz_window in self.calibrants_list:
+    
+        for mz, charge, mz_window in tuples:
+
+            # Check m/z value is not outside MS range.
             half_span = max(
                 self.calibration_mass_window / charge,
                 self.background_mass_window / charge + mz_window
@@ -125,105 +161,216 @@ class MassSpectrum():
                     "and will not be used."
                 )
                 continue
+            
+            # Create instance of Calibrant and add to list.
             calibrant = Calibrant(
                 mz_exact=mz,
                 charge=charge,
+                time=self.time,
+                time_window = self.time_window,
                 spectrum=self.data_uncalibrated,
-                integration_mz_window=mz_window,
+                background_mass_window=self.background_mass_window,
+                quantitation_mz_window=mz_window,
                 calibration_mass_window=self.calibration_mass_window
             )
+
             calibrants.append(calibrant)
         
         return calibrants
 
-    def calibrate(self) -> tuple[np.ndarray, Figure] | tuple[None, Figure] | tuple[None, None]:
-        """Calibrate mass spectrum based on a specified list of calibrants.
+    def fit_calibration(self) -> np.ndarray | None:
+        """Fit an m/z calibration model using specified calibrants.
 
-        Calibration is performed based on a list of exact m/z values
-        of potential calibrant peaks. First, the observed m/z values
-        of all the potential calibrants are determined. The S/N of each 
-        observed calibrant peak is then calculated. For those calibrant 
-        peaks whose S/N is above a specified cut-off (usually 9 or 27),
-        if the number of peaks equals at least the specified minimum number 
-        of calibrants (4 being the absolute minimum), a second-degree 
-        polynomial is fitted through the pairs of exact and observed 
-        m/z values. This polynomial is used to calibrate the mass spectrum.
+        The model predicts the required m/z correction `mz_exact - mz_observed`
+        as a quadratic function of the observed m/z, using calibrants specified
+        in `self.calibrants_to_fit`.
 
         Returns:
-            A tuple containing calibrated data and a figure visualizing the
-            fitting. The calibrated data is a 2D array with adjusted m/z values 
-            in one column and intensities in the second column. 
-            Returns `(None, Figure)` if the minimum number of calibrants is 
-            not reached; the figure shows the calibrants that were found above 
-            the S/N cut-off.
-            Returns `(None, None)` if the list with calibrants is empty.
-        """
-        # Check if calibrants were provided.
-        if len(self.calibrants) == 0:
-            return (None, None)
+            An array containing the model coefficients [quadratic, linear, 
+            intercept]. If `self.calibrants_to_fit` is `None` or an empty list, 
+            `None` is returned.
+        """ 
+        calibrants = self.calibrants_to_fit
 
-        # Create a list of observed m/z values for all calibrants
-        # with a signal-to-noise valuea above the S/N cut-off.
-        calibrants_above_cutoff = []
-        for calibrant in self.calibrants:
-            # Get background and noise data.
-            background_and_noise = calibrant.get_background_and_noise(
-                target_mz=calibrant.spline_maximum[0],
-                background_mass_window=self.background_mass_window
-            )
-            # Check S/N > cut-off.
-            background_average_intensity=background_and_noise[0] 
-            noise = background_and_noise[2]
-            if calibrant.signal > (
-                background_average_intensity + self.min_calibrant_sn * noise
-            ):
-                calibrants_above_cutoff.append(calibrant)
+        if not calibrants:
+            return
 
-        # Check against the minimum number of calibrants.
-        if len(calibrants_above_cutoff) < self.min_calibrant_number:
-            # Generate failure plot showing only calibrants above S/N cutoff.
-            # Collect m/z values for calibrants that passed the S/N threshold.
-            # Explicitly get the observed m/z (from spectrum) and exact m/z (theoretical).
-            mzs_observed = []
-            mzs_exact = []
-            for cal in calibrants_above_cutoff:
-                # cal.mz_observed: the peak m/z found in the spectrum via spline
-                # cal.mz_exact: the theoretical m/z value (inherited from IsotopicPeak)
-                observed_mz_value = float(cal.mz_observed)
-                expected_mz_value = float(cal.mz_exact)
-                mzs_observed.append(observed_mz_value)
-                mzs_exact.append(expected_mz_value)
-            
-            failure_plot = plot_calibration_failure(
-                title=self.name,
-                mzs_observed=mzs_observed,
-                mzs_exact=mzs_exact
-            )
-            return (None, failure_plot)
-    
-        # Fit 2nd degree polynomial through (observed, exact) m/z pairs.
-        mzs_observed = [cal.mz_observed for cal in calibrants_above_cutoff]
-        mzs_exact = [cal.mz_exact for cal in calibrants_above_cutoff]
-        fit = np.polyfit(x = mzs_observed, y=mzs_exact, deg=2)
-
-        # Adjust m/z values using the fitted polynomial.
-        poly_func = np.poly1d(fit)  # Polynomial function based on fit coeffs.
-        mzs_adjusted = poly_func(self.data_uncalibrated[:, 0])
-
-        # Visualize the calibration in a plot (similar to alignment).
-        plot = plot_polynomial(mzs_observed, mzs_exact, poly_func, self.name)
-
-        # Return calibrated spectrum and figure.
-        data_calibrated = np.column_stack(
-            (mzs_adjusted, self.data_uncalibrated[:, 1])
+        mz_observed = np.array(
+            [cal.mz_observed for cal in calibrants],
+            dtype=float
         )
 
-        return (data_calibrated, plot)
-        
+        mz_delta = np.array(
+            [cal.mz_exact - cal.mz_observed for cal in calibrants],
+            dtype=float
+        )
+
+        return np.polyfit(x=mz_observed, y=mz_delta, deg=2)
+
+    def calibrate_data(
+        self,
+        calibration_fit: np.ndarray | None
+    ) -> np.ndarray | None:
+        """Calibrate spectrum based on the supplied calibration coefficients.
+
+        The coefficients specify the amount by which each observed m/z value
+        should be shifted. 
+
+        Args:
+            calibration_fit: Calibration coefficients in the order [quadratic, 
+            linear, intercept].
+
+        Returns:
+            A 2D array containing calibrated m/z values in the first column
+            and intensities in the second column. Returns `None` when
+            `calibration_fit` is `None`.
+        """
+        if calibration_fit is None:
+            return None
+
+        data_calibrated = self.data_uncalibrated.copy()
+        mz_observed = self.data_uncalibrated[:, 0]
+        mz_shift = np.polyval(calibration_fit, mz_observed)
+        data_calibrated[:, 0] += mz_shift
+
+        return data_calibrated
+
+    def plot_calibration(
+        self,
+        calibration_fit: np.ndarray | None,
+        color_map: dict[
+            tuple[float, float],
+            tuple[float, float, float, float]
+        ] | None = None
+    ) -> Figure | None:
+        """Plot the calibration fit.
+
+        Required m/z corrections or mass errors (ppm) are plotted against the 
+        observed m/z values. Calibrant data points are colored by their 
+        retention time window if applicable. The quadratic fit is shown as a 
+        smooth curve. The required calibrant m/z range is shown by light 
+        shading.
+
+        Args:
+            calibration_fit: Quadratic fit coefficients in the order
+                [quadratic, linear, intercept].
+            color_map: An optional dictionary that maps (time, window)
+                combinations to colors. 
+
+        Returns:
+            A matplotlib Figure. `None` if `calibration_fit` is `None`. `None`
+            if `self.calibrants_to_fit` is `None` or empty.
+        """
+        if calibration_fit is None:
+            return
+
+        calibrants = self.calibrants_to_fit
+
+        if not calibrants:
+            return
+
+        mz_exact = np.array(
+            [cal.mz_exact for cal in calibrants],
+            dtype=float
+        )
+
+        mz_observed = np.array(
+            [cal.mz_observed for cal in calibrants],
+            dtype=float
+        )
+
+        mz_delta = np.array(
+            [cal.mz_exact - cal.mz_observed for cal in calibrants],
+            dtype=float
+        )
+
+        # In case of LC-MS data, color by retention time.
+        if self.time is None:
+            color_by_time = False
+        else:
+            color_by_time = True
+
+        # Create evenly spaced m/z values for drawing smooth fitted curve.
+        mz_plot = np.linspace(mz_observed.min(), mz_observed.max(), 500)
+
+        # Apply the fit to the specified m/z values.
+        delta_fitted = np.polyval(calibration_fit, mz_plot)
+
+        # Determine values to plot: m/z corrections or ppm errors.
+        if not self.plot_mz_corrections:
+            y_values = -mz_delta / mz_exact * 1e6
+            y_fitted = (-delta_fitted / (mz_plot + delta_fitted) * 1e6)
+            y_label = "Mass error (ppm)"
+        else:
+            y_values = mz_delta
+            y_fitted = delta_fitted
+            y_label = r"Required correction $\Delta m/z$"
+
+        # Create figure.
+        figure, axis = plt.subplots()
+
+        if color_by_time:
+            time_windows = np.array(
+                [(cal.time, cal.time_window) for cal in calibrants],
+                dtype=float
+            )
+            for time_value, window_value in np.unique(time_windows, axis=0):
+                mask = (
+                    (time_windows[:, 0] == time_value) &
+                    (time_windows[:, 1] == window_value)
+                )
+
+                key = (float(time_value), float(window_value))
+
+                axis.scatter(
+                    mz_observed[mask],
+                    y_values[mask],
+                    s=45,
+                    color=color_map[key] if color_map is not None else None,
+                    edgecolor="black",
+                    linewidths=0.4,
+                    label=f"{time_value:g} ± {window_value:g} s"
+                )
+        else:
+            axis.scatter(
+                mz_observed,
+                y_values,
+                s=45,
+                edgecolor="black",
+                linewidths=0.4
+            )
+
+        axis.plot(mz_plot, y_fitted, color="black")
+
+        axis.set_xlabel(r"Observed $m/z$")
+        axis.set_ylabel(y_label)
+        axis.set_title(f"{self.file_raw}")
+
+        if color_by_time:
+            axis.legend(
+                title="Sum spectrum",
+                loc="center left",
+                bbox_to_anchor=(1.02, 0.5),
+                fontsize=9,
+                title_fontsize=9
+            )
+
+        axis.set_axisbelow(True)
+        axis.grid(
+            True,
+            which="major",
+            linewidth=0.5,
+            alpha=0.2
+        )
+
+        figure.tight_layout()
+
+        return figure
+
     def quantify_analytes(
-            self,
-            analytes_ref: pd.DataFrame,
-            use_peak_height: bool = False
+        self,
+        analytes_ref: pd.DataFrame,
+        use_peak_height: bool = False
     ) -> list[Analyte] | None:
         """Quantify analytes and calculate quality control parameters.
 
@@ -234,7 +381,10 @@ class MassSpectrum():
         (IPQ), mass error in parts-per-million (ppm).
         
         Args:
-            analytes_ref: A data frame with the following columns: ...
+            analytes_ref: Reference data with one row per isotopic peak and
+                columns `peak`, `mz`, `mz_window`, and `relative_area`.
+                For LC-MS data, `time` and `time_window` columns identify the
+                sum spectrum in which each peak should be quantified.
             use_peak_height: If True, use maximum intensity of each isotopic
                 peak instead of the trapezoidal area for quantitation.
         
@@ -243,15 +393,14 @@ class MassSpectrum():
             `None` if the mass spectrum failed to calibrate.
         """
         # Determine which MS data to use.
-        if self.data_calibrated is None:
-            if len(self.calibrants_list) != 0:
-                # Calibration failed, return None.
-                return None
-            else:
-                # No calibration, so use uncalibrated data.
-                spectrum = self.data_uncalibrated
-        else:
+        if self.data_calibrated is not None:
             spectrum = self.data_calibrated
+        elif self.calibrate:
+            # Calibration failed, return `None`.
+            return
+        else:
+            # No calibration, so use uncalibrated data.
+            spectrum = self.data_uncalibrated
         
         # In case of LC data: get analytes ref only for RT range.
         if (self.time is not None and self.time_window is not None):
@@ -265,13 +414,14 @@ class MassSpectrum():
             reference = analytes_ref
 
         # Check that all required m/z windows for each analyte fit within the
-        # spectrum range. For every peak the integration window is checked;
+        # spectrum range. For every peak the quantitation window is checked;
         # for the first (lowest-mass) peak per analyte the background window is
         # also checked, because background is determined from that peak.
         mz_min = np.min(spectrum[:, 0])
         mz_max = np.max(spectrum[:, 0])
         analytes_to_skip = set()
         prev_analyte_label = None
+
         for _, row in reference.iterrows():
             peak_name = str(row["peak"])
             mz_val = row["mz"]
@@ -280,25 +430,37 @@ class MassSpectrum():
             analyte_label = "_".join(peak_name.split("_")[:-1])
             if analyte_label in analytes_to_skip:
                 continue
-            # Check that the integration window fits within the spectrum range.
+
+            # Check that the quantitation window fits within the spectrum range.
             if mz_val - mz_window < mz_min or mz_val + mz_window > mz_max:
                 analytes_to_skip.add(analyte_label)
                 continue
-            # For the first peak of each analyte, also check the background window.
+
+            # For the first peak of each analyte, also check background window.
             if analyte_label != prev_analyte_label:
-                background_half_span = self.background_mass_window / charge + mz_window
-                if mz_val - background_half_span < mz_min or mz_val + background_half_span > mz_max:
+                background_half_span = (
+                    self.background_mass_window / charge + mz_window
+                )
+                if (
+                    mz_val - background_half_span < mz_min or 
+                    mz_val + background_half_span > mz_max
+                ):
                     analytes_to_skip.add(analyte_label)
+
             prev_analyte_label = analyte_label
+
         for label in analytes_to_skip:
             self.logger.warning(
-                f"Analyte {label} falls outside the spectrum m/z range and will not be quantified."
+                f"Analyte {label} falls outside the spectrum m/z range "
+                "and will not be quantified."
             )
+
         self.skipped_analytes = analytes_to_skip
         if analytes_to_skip:
             reference = reference[
                 ~reference["peak"].apply(
-                    lambda p: "_".join(str(p).split("_")[:-1]) in analytes_to_skip
+                    lambda p: "_".join(str(p).split("_")[:-1]) 
+                    in analytes_to_skip
                 )
             ]
 
@@ -320,7 +482,7 @@ class MassSpectrum():
                 mz_exact=row["mz"],
                 charge=int(row["peak"].split("_")[-2]),
                 spectrum=spectrum,
-                integration_mz_window=row["mz_window"]
+                quantitation_mz_window=row["mz_window"]
             )
 
             # Check if analyte name has changed.
@@ -333,8 +495,12 @@ class MassSpectrum():
                         name=current_analyte.split("_")[0],
                         charge=int(current_analyte.split("_")[1]),
                         peaks=pd.DataFrame(peaks, columns=[
-                            "peak", "mz_exact", "relative_area_theoretical",
-                            "area", "maximum_intensity", "mass_error_ppm"
+                            "peak", 
+                            "mz_exact", 
+                            "relative_area_theoretical",
+                            "area", 
+                            "maximum_intensity", 
+                            "mass_error_ppm"
                         ]), 
                         background_and_noise=background_and_noise,
                         use_peak_height=use_peak_height
@@ -375,23 +541,23 @@ class MassSpectrum():
         return analytes
 
     def write_xy(
-            self,
-            folder: str,
-            calibration_enabled: bool = True,
-            write_on_failure: bool = True
+        self,
+        folder: str,
+        calibration_enabled: bool = True,
+        write_on_failure: bool = True
     ) -> None:
         """Write m/z values and intensities to a '.xy' file.
 
         The filename and data written depend on whether calibration was
         performed and whether it succeeded:
 
-        - Calibration disabled (`calibration_enabled=False`): writes
-        uncalibrated data to `{name}.xy` (no prefix).
-        - Calibration enabled and successful: writes calibrated data to
-        `calibrated_{name}.xy`.
-        - Calibration enabled but failed: writes uncalibrated data to
-        `uncalibrated_{name}.xy`, unless `write_on_failure` is
-        `False`, in which case nothing is written.
+            - Calibration disabled (`calibration_enabled=False`): writes
+                uncalibrated data to `{name}.xy` (no prefix).
+            - Calibration enabled and successful: writes calibrated data to
+                `calibrated_{name}.xy`.
+            - Calibration enabled but failed: writes uncalibrated data to
+                `uncalibrated_{name}.xy`, unless `write_on_failure` is
+                `False`, in which case nothing is written.
 
         m/z values and intensities are rounded to 8 decimals.
 
@@ -422,4 +588,3 @@ class MassSpectrum():
                 self.data_uncalibrated,
                 delimiter="\t", fmt="%.8f"
             )
-
