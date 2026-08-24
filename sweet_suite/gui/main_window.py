@@ -2,8 +2,9 @@ import logging
 import os
 import webbrowser
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCloseEvent
-from PyQt6.QtWidgets import QMainWindow, QMessageBox
+from PyQt6.QtWidgets import QFrame, QLabel, QMainWindow, QMessageBox
 
 from .. import __version__, __authors__, __organization__, __year__
 from .dialogs.advanced_settings_handler import AdvancedSettingsHandler
@@ -74,6 +75,7 @@ class MainWindow(QMainWindow):
         UISetup.setup_button_icons(self.ui)
         UISetup.setup_tooltips(self.ui)
         self.setup_mode_indicator()
+        self.setup_quadratic_window_indicator()
     
     def initialize_data_containers(self) -> None:
         """Initialize data container attributes."""
@@ -82,6 +84,7 @@ class MainWindow(QMainWindow):
         self.analytes_ref_df = None
         self.blocks = None
         self.ms_only_mode = False  # Track whether in MS-only mode
+        self.ref_file_mode = False
     
     def initialize_dialogs(self) -> None:
         """Initialize all dialog instances."""
@@ -111,8 +114,6 @@ class MainWindow(QMainWindow):
     def setup_mode_indicator(self) -> None:
         """Create and add mode indicator label to the GUI."""
         from PyQt6.QtWidgets import QLabel
-        from PyQt6.QtCore import Qt
-        
         # Create mode indicator label
         self.mode_indicator_label = QLabel(self.ui.frame_calibration_quantitation)
         self.mode_indicator_label.setGeometry(380, 10, 100, 20)
@@ -122,6 +123,61 @@ class MainWindow(QMainWindow):
         )
         self.mode_indicator_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.mode_indicator_label.show()
+
+    def setup_quadratic_window_indicator(self) -> None:
+        """Create the disabled message shown in place of the fixed window."""
+        spinbox = self.ui.quantitation_mz_window
+        self.quadratic_window_mode = False
+        self.quadratic_window_indicator = QLabel(
+            "Quadratic window enabled",
+            self.ui.frame_calibration_quantitation,
+        )
+        geo = spinbox.geometry()
+        self.quadratic_window_indicator.setGeometry(
+            geo.x(), geo.y() + 1, geo.width(), geo.height() - 1
+        )
+        self.quadratic_window_indicator.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.quadratic_window_indicator.setFrameShape(QFrame.Shape.StyledPanel)
+        self.quadratic_window_indicator.setStyleSheet(
+            "QLabel:disabled { color: #555555; }"
+        )
+        self.quadratic_window_indicator.setToolTip(
+            self.ui.quantitation_mz_window.toolTip()
+        )
+        self.quadratic_window_indicator.setEnabled(False)
+        self.quadratic_window_indicator.hide()
+
+    def set_quadratic_window_mode(self, enabled: bool) -> None:
+        """Replace the fixed quantitation window with a quadratic-mode notice."""
+        self.quadratic_window_mode = enabled
+        self.quadratic_window_indicator.setVisible(enabled)
+        self.ui.quantitation_mz_window.setVisible(not enabled)
+        self._update_quantitation_window_state()
+
+    def _update_quantitation_window_state(self) -> None:
+        """Apply the combined quadratic- and reference-file disabled state."""
+        quadratic = self.quadratic_window_mode
+        disabled = quadratic or self.ref_file_mode
+        self.ui.quantitation_mz_window.setEnabled(not disabled)
+        # Quadratic mode replaces only the input box; its title remains active
+        # and black. Reference-file mode retains its existing greyed title.
+        label_disabled = self.ref_file_mode and not quadratic
+        self.ui.label_quantitation_mz_window.setEnabled(not label_disabled)
+        self.ui.label_quantitation_mz_window.setStyleSheet(
+            "color: #a0a0a0;" if label_disabled else ""
+        )
+
+        if self.ref_file_mode and not quadratic:
+            self.ui.quantitation_mz_window.setStyleSheet("color: transparent;")
+            self.ui.quantitation_mz_window.setToolTip("")
+        elif not quadratic:
+            self.ui.quantitation_mz_window.setStyleSheet("")
+            self.ui.quantitation_mz_window.setToolTip(
+                "m/z window used around the exact m/z of each isotopic peak"
+                " for area quantitation\n"
+                "(or for determining peak height, if enabled under advanced settings).\n"
+                "Can be overwritten for individual analytes in the analytes list."
+            )
     
     def set_ms_only_mode(self, enabled: bool) -> None:
         """Enable or disable MS-only mode in the GUI.
@@ -270,28 +326,15 @@ class MainWindow(QMainWindow):
             enabled: True to enter ref-file mode (controls disabled),
                 False to restore normal mode (controls enabled).
         """
+        self.ref_file_mode = enabled
+        self._update_quantitation_window_state()
         if enabled:
-            self.ui.quantitation_mz_window.setEnabled(False)
-            self.ui.quantitation_mz_window.setStyleSheet("color: transparent;")
-            self.ui.quantitation_mz_window.setToolTip("")
-            self.ui.label_quantitation_mz_window.setEnabled(False)
-            self.ui.label_quantitation_mz_window.setStyleSheet("color: #a0a0a0;")
             self.ui.min_isotopic_fraction.setEnabled(False)
             self.ui.min_isotopic_fraction.setStyleSheet("color: transparent;")
             self.ui.min_isotopic_fraction.setToolTip("")
             self.ui.label_isotopic_fraction.setEnabled(False)
             self.ui.label_isotopic_fraction.setStyleSheet("color: #a0a0a0;")
         else:
-            self.ui.quantitation_mz_window.setEnabled(True)
-            self.ui.quantitation_mz_window.setStyleSheet("")
-            self.ui.quantitation_mz_window.setToolTip(
-                "m/z window used around the exact m/z of each isotopic peak"
-                " for area quantitation\n"
-                "(or for determining peak height, if enabled under advanced settings).\n"
-                "Can be overwritten for individual analytes in the analytes list."
-            )
-            self.ui.label_quantitation_mz_window.setEnabled(True)
-            self.ui.label_quantitation_mz_window.setStyleSheet("")
             self.ui.min_isotopic_fraction.setEnabled(True)
             self.ui.min_isotopic_fraction.setStyleSheet("")
             self.ui.min_isotopic_fraction.setToolTip(

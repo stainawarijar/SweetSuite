@@ -90,11 +90,13 @@ class AdvancedSettingsHandler:
             widget.setEnabled(checked)
         # Connect checkbox to toggle handler
         self.ui.checkBox_quadratic.toggled.connect(self.on_quadratic_toggled)
+        self.parent.set_quadratic_window_mode(checked)
 
     def on_quadratic_toggled(self, checked: bool) -> None:
         """Enable or disable coefficient inputs when checkbox changes."""
         for widget in self.quadratic_widgets:
             widget.setEnabled(checked)
+        self.parent.set_quadratic_window_mode(checked)
 
     def show_dialog(self) -> None:
         """Show the advanced settings dialog."""
