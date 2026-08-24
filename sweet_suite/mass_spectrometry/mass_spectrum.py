@@ -192,7 +192,7 @@ class MassSpectrum():
         """ 
         calibrants = self.calibrants_to_fit
 
-        if calibrants is None or len(calibrants) == 0:
+        if not calibrants:
             return
 
         mz_observed = np.array(
@@ -258,13 +258,16 @@ class MassSpectrum():
                 combinations to colors. 
 
         Returns:
-            A matplotlib Figure. `None` if `calibration_fit` is `None`.
+            A matplotlib Figure. `None` if `calibration_fit` is `None`. `None`
+            if `self.calibrants_to_fit` is `None` or empty.
         """
         if calibration_fit is None:
             return
 
-        # Data for plot
         calibrants = self.calibrants_to_fit
+
+        if not calibrants:
+            return
 
         mz_exact = np.array(
             [cal.mz_exact for cal in calibrants],
