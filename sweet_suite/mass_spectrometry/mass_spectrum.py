@@ -344,7 +344,7 @@ class MassSpectrum():
 
         axis.set_xlabel(r"Observed $m/z$")
         axis.set_ylabel(y_label)
-        axis.set_title(f"{self.file_raw}.mzXML")
+        axis.set_title(f"{self.file_raw}")
 
         if color_by_time:
             axis.legend(
