@@ -128,9 +128,12 @@ class MassSpectrum():
         retention times correspond to the retention time of this MassSpectrum
         instance (if applicable).
         
-        When no calibrants are provided in `self.calibrants_df`,
-        an empty list is returned.
+        When no calibrants are provided in `self.calibrants_df`, or when
+        `self.calibrate` is set to `False`, an empty list is returned.
         """
+        if not self.calibrate:
+            return []  # To prevent unnecessary work below.
+
         # Create list of (m/z, charge, m/z window) tuples.
         tuples = list(
             self.calibrants_df.itertuples(index=False, name=None)
