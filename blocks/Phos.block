@@ -1,0 +1,16 @@
+# HPO3 for phosphorylated glycans.
+# 
+# The mass is based on neutral hydrogen, phosphorus and oxygen atoms.
+# HPO3 is negatively charged, but electron correction is taken care of 
+# by SweetSuite based on the charge of the complete molecule.
+#
+# Note that the mass is nearly identical to sulfation (SO4).
+
+mass: 79.96633089
+charge: 0
+mass_modifier: 0
+
+# Phosphorus not required here, because it has only one stable isotope.
+# Only H and O can vary.
+hydrogens: 1
+oxygens: 3

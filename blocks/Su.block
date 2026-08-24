@@ -1,4 +1,10 @@
-# Sulfate group
+# Sulfate group (SO4) for sulfated glycans
+#
+# The mass is for 3 neutral oxygen atoms plus a neutral sulfur atom.
+# SO4 is negatively charged, but electron correction is taken care of 
+# by SweetSuite based on the charge of the complete molecule.
+#
+# Note that the mass is nearly identical to phosphorylation (HPO3).
 
 mass: 79.95681485868
 charge: 0
