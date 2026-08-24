@@ -65,15 +65,17 @@ class Mzxml:
         data_required = []
         for rt, bytes_dict in times_bytes:
             data = bytes_dict["bytes"]
+
             # Decompress if necessary.
             if bytes_dict["compression"]:
                 data = zlib.decompress(data)
-            # Get 1D array of data.
-            data = np.frombuffer(data, dtype=(
-                bytes_dict["endian"] + "f" + bytes_dict["precision"]
-            ))
-            # Turn into 2D array with m/z and intensity columns.
-            data = np.vstack((data[::2], data[1::2])).T
+            
+            # Create 2D array with m/z and intensity columns.
+            data = np.frombuffer(
+                data,
+                dtype=bytes_dict["endian"] + "f" + bytes_dict["precision"]
+            ).reshape(-1, 2)
+
             # Add to list.
             data_required.append((rt, data)) 
         
@@ -187,18 +189,14 @@ class Mzxml:
 
         # Sum the spectra.
         for time_spectrum in data_required:
-            # Get two tuples: one with m/z values, one with intensities.
-            mzs, intensities = zip(*time_spectrum[-1])
-            # Interpolation (piecewise linear spline).
-            fit = interp1d(
-                x=mzs, y=intensities,
-                # Spectra generally don't cover the whole range of min_mz
-                # to max_mz. Set `bounds_error` to False and `fill_value`
-                # to 0 to handle that situation.
-                bounds_error=False, fill_value=0
+            spectrum = time_spectrum[1]
+            intensity_axis += np.interp(
+                mz_axis,
+                spectrum[:, 0],  # m/z values
+                spectrum[:, 1],  # intensities
+                left=0,
+                right=0
             )
-            # Add to intensity axis.
-            intensity_axis = np.add(intensity_axis, fit(mz_axis))
 
         # Combine m/z values and intensities into one spectrum.
         combined_spectrum = np.stack((mz_axis, intensity_axis), axis=-1)
