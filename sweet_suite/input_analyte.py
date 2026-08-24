@@ -182,7 +182,7 @@ class InputAnalyte:
     def element_fine_structure(
         element: str,
         atom_count: int,
-        min_prob: float = 1e-12
+        min_prob: float = 1e-10
     ) -> list[dict[str, Any]]:
         """Calculate the isotopic fine structure for one element.
 
@@ -252,7 +252,7 @@ class InputAnalyte:
     def convolve_patterns(
         pattern_a: list[dict[str, Any]],
         pattern_b: list[dict[str, Any]],
-        min_prob: float = 1e-12
+        min_prob: float = 1e-10
     ) -> list[dict[str, Any]]:
         """Convolve two isotopic fine-structure patterns.
 
@@ -297,7 +297,7 @@ class InputAnalyte:
     def calculate_fine_structure(
         composition: dict[str, int],
         charge: int,
-        min_prob: float = 1e-12
+        min_prob: float = 1e-10
     ) -> list[dict]:
         """Calculate the isotopic fine structure for an ion composition.
 
