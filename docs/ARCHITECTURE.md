@@ -216,7 +216,8 @@ Parses one `<scan>` element from an mzXML file.
 Extracts retention time, compression type, byte order, and encoding precision
 from the raw XML, then base64-decodes the peak data using
 `pybase64` (a C-backed base64 library), and stores the result as a
-`decoded_data` dictionary. The raw XML string is discarded after parsing
+`decoded_data` dictionary. Base64 decoding is deferred until a spectrum is
+needed. The raw XML string is discarded after parsing
 to free memory.
 
 ---

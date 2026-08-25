@@ -1,6 +1,3 @@
-import pybase64
-
-
 class MzxmlDataBlock:
     """Represents a single scan block extracted from an mzXML file.
 
@@ -15,8 +12,9 @@ class MzxmlDataBlock:
         compression (bool): Whether the data is compressed (zlib).
         byte_order (str): Byte order of the encoded data ('little' or 'big').
         encoding_precision (int): Encoding precision in bits (32 or 64).
-        decoded_data (dict): A dictionary containing base64-decoded MS data in 
-            binary format, compression (bool), endian and encoding precision.
+        decoded_data (dict): A dictionary containing Base64-encoded MS data,
+            compression (bool), endian and encoding precision. Decoding is
+            deferred until the spectrum is needed.
     """
 
     def __init__(self, contents: str):
@@ -56,12 +54,9 @@ class MzxmlDataBlock:
         return int(self.contents.split("precision")[1].split("\"")[1])
 
     def get_decoded_data(self) -> dict:
-        """Return a dictionary containing base64 decoded MS data in binary
-        format, compression (bool), endian and encoding precision.
+        """Return encoded MS data and the metadata required to decode it.
         """
-        # Use pybase64 for decoding (C implementation of base64).
         encoded = self.contents.split('"m/z-int">')[1].split("</peaks>")[0]
-        decoded = pybase64.b64decode(encoded)
 
         # Determine endian based on byte order.
         endian = "<" if self.byte_order == "little" else ">"
@@ -76,7 +71,7 @@ class MzxmlDataBlock:
             precision = "4"
         
         return {
-            "bytes": decoded,
+            "encoded": encoded,
             "compression": self.compression,
             "endian": endian,
             "precision": precision

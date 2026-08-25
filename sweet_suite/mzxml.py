@@ -4,6 +4,7 @@ import zlib
 
 from matplotlib.figure import Figure
 import numpy as np
+import pybase64
 
 from .chromatography import alignment
 from .chromatography.alignment_feature import AlignmentFeature
@@ -24,9 +25,9 @@ class Mzxml:
         path (str): Path to the mzXML file.
         file_name (str): File name without extension.
         times_bytes (list[tuple[float, dict]]): A list of tuples
-            `(time, decoded_data)` where `time` is the retention time of an
-            mzXML data block and `decoded_data` is a dictionary containing 
-            decoded data (bytes), compression (bool), endian (str) and 
+            `(time, encoded_data)` where `time` is the retention time of an
+            mzXML data block and `encoded_data` is a dictionary containing
+            Base64-encoded data (str), compression (bool), endian (str) and
             encoding precision (str).
         retention_times (np.ndarray): 1D array with retention times of all
             MS scans.
@@ -45,15 +46,15 @@ class Mzxml:
     
     @staticmethod
     def create_mass_spectra(times_bytes: list[tuple[float, dict]]) -> list[tuple[float, np.ndarray]]:
-        """Creates mass spectra from compressed bytes data.
+        """Create mass spectra from Base64-encoded scan data.
 
-        Processes a list of retention time and bytes dictionary pairs to extract
-        and decompress mass spectrometry data, converting it into 2D arrays
+        Processes retention-time and encoded-data pairs by decoding and
+        decompressing mass spectrometry data, converting it into 2D arrays
         containing m/z and intensity values.
 
         Args:
-            times_bytes: List of tuples where each tuple contains a retention 
-            time (float) and a dictionary with keys: 'bytes' (compressed data), 
+            times_bytes: List of tuples where each tuple contains a retention
+            time (float) and a dictionary with keys: 'encoded' (Base64 text),
             'compression' (bool), 'endian' (str), and 'precision' (str).
 
         Returns:
@@ -62,17 +63,19 @@ class Mzxml:
             the second column.
         """
         data_required = []
-        for rt, bytes_dict in times_bytes:
-            data = bytes_dict["bytes"]
+        for rt, scan_data in times_bytes:
+            # Decode only spectra that are actually needed. This keeps Mzxml
+            # construction fast when only part of a file is processed.
+            data = pybase64.b64decode(scan_data["encoded"])
 
             # Decompress if necessary.
-            if bytes_dict["compression"]:
+            if scan_data["compression"]:
                 data = zlib.decompress(data)
             
             # Create 2D array with m/z and intensity columns.
             data = np.frombuffer(
                 data,
-                dtype=bytes_dict["endian"] + "f" + bytes_dict["precision"]
+                dtype=scan_data["endian"] + "f" + scan_data["precision"]
             ).reshape(-1, 2)
 
             # Add to list.
@@ -88,11 +91,11 @@ class Mzxml:
         """Read data blocks from mzXML file.
 
         Returns:
-            A list of `(time, decoded_data)` tuples, one per scan, where:
+            A list of `(time, encoded_data)` tuples, one per scan, where:
             - `time` (float): retention time of the scan.
-            - `decoded_data` (dict): dictionary with keys `'bytes'`
-                (compressed data), `'compression'` (bool), `'endian'` (str),
-                and `'precision'` (str).
+            - `encoded_data` (dict): dictionary with keys `'encoded'`
+                (Base64 text), `'compression'` (bool), `'endian'` (str), and
+                `'precision'` (str).
         """
         times_bytes = []
 
@@ -105,20 +108,18 @@ class Mzxml:
                     header = False  # Scan number 1 also means end of header.
                     # Start of a new block of data.
                     # Continue reading the next lines until </scan> is reached.
-                    current_data_block = ""
+                    current_data_block = []
                 elif "</scan>" in line:
                     # End of the current data block.
                     # Create instance of MzXmlDataBlock class.
-                    data_block = MzxmlDataBlock(current_data_block)
+                    data_block = MzxmlDataBlock("".join(current_data_block))
                     # Append data to list.
                     times_bytes.append((
                         data_block.retention_time, data_block.decoded_data
                     ))
                 elif not header:
                     # Line part of current data block.
-                    if not isinstance(current_data_block, str):
-                        current_data_block = ""
-                    current_data_block += line
+                    current_data_block.append(line)
 
         return times_bytes
     
