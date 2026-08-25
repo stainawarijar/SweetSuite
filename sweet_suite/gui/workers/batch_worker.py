@@ -624,7 +624,7 @@ class BatchWorker(QObject):
 
                 # Read mzXML file and make alignment fit.
                 mzxml = Mzxml(path)
-                if len(mzxml.times_bytes) == 0:
+                if len(mzxml.times_encoded_data) == 0:
                     self.logger.warning(
                         f"Alignment skipped for empty file {os.path.basename(path)}"
                     )

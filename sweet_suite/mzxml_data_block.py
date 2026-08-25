@@ -7,12 +7,13 @@ class MzxmlDataBlock:
 
     Attributes:
         contents (str | None): Raw XML contents of the scan block during
-            initialization. Set to `None` after decoding to release memory.
+            initialization. Set to `None` after parsing to release memory.
         retention_time (float): Retention time of the scan in seconds.
         compression (bool): Whether the data is compressed (zlib).
-        byte_order (str): Byte order of the encoded data ('little' or 'big').
+        byte_order (str): Byte order of the binary peak data ('little' or
+            'big').
         encoding_precision (int): Encoding precision in bits (32 or 64).
-        decoded_data (dict): A dictionary containing Base64-encoded MS data,
+        encoded_data (dict): A dictionary containing Base64-encoded MS data,
             compression (bool), endian and encoding precision. Decoding is
             deferred until the spectrum is needed.
     """
@@ -28,7 +29,7 @@ class MzxmlDataBlock:
         self.compression = self.get_compression()
         self.byte_order = self.get_byte_order()
         self.encoding_precision = self.get_encoding_precision()
-        self.decoded_data = self.get_decoded_data()
+        self.encoded_data = self.get_encoded_data()
         # Free up memory.
         self.contents = None
 
@@ -53,9 +54,8 @@ class MzxmlDataBlock:
         """Return the encoding precision in bits (32 or 64)."""
         return int(self.contents.split("precision")[1].split("\"")[1])
 
-    def get_decoded_data(self) -> dict:
-        """Return encoded MS data and the metadata required to decode it.
-        """
+    def get_encoded_data(self) -> dict:
+        """Return encoded MS data and the metadata required to decode it."""
         encoded = self.contents.split('"m/z-int">')[1].split("</peaks>")[0]
 
         # Determine endian based on byte order.

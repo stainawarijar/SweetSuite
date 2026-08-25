@@ -191,10 +191,11 @@ Interface for reading, processing, and aligning mzXML files.
 
 **Responsibilities:**
 
-- **Parsing** — reads the mzXML XML as a string, splits on `<scan` boundaries,
-  and creates one `MzxmlDataBlock` per scan.
-- **Spectrum construction** — `create_mass_spectra()` decompresses zlib data
-  and unpacks interleaved m/z–intensity float arrays into 2D NumPy arrays.
+- **Parsing** — reads the mzXML XML line by line and creates one
+  `MzxmlDataBlock` per scan.
+- **Spectrum construction** — `create_mass_spectra()` Base64-decodes the
+  selected scans, decompresses zlib data, and unpacks interleaved
+  m/z–intensity float arrays into 2D NumPy arrays.
 - **Sum spectra** — `create_sum_spectrum(time, time_window, resolution)` accumulates
   all scans within `[time ± time_window]` into a `SumSpectrum`, merging data
   points within the given resolution tolerance.
@@ -213,12 +214,10 @@ Interface for reading, processing, and aligning mzXML files.
 
 Parses one `<scan>` element from an mzXML file.
 
-Extracts retention time, compression type, byte order, and encoding precision
-from the raw XML, then base64-decodes the peak data using
-`pybase64` (a C-backed base64 library), and stores the result as a
-`decoded_data` dictionary. Base64 decoding is deferred until a spectrum is
-needed. The raw XML string is discarded after parsing
-to free memory.
+Extracts retention time, compression type, byte order, encoding precision, and
+the Base64 peak text from the raw XML and stores them in an `encoded_data`
+dictionary. Base64 decoding with `pybase64` is deferred until a spectrum is
+needed. The raw XML string is discarded after parsing to free memory.
 
 ---
 
@@ -585,7 +584,7 @@ BatchCoordinator.start_batch_process()
   2. For each mzXML file:
      a. Read file
         Mzxml(path)
-          └─ MzxmlDataBlock (per scan) → decoded bytes
+          └─ MzxmlDataBlock (per scan) → encoded scan data
           └─ create_mass_spectra()    → list of (RT, ndarray)
 
      b. Retention time alignment  [if alignment list provided]
