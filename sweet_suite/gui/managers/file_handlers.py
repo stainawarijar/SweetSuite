@@ -174,6 +174,7 @@ class FileHandlers:
             # Store and populate calibration table.
             self.parent.analytes_list_df = df
             self.parent.analytes_ref_df = None
+            self.parent.set_ref_file_mode(False)
             self.parent.calibration_table_manager.update_table()
 
         elif file_cols == _REF_COLS:

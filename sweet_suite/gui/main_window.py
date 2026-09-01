@@ -313,14 +313,13 @@ class MainWindow(QMainWindow):
             )
 
     def set_ref_file_mode(self, enabled: bool) -> None:
-        """Disable or enable the quantitation m/z window and minimum isotopic
-        fraction controls when a reference file is loaded.
+        """Update controls whose values are encoded in a reference file.
 
-        When a reference file is uploaded these values are already encoded in
-        the file's `mz_window` column, so the corresponding GUI controls
-        should be greyed out (same visual treatment as LC elements in
-        MS-only mode).  Restoring them when a regular analytes list is
-        loaded or the file is cleared.
+        When a reference file is uploaded, its m/z windows, isotopic peaks,
+        charge carriers, and mass modifiers have already been determined.
+        Disable the corresponding GUI controls to make clear that changing
+        them would not affect processing. Restore the controls when a regular
+        analytes list is loaded or the file is cleared.
 
         Args:
             enabled: True to enter ref-file mode (controls disabled),
@@ -328,6 +327,16 @@ class MainWindow(QMainWindow):
         """
         self.ref_file_mode = enabled
         self._update_quantitation_window_state()
+        self.ui.comboBox_charge_carrier.setEnabled(not enabled)
+        self.ui.comboBox_mass_modifier.setEnabled(not enabled)
+        dropdown_style = "color: transparent;" if enabled else ""
+        self.ui.comboBox_charge_carrier.setStyleSheet(dropdown_style)
+        self.ui.comboBox_mass_modifier.setStyleSheet(dropdown_style)
+        self.ui.label_charge_carrier.setEnabled(not enabled)
+        self.ui.label_mass_modifier.setEnabled(not enabled)
+        dropdown_label_style = "color: #a0a0a0;" if enabled else ""
+        self.ui.label_charge_carrier.setStyleSheet(dropdown_label_style)
+        self.ui.label_mass_modifier.setStyleSheet(dropdown_label_style)
         if enabled:
             self.ui.min_isotopic_fraction.setEnabled(False)
             self.ui.min_isotopic_fraction.setStyleSheet("color: transparent;")
