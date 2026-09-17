@@ -3,10 +3,11 @@ import os
 import webbrowser
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QCloseEvent
+from PyQt6.QtGui import QCloseEvent, QIcon
 from PyQt6.QtWidgets import QFrame, QLabel, QMainWindow, QMessageBox
 
 from .. import __version__, __authors__, __organization__, __year__
+from ..utils import utils
 from .dialogs.advanced_settings_handler import AdvancedSettingsHandler
 from .managers.batch_coordinator import BatchCoordinator
 from .managers.block_parser import BlockParser
@@ -57,6 +58,9 @@ class MainWindow(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.setFixedSize(self.size())
+        self.setWindowIcon(QIcon(utils.resource_path(os.path.join(
+            "sweet_suite", "resources", "images", "logo_head.png"
+        ))))
         # Call UI setup methods.
         self.setup_ui()
         self.initialize_data_containers()

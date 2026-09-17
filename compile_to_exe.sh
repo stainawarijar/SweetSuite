@@ -12,10 +12,14 @@ echo -e "${GREEN}\nChecking required dependencies...${RESET}\n"
 python.exe -m pip install --upgrade pip
 pip install -r requirements.txt
 pip install pyinstaller
+pip install pillow
 
 echo -e "${GREEN}\nRunning PyInstaller...${RESET}\n"
 VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' sweet_suite/__init__.py)
 APP_NAME="SweetSuite_v$VERSION"
+
+# Convert PNG to ICO for embedding as the exe file icon
+python -c "from PIL import Image; img = Image.open('sweet_suite/resources/images/logo_head.png'); img.save('sweet_suite/resources/images/logo_head.ico')"
 
 if [ -d "dist/$APP_NAME" ] || [ -f "dist/$APP_NAME.exe" ]; then
   read -p "$(echo -e "${RED}dist/$APP_NAME already exists. Overwrite? (y/N): ${RESET}")" confirm
@@ -33,11 +37,16 @@ pyinstaller \
   --distpath "dist/$APP_NAME" \
   --noconfirm \
   --clean \
+  --icon "sweet_suite\resources\images\logo_head.ico" \
   --add-data "sweet_suite\gui\assets\google-material-icons\*.svg;sweet_suite\gui\assets\google-material-icons" \
   --add-data "sweet_suite\resources\templates\*.xlsx;sweet_suite\resources\templates" \
   --add-data "sweet_suite\resources\templates\*.block;sweet_suite\resources\templates" \
   --add-data "sweet_suite\resources\templates\*.csv;sweet_suite\resources\templates" \
+  --add-data "sweet_suite\resources\images\logo_head.png;sweet_suite\resources\images" \
   main.py
+
+# Clean up temporary ICO file
+rm -f sweet_suite/resources/images/logo_head.ico
 
 echo -e "${GREEN}\nCopying blocks folder...${RESET}\n"
 cp -r blocks "dist/$APP_NAME/"
