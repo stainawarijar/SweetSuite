@@ -132,6 +132,7 @@
     </property>
     <addaction name="actionAdvanced_settings"/>
     <addaction name="actionVisualize_mass_spectrum"/>
+    <addaction name="actionView_LC_FLD_chromatogram"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -205,6 +206,11 @@
   <action name="actionVisualize_mass_spectrum">
    <property name="text">
     <string>View '.xy' mass spectrum</string>
+   </property>
+  </action>
+  <action name="actionView_LC_FLD_chromatogram">
+   <property name="text">
+    <string>Open LC-FLD chromatogram</string>
    </property>
   </action>
  </widget>

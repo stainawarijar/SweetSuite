@@ -193,7 +193,7 @@ across multiple sheets labeled `Data1`, `Data2`, etc.
   on the calibration plots.
 
 ### Viewing .xy spectra
-A built-in spectrum viewer is available under `Tools → View '.xy' mass spectrum`. After selecting a `.xy` file, an interactive plot opens inside the application. Large files are handled efficiently by dynamically resampling the displayed data as you zoom in. The viewer toolbar provides `Home` (reset view) and `Save` (export figure) buttons; zooming is done with the mouse wheel and panning by click-dragging inside the plot.
+A spectrum viewer is available under `Tools → View '.xy' mass spectrum`. Select up to ten `.xy` files to compare in one plot. After selecting the files, an interactive Plotly Express plot opens in a Qt dialog inside the application. Each spectrum has its own color and a filename in the legend, on a white background, with `m/z` and `Intensity` axes. Use the Plotly toolbar to zoom, pan, reset the view, or save an image. The plot displays at most 10,000 points per spectrum, preserving the minimum and maximum in each bucket. Zooming and panning resample the visible range from the original data so finer detail becomes available as you zoom in.
 
 ## INSTALLATION
 **Microsoft Windows**

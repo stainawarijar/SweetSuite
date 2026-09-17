@@ -491,15 +491,16 @@ These files should not be edited by hand; re-generate them with
 #### viewers/
 
 - **`xy_spectrum_viewer.py`** — `launch_xy_viewer(parent)` opens a
-  `QFileDialog` to select a `.xy` file, loads it with `numpy.loadtxt`, and
-  shows a non-modal `QDialog` (`_XYSpectrumDialog`) with an embedded
-  `FigureCanvasQTAgg` (matplotlib Qt backend). Large files remain interactive
-  through dynamic resampling: an `xlim_changed` callback triggers
-  `_minmax_downsample` on every zoom or pan event, capping the number of
-  rendered points at `MAX_POINTS` (5 000) while always preserving per-bucket
-  min and max so no peaks are dropped. Memory is freed immediately on window
-  close via `WA_DeleteOnClose`. Triggered by `Tools → View '.xy' mass
-  spectrum` in `MainWindow.connect_signals()`.
+  `QFileDialog` to select up to ten `.xy` files, loads and validates it with
+  `numpy.loadtxt`, sorts by m/z, and displays the spectrum using
+  `plotly.express.line` in a non-modal Qt dialog with `QWebEngineView`.
+  Self-contained HTML is loaded from a temporary file and removed on close.
+  Min/max sampling limits rendering to 10,000 points per spectrum. A `QWebChannel`
+  bridge resamples the visible range on zoom, pan, and reset, retaining
+  the original data in Python. SVG rendering avoids requiring WebGL. The plot uses a distinct color and filename legend entry for each spectrum,
+  the `simple_white` template, and m/z and Intensity axis labels. Plotly
+  provides zoom, pan, reset, and image export controls. Triggered by
+  `Tools → View '.xy' mass spectrum` in `MainWindow.connect_signals()`.
 
 #### workers/
 

@@ -25,8 +25,8 @@ from .ui.ui_setup import UISetup
 def launch_xy_viewer(*args, **kwargs):
     """Lazily import and launch the XY spectrum viewer.
 
-    Importing the underlying viewer module pulls in NumPy and the
-    matplotlib Qt backend. To avoid slowing and potentially breaking
+    Importing the underlying viewer module pulls in NumPy, Plotly Express, and
+    Qt WebEngine. To avoid slowing and potentially breaking
     application startup, defer that import until the viewer is actually
     requested.
     """
@@ -62,13 +62,25 @@ class MainWindow(QMainWindow):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        launch_size = self.size()
         self.ms_page = MsPage(self.ui.page)
         self.ms_ui = self.ms_page.ui
         page_layout = QVBoxLayout(self.ui.page)
         page_layout.setContentsMargins(0, 0, 0, 0)
         page_layout.addWidget(self.ms_page)
         self.fld_page = self.ui.page_2
-        self.setMinimumSize(self.size())
+        self.setFixedSize(launch_size)
+        # CustomizeWindowHint makes the title-bar controls explicit rather
+        # than allowing the platform to supply the default window buttons.
+        self.setWindowFlags(
+            Qt.WindowType.Window
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
+            | Qt.WindowType.WindowSystemMenuHint
+            | Qt.WindowType.WindowMinimizeButtonHint
+            | Qt.WindowType.WindowCloseButtonHint
+            | Qt.WindowType.MSWindowsFixedSizeDialogHint
+        )
         self.setWindowIcon(QIcon(utils.resource_path(os.path.join(
             "sweet_suite", "resources", "images", "logo_head.png"
         ))))
@@ -80,6 +92,8 @@ class MainWindow(QMainWindow):
         self.initialize_default_blocks_directory()
         self.connect_signals()
         self.set_processing_mode(ProcessingMode.LC_MS)
+        # Keep the initial size from the Designer form after initialization.
+        self.resize(launch_size)
     
     # --- UI setup methods ---
 

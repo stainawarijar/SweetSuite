@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'sweet_suite\gui\qtdesigner_files\gui_main.ui'
+# Form implementation generated from reading ui file 'gui_main.ui'
 #
 # Created by: PyQt6 UI code generator 6.10.0
 #
@@ -86,6 +86,8 @@ class Ui_MainWindow(object):
         self.actionBlock_file.setObjectName("actionBlock_file")
         self.actionVisualize_mass_spectrum = QtGui.QAction(parent=MainWindow)
         self.actionVisualize_mass_spectrum.setObjectName("actionVisualize_mass_spectrum")
+        self.actionView_LC_FLD_chromatogram = QtGui.QAction(parent=MainWindow)
+        self.actionView_LC_FLD_chromatogram.setObjectName("actionView_LC_FLD_chromatogram")
         self.menuTemplates.addAction(self.actionAnalytes_list)
         self.menuTemplates.addAction(self.actionAlignment_list)
         self.menuTemplates.addAction(self.actionBlock_file)
@@ -100,6 +102,7 @@ class Ui_MainWindow(object):
         self.menuFile.addSeparator()
         self.menuTools.addAction(self.actionAdvanced_settings)
         self.menuTools.addAction(self.actionVisualize_mass_spectrum)
+        self.menuTools.addAction(self.actionView_LC_FLD_chromatogram)
         self.menuHelp.addSeparator()
         self.menuHelp.addAction(self.actionDocumentation)
         self.menuHelp.addAction(self.actionReport_a_bug)
@@ -136,3 +139,4 @@ class Ui_MainWindow(object):
         self.actionRevert_to_default_settings.setText(_translate("MainWindow", "Revert to default settings"))
         self.actionBlock_file.setText(_translate("MainWindow", "Block file"))
         self.actionVisualize_mass_spectrum.setText(_translate("MainWindow", "View \'.xy\' mass spectrum"))
+        self.actionView_LC_FLD_chromatogram.setText(_translate("MainWindow", "Open LC-FLD chromatogram"))

@@ -8,7 +8,7 @@ import sys
 
 from PyQt6.QtGui import QPalette, QColor, QIcon
 from PyQt6.QtWidgets import QApplication, QStyleFactory
-from PyQt6.QtCore import qInstallMessageHandler
+from PyQt6.QtCore import Qt, qInstallMessageHandler
 
 from sweet_suite.gui.main_window import MainWindow
 from sweet_suite.utils import utils
@@ -34,6 +34,16 @@ def setup_logging() -> None:
             logging.StreamHandler(sys.stdout)
         ]
     )
+
+
+def configure_webengine_logging() -> None:
+    """Keep Chromium's recurring display diagnostics out of the console."""
+    flags = os.environ.get("QTWEBENGINE_CHROMIUM_FLAGS", "")
+    # Respect explicit logging settings when debugging WebEngine.
+    if "--log-level" not in flags:
+        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = (
+            f"{flags} --log-level=3".strip()
+        )
 
 
 def apply_light_palette(app: QApplication) -> None:
@@ -89,6 +99,8 @@ def main():
     setup_logging()
     logging.info("SweetSuite application started\n")
     # Create instance of QApplication.
+    configure_webengine_logging()
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon(utils.resource_path(os.path.join(
         "sweet_suite", "resources", "images", "logo_head.png"
