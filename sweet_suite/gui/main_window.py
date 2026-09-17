@@ -2,9 +2,9 @@ import logging
 import os
 import webbrowser
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QSignalBlocker, Qt
 from PyQt6.QtGui import QCloseEvent, QIcon
-from PyQt6.QtWidgets import QFrame, QLabel, QMainWindow, QMessageBox
+from PyQt6.QtWidgets import QFrame, QLabel, QMainWindow, QMessageBox, QVBoxLayout
 
 from .. import __version__, __authors__, __organization__, __year__
 from ..utils import utils
@@ -15,6 +15,8 @@ from .managers.calibration_table_manager import CalibrationTableManager
 from .managers.file_handlers import FileHandlers
 from .managers.settings_manager import SettingsManager
 from .managers.template_manager import TemplateManager
+from .ms_page import MsPage
+from .processing_mode import ProcessingMode
 from .qtdesigner_files.gui_main import Ui_MainWindow
 from .ui.ui_helpers import UIHelpers
 from .ui.ui_setup import UISetup
@@ -40,7 +42,10 @@ class MainWindow(QMainWindow):
     
     Attributes:
         logger: Application logger instance.
-        ui: Main window UI object from Qt Designer.
+        ui: Main window shell UI object from Qt Designer.
+        ms_page: Persistent settings page shared by LC-MS and MS-only modes.
+        ms_ui: MS page UI object retained by the existing managers.
+        processing_mode: Selected or input-file-detected processing mode.
         alignment_list_df: DataFrame containing alignment list data.
         analytes_list_df: DataFrame containing analytes list data.
         blocks: Dictionary of parsed block file data.
@@ -57,28 +62,34 @@ class MainWindow(QMainWindow):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.setFixedSize(self.size())
+        self.ms_page = MsPage(self.ui.page)
+        self.ms_ui = self.ms_page.ui
+        page_layout = QVBoxLayout(self.ui.page)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.addWidget(self.ms_page)
+        self.fld_page = self.ui.page_2
+        self.setMinimumSize(self.size())
         self.setWindowIcon(QIcon(utils.resource_path(os.path.join(
             "sweet_suite", "resources", "images", "logo_head.png"
         ))))
         # Call UI setup methods.
-        self.setup_ui()
         self.initialize_data_containers()
+        self.setup_ui()
         self.initialize_dialogs()
         self.initialize_managers()
         self.initialize_default_blocks_directory()
         self.connect_signals()
+        self.set_processing_mode(ProcessingMode.LC_MS)
     
     # --- UI setup methods ---
 
     def setup_ui(self) -> None:
         """Setup UI styling, icons, and tooltips."""
         UIHelpers.disable_spinbox_scroll(self)
-        UISetup.setup_table_styling(self.ui.tableWidget_calibration)
+        UISetup.setup_table_styling(self.ms_ui.tableWidget_calibration)
         UISetup.setup_menu_icons(self.ui)
-        UISetup.setup_button_icons(self.ui)
-        UISetup.setup_tooltips(self.ui)
-        self.setup_mode_indicator()
+        UISetup.setup_button_icons(self.ms_ui)
+        UISetup.setup_tooltips(self.ms_ui)
         self.setup_quadratic_window_indicator()
     
     def initialize_data_containers(self) -> None:
@@ -89,6 +100,7 @@ class MainWindow(QMainWindow):
         self.blocks = None
         self.ms_only_mode = False  # Track whether in MS-only mode
         self.ref_file_mode = False
+        self.processing_mode = ProcessingMode.LC_MS
     
     def initialize_dialogs(self) -> None:
         """Initialize all dialog instances."""
@@ -97,13 +109,13 @@ class MainWindow(QMainWindow):
     def initialize_managers(self) -> None:
         """Initialize all manager instances."""
         self.batch_coordinator = BatchCoordinator(
-            self, self.ui, self.advanced_settings_handler.ui, self.logger
+            self, self.ms_ui, self.advanced_settings_handler.ui, self.logger
         )
-        self.block_parser = BlockParser(self, self.ui)
-        self.calibration_table_manager = CalibrationTableManager(self, self.ui)
-        self.file_handlers = FileHandlers(self, self.ui)
+        self.block_parser = BlockParser(self, self.ms_ui)
+        self.calibration_table_manager = CalibrationTableManager(self, self.ms_ui)
+        self.file_handlers = FileHandlers(self, self.ms_ui)
         self.settings_manager = SettingsManager(
-            self, self.ui, self.advanced_settings_handler.ui
+            self, self.ms_ui, self.advanced_settings_handler.ui
         )
         self.template_manager = TemplateManager(self)
     
@@ -111,30 +123,17 @@ class MainWindow(QMainWindow):
         """Set initial block files directory if it exists."""
         blocks_try = os.path.join(os.getcwd(), "blocks")
         if os.path.isdir(blocks_try):
-            self.ui.path_blocks.addItem(blocks_try)
+            self.ms_ui.path_blocks.addItem(blocks_try)
             self.block_parser.update_charge_carriers()
             self.block_parser.update_mass_modifiers()
     
-    def setup_mode_indicator(self) -> None:
-        """Create and add mode indicator label to the GUI."""
-        from PyQt6.QtWidgets import QLabel
-        # Create mode indicator label
-        self.mode_indicator_label = QLabel(self.ui.frame_calibration_quantitation)
-        self.mode_indicator_label.setGeometry(380, 10, 100, 20)
-        self.mode_indicator_label.setText("Mode: LC-MS")
-        self.mode_indicator_label.setStyleSheet(
-            "color: #00008B; font-weight: bold; font-size: 9pt;"
-        )
-        self.mode_indicator_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.mode_indicator_label.show()
-
     def setup_quadratic_window_indicator(self) -> None:
         """Create the disabled message shown in place of the fixed window."""
-        spinbox = self.ui.quantitation_mz_window
+        spinbox = self.ms_ui.quantitation_mz_window
         self.quadratic_window_mode = False
         self.quadratic_window_indicator = QLabel(
             "Quadratic window enabled",
-            self.ui.frame_calibration_quantitation,
+            self.ms_ui.frame_calibration_quantitation,
         )
         geo = spinbox.geometry()
         self.quadratic_window_indicator.setGeometry(
@@ -146,7 +145,7 @@ class MainWindow(QMainWindow):
             "QLabel:disabled { color: #555555; }"
         )
         self.quadratic_window_indicator.setToolTip(
-            self.ui.quantitation_mz_window.toolTip()
+            self.ms_ui.quantitation_mz_window.toolTip()
         )
         self.quadratic_window_indicator.setEnabled(False)
         self.quadratic_window_indicator.hide()
@@ -155,40 +154,82 @@ class MainWindow(QMainWindow):
         """Replace the fixed quantitation window with a quadratic-mode notice."""
         self.quadratic_window_mode = enabled
         self.quadratic_window_indicator.setVisible(enabled)
-        self.ui.quantitation_mz_window.setVisible(not enabled)
+        self.ms_ui.quantitation_mz_window.setVisible(not enabled)
         self._update_quantitation_window_state()
 
     def _update_quantitation_window_state(self) -> None:
         """Apply the combined quadratic- and reference-file disabled state."""
         quadratic = self.quadratic_window_mode
         disabled = quadratic or self.ref_file_mode
-        self.ui.quantitation_mz_window.setEnabled(not disabled)
+        self.ms_ui.quantitation_mz_window.setEnabled(not disabled)
         # Quadratic mode replaces only the input box; its title remains active
         # and black. Reference-file mode retains its existing greyed title.
         label_disabled = self.ref_file_mode and not quadratic
-        self.ui.label_quantitation_mz_window.setEnabled(not label_disabled)
-        self.ui.label_quantitation_mz_window.setStyleSheet(
+        self.ms_ui.label_quantitation_mz_window.setEnabled(not label_disabled)
+        self.ms_ui.label_quantitation_mz_window.setStyleSheet(
             "color: #a0a0a0;" if label_disabled else ""
         )
 
         if self.ref_file_mode and not quadratic:
-            self.ui.quantitation_mz_window.setStyleSheet("color: transparent;")
-            self.ui.quantitation_mz_window.setToolTip("")
+            self.ms_ui.quantitation_mz_window.setStyleSheet("color: transparent;")
+            self.ms_ui.quantitation_mz_window.setToolTip("")
         elif not quadratic:
-            self.ui.quantitation_mz_window.setStyleSheet("")
-            self.ui.quantitation_mz_window.setToolTip(
+            self.ms_ui.quantitation_mz_window.setStyleSheet("")
+            self.ms_ui.quantitation_mz_window.setToolTip(
                 "m/z window used around the exact m/z of each isotopic peak"
                 " for area quantitation\n"
                 "(or for determining peak height, if enabled under advanced settings).\n"
                 "Can be overwritten for individual analytes in the analytes list."
             )
     
+    def set_processing_mode(self, mode: ProcessingMode) -> None:
+        """Switch pages unless an uploaded analyte/reference file fixes the mode."""
+        if self.analytes_list_df is not None or self.analytes_ref_df is not None:
+            self._sync_mode_selection()
+            return
+        if mode == ProcessingMode.LC_FLD:
+            self.processing_mode = mode
+            self._sync_mode_selection()
+        else:
+            self.set_ms_only_mode(mode == ProcessingMode.MS_ONLY)
+
+    def _sync_mode_selection(self) -> None:
+        """Synchronize the selector, page, lock, and mode-specific menu actions."""
+        selector = self.ui.comboBox_processing_mode
+        with QSignalBlocker(selector):
+            selector.setCurrentText(self.processing_mode.value)
+        locked = self.analytes_list_df is not None or self.analytes_ref_df is not None
+        selector.setEnabled(not locked)
+        selector.setToolTip(
+            "Clear the uploaded analytes list or reference file to change mode."
+            if locked else "Select a processing mode."
+        )
+        ms_mode = self.processing_mode != ProcessingMode.LC_FLD
+        self.ui.stackedWidget.setCurrentWidget(
+            self.ui.page if ms_mode else self.fld_page
+        )
+        for action in (
+            self.ui.actionImport_settings,
+            self.ui.actionExport_settings,
+            self.ui.actionRevert_to_default_settings,
+            self.ui.actionAdvanced_settings,
+            self.ui.actionVisualize_mass_spectrum,
+            self.ui.actionAlignment_list,
+            self.ui.actionAnalytes_list,
+            self.ui.actionBlock_file,
+        ):
+            action.setEnabled(ms_mode)
+
     def set_ms_only_mode(self, enabled: bool) -> None:
         """Enable or disable MS-only mode in the GUI.
         
         Args:
             enabled: True to enable MS-only mode, False for LC-MS mode.
         """
+        self.processing_mode = (
+            ProcessingMode.MS_ONLY if enabled else ProcessingMode.LC_MS
+        )
+        self._sync_mode_selection()
         self.ms_only_mode = enabled
 
         # Keep the individual controls in sync with their container.  While a
@@ -196,13 +237,13 @@ class MainWindow(QMainWindow):
         # these explicitly ensures that no alignment control can retain a
         # disabled state after returning from MS-only mode.
         alignment_controls = (
-            self.ui.open_alignment_list,
-            self.ui.pushButton_delete_alignment,
-            self.ui.path_alignment_list,
-            self.ui.alignment_time_window,
-            self.ui.alignment_mz_window,
-            self.ui.alignment_min_peaks,
-            self.ui.alignment_sn_cutoff,
+            self.ms_ui.open_alignment_list,
+            self.ms_ui.pushButton_delete_alignment,
+            self.ms_ui.path_alignment_list,
+            self.ms_ui.alignment_time_window,
+            self.ms_ui.alignment_mz_window,
+            self.ms_ui.alignment_min_peaks,
+            self.ms_ui.alignment_sn_cutoff,
         )
         for control in alignment_controls:
             control.setEnabled(not enabled)
@@ -212,109 +253,99 @@ class MainWindow(QMainWindow):
             self.logger.info("Using MS-only mode")
             
             # Disable entire Alignment section with red text and hide spinbox values
-            self.ui.frame_alignment.setEnabled(False)
-            self.ui.frame_alignment.setStyleSheet(
+            self.ms_ui.frame_alignment.setEnabled(False)
+            self.ms_ui.frame_alignment.setStyleSheet(
                 "QLabel { color: #a0a0a0; }"
                 "QSpinBox, QDoubleSpinBox { color: transparent; }"
             )
-            self.ui.alignment_time_window.setToolTip("")
-            self.ui.alignment_mz_window.setToolTip("")
-            self.ui.alignment_min_peaks.setToolTip("")
-            self.ui.alignment_sn_cutoff.setToolTip("")
+            self.ms_ui.alignment_time_window.setToolTip("")
+            self.ms_ui.alignment_mz_window.setToolTip("")
+            self.ms_ui.alignment_min_peaks.setToolTip("")
+            self.ms_ui.alignment_sn_cutoff.setToolTip("")
             
             # Disable sum spectrum resolution (LC-specific) and hide value
-            self.ui.sum_spectrum_resolution.setEnabled(False)
-            self.ui.sum_spectrum_resolution.setStyleSheet("color: transparent;")
-            self.ui.sum_spectrum_resolution.setToolTip("")
-            self.ui.label_resolution.setEnabled(False)
-            self.ui.label_resolution.setStyleSheet("color: #a0a0a0;")
+            self.ms_ui.sum_spectrum_resolution.setEnabled(False)
+            self.ms_ui.sum_spectrum_resolution.setStyleSheet("color: transparent;")
+            self.ms_ui.sum_spectrum_resolution.setToolTip("")
+            self.ms_ui.label_resolution.setEnabled(False)
+            self.ms_ui.label_resolution.setStyleSheet("color: #a0a0a0;")
             
             # Hide calibration table (not applicable in MS-only mode)
-            self.ui.tableWidget_calibration.setVisible(False)
-            self.ui.pushButton_apply_sn.setVisible(False)
-            self.ui.calibrant_sn_cutoff.setGeometry(
-                self.ui.calibrant_sn_cutoff.x(),
-                self.ui.calibrant_sn_cutoff.y(),
+            self.ms_ui.tableWidget_calibration.setVisible(False)
+            self.ms_ui.pushButton_apply_sn.setVisible(False)
+            self.ms_ui.calibrant_sn_cutoff.setGeometry(
+                self.ms_ui.calibrant_sn_cutoff.x(),
+                self.ms_ui.calibrant_sn_cutoff.y(),
                 221,
-                self.ui.calibrant_sn_cutoff.height()
+                self.ms_ui.calibrant_sn_cutoff.height()
             )
-            self.ui.label_calibrant_sn_cutoff.setText("Calibrant S/N cut-off")
-            self.ui.calibrant_sn_cutoff.setToolTip(
+            self.ms_ui.label_calibrant_sn_cutoff.setText("Calibrant S/N cut-off")
+            self.ms_ui.calibrant_sn_cutoff.setToolTip(
                 "Minimum signal-to-noise required for a calibrant to be used."
             )
             
             # Disable "Quantify aligned files only" checkbox
-            self.ui.quantify_aligned.setEnabled(False)
-            self.ui.quantify_aligned.setChecked(False)
-            self.ui.quantify_aligned.setStyleSheet("color: #a0a0a0;")
+            self.ms_ui.quantify_aligned.setEnabled(False)
+            self.ms_ui.quantify_aligned.setChecked(False)
+            self.ms_ui.quantify_aligned.setStyleSheet("color: #a0a0a0;")
             
-            # Update mode indicator
-            self.mode_indicator_label.setText("Mode: MS-only")
-            self.mode_indicator_label.setStyleSheet(
-                "color: #006400; font-weight: bold; font-size: 9pt;"
-            )
         else:
             # LC-MS mode: enable all features
             self.logger.info("Using LC-MS mode")
             
             # Enable Alignment section and reset styling
-            self.ui.frame_alignment.setEnabled(True)
-            self.ui.frame_alignment.setStyleSheet("")
-            self.ui.alignment_time_window.setToolTip(
+            self.ms_ui.frame_alignment.setEnabled(True)
+            self.ms_ui.frame_alignment.setStyleSheet("")
+            self.ms_ui.alignment_time_window.setToolTip(
                 "Time window used around each alignment feature to determine its "
                 "observed \nretention time. "
                 "Can be overwritten for individual features in the alignment file."
             )
-            self.ui.alignment_mz_window.setToolTip(
+            self.ms_ui.alignment_mz_window.setToolTip(
                 "m/z window used around the exact m/z of an alignment feature\n"
                 "when creating an extracted ion chromatogram. "
                 "Can be overwritten\nfor individual features in the alignment file."
             )
-            self.ui.alignment_min_peaks.setToolTip(
+            self.ms_ui.alignment_min_peaks.setToolTip(
                 "Minimum number of alignment features to use when aligning a\n"
                 "chromatogram. When less features have a S/N above the cut-off,\n"
                 "alignment fails for the corresponding sample."
             )
-            self.ui.alignment_sn_cutoff.setToolTip(
+            self.ms_ui.alignment_sn_cutoff.setToolTip(
                 "Minimum signal-to-noise required for an alignment feature to be used.\n"
                 "Can be overwritten for individual features in the alignment file."
             )
             
             # Enable sum spectrum resolution and reset styling
-            self.ui.sum_spectrum_resolution.setEnabled(True)
-            self.ui.sum_spectrum_resolution.setStyleSheet("")
-            self.ui.sum_spectrum_resolution.setToolTip(
+            self.ms_ui.sum_spectrum_resolution.setEnabled(True)
+            self.ms_ui.sum_spectrum_resolution.setStyleSheet("")
+            self.ms_ui.sum_spectrum_resolution.setToolTip(
                 "Number of data points per m/z unit in an LC-MS spectrum."
             )
-            self.ui.label_resolution.setEnabled(True)
-            self.ui.label_resolution.setStyleSheet("")
+            self.ms_ui.label_resolution.setEnabled(True)
+            self.ms_ui.label_resolution.setStyleSheet("")
             
             # Show and enable calibration table
-            self.ui.tableWidget_calibration.setVisible(True)
-            self.ui.tableWidget_calibration.setEnabled(True)
-            self.ui.tableWidget_calibration.setStyleSheet("")
-            self.ui.pushButton_apply_sn.setVisible(True)
-            self.ui.calibrant_sn_cutoff.setGeometry(
-                self.ui.calibrant_sn_cutoff.x(),
-                self.ui.calibrant_sn_cutoff.y(),
+            self.ms_ui.tableWidget_calibration.setVisible(True)
+            self.ms_ui.tableWidget_calibration.setEnabled(True)
+            self.ms_ui.tableWidget_calibration.setStyleSheet("")
+            self.ms_ui.pushButton_apply_sn.setVisible(True)
+            self.ms_ui.calibrant_sn_cutoff.setGeometry(
+                self.ms_ui.calibrant_sn_cutoff.x(),
+                self.ms_ui.calibrant_sn_cutoff.y(),
                 73,
-                self.ui.calibrant_sn_cutoff.height()
+                self.ms_ui.calibrant_sn_cutoff.height()
             )
-            self.ui.label_calibrant_sn_cutoff.setText("Set all S/N cut-offs to:")
-            self.ui.calibrant_sn_cutoff.setToolTip(
+            self.ms_ui.label_calibrant_sn_cutoff.setText("Set all S/N cut-offs to:")
+            self.ms_ui.calibrant_sn_cutoff.setToolTip(
                 "Minimum signal-to-noise required for a calibrant to be used.\n"
                 "Can be modified per retention time window in the table below."
             )
             
             # Enable "Quantify aligned files only" checkbox and reset styling
-            self.ui.quantify_aligned.setEnabled(True)
-            self.ui.quantify_aligned.setStyleSheet("")
+            self.ms_ui.quantify_aligned.setEnabled(True)
+            self.ms_ui.quantify_aligned.setStyleSheet("")
             
-            # Update mode indicator
-            self.mode_indicator_label.setText("Mode: LC-MS")
-            self.mode_indicator_label.setStyleSheet(
-                "color: #00008B; font-weight: bold; font-size: 9pt;"
-            )
 
     def set_ref_file_mode(self, enabled: bool) -> None:
         """Update controls whose values are encoded in a reference file.
@@ -331,57 +362,60 @@ class MainWindow(QMainWindow):
         """
         self.ref_file_mode = enabled
         self._update_quantitation_window_state()
-        self.ui.comboBox_charge_carrier.setEnabled(not enabled)
-        self.ui.comboBox_mass_modifier.setEnabled(not enabled)
+        self.ms_ui.comboBox_charge_carrier.setEnabled(not enabled)
+        self.ms_ui.comboBox_mass_modifier.setEnabled(not enabled)
         dropdown_style = "color: transparent;" if enabled else ""
-        self.ui.comboBox_charge_carrier.setStyleSheet(dropdown_style)
-        self.ui.comboBox_mass_modifier.setStyleSheet(dropdown_style)
-        self.ui.label_charge_carrier.setEnabled(not enabled)
-        self.ui.label_mass_modifier.setEnabled(not enabled)
+        self.ms_ui.comboBox_charge_carrier.setStyleSheet(dropdown_style)
+        self.ms_ui.comboBox_mass_modifier.setStyleSheet(dropdown_style)
+        self.ms_ui.label_charge_carrier.setEnabled(not enabled)
+        self.ms_ui.label_mass_modifier.setEnabled(not enabled)
         dropdown_label_style = "color: #a0a0a0;" if enabled else ""
-        self.ui.label_charge_carrier.setStyleSheet(dropdown_label_style)
-        self.ui.label_mass_modifier.setStyleSheet(dropdown_label_style)
+        self.ms_ui.label_charge_carrier.setStyleSheet(dropdown_label_style)
+        self.ms_ui.label_mass_modifier.setStyleSheet(dropdown_label_style)
         if enabled:
-            self.ui.min_isotopic_fraction.setEnabled(False)
-            self.ui.min_isotopic_fraction.setStyleSheet("color: transparent;")
-            self.ui.min_isotopic_fraction.setToolTip("")
-            self.ui.label_isotopic_fraction.setEnabled(False)
-            self.ui.label_isotopic_fraction.setStyleSheet("color: #a0a0a0;")
+            self.ms_ui.min_isotopic_fraction.setEnabled(False)
+            self.ms_ui.min_isotopic_fraction.setStyleSheet("color: transparent;")
+            self.ms_ui.min_isotopic_fraction.setToolTip("")
+            self.ms_ui.label_isotopic_fraction.setEnabled(False)
+            self.ms_ui.label_isotopic_fraction.setStyleSheet("color: #a0a0a0;")
         else:
-            self.ui.min_isotopic_fraction.setEnabled(True)
-            self.ui.min_isotopic_fraction.setStyleSheet("")
-            self.ui.min_isotopic_fraction.setToolTip(
+            self.ms_ui.min_isotopic_fraction.setEnabled(True)
+            self.ms_ui.min_isotopic_fraction.setStyleSheet("")
+            self.ms_ui.min_isotopic_fraction.setToolTip(
                 "Minimum fraction of the total isotopic pattern that should\n"
                 "be integrated per analyte and charge state."
             )
-            self.ui.label_isotopic_fraction.setEnabled(True)
-            self.ui.label_isotopic_fraction.setStyleSheet("")
+            self.ms_ui.label_isotopic_fraction.setEnabled(True)
+            self.ms_ui.label_isotopic_fraction.setStyleSheet("")
 
     def connect_signals(self) -> None:
         """Connect all UI signals to their handlers."""
+        self.ui.comboBox_processing_mode.currentTextChanged.connect(
+            lambda text: self.set_processing_mode(ProcessingMode(text))
+        )
         # File operation buttons.
-        self.ui.open_blocks_folder.clicked.connect(
+        self.ms_ui.open_blocks_folder.clicked.connect(
             self.file_handlers.open_blocks_folder
         )
-        self.ui.open_alignment_list.clicked.connect(
+        self.ms_ui.open_alignment_list.clicked.connect(
             self.file_handlers.open_alignment_list
         )
-        self.ui.open_analytes_list.clicked.connect(
+        self.ms_ui.open_analytes_list.clicked.connect(
             self.file_handlers.open_analytes_list
         )
-        self.ui.open_mzxml_path.clicked.connect(
+        self.ms_ui.open_mzxml_path.clicked.connect(
             self.file_handlers.open_mzxml_path
         )
-        self.ui.pushButton_start_processing.clicked.connect(
+        self.ms_ui.pushButton_start_processing.clicked.connect(
             self.batch_coordinator.start_batch_process
         )
-        self.ui.pushButton_apply_sn.clicked.connect(
+        self.ms_ui.pushButton_apply_sn.clicked.connect(
             self.calibration_table_manager.apply_sn_cutoff
         )
-        self.ui.pushButton_delete_alignment.clicked.connect(
+        self.ms_ui.pushButton_delete_alignment.clicked.connect(
             self.file_handlers.clear_alignment_file
         )
-        self.ui.pushButton_delete_analytes.clicked.connect(
+        self.ms_ui.pushButton_delete_analytes.clicked.connect(
             self.file_handlers.clear_analytes_file
         )
         # Toolbar actions.

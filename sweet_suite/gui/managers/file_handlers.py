@@ -139,57 +139,53 @@ class FileHandlers:
         if not file_path:
             return
 
-        # Add file path to UI.
-        self.ui.path_analytes_list.clear()
-        self.ui.path_analytes_list.addItem(file_path)
+        # Validate before replacing a previously loaded file or its mode lock.
+        try:
+            df = pd.read_excel(file_path)
+        except Exception as exc:
+            UIHelpers.show_message_box(
+                self.parent,
+                title="Error opening analytes file",
+                text="Could not read the selected Excel file.",
+                informative_text=str(exc),
+                icon="Critical",
+            )
+            return
 
-        # Read in the Excel file.
-        # pandas converts the literal string "None" to NaN by default, and
-        # blank cells are also NaN. Both are valid, they mean no modifier was
-        # used, so fill them back to the string "None" before validation.
-        df = pd.read_excel(file_path)
+        # pandas treats the literal "None" as NaN; both mean no mass modifier.
         if "mass_modifier" in df.columns:
             df["mass_modifier"] = df["mass_modifier"].fillna("None")
 
-        # Determine which format the file matches by inspecting its columns.
-        _ANALYTES_COLS = {
+        analytes_cols = {
             "analyte", "charge_min", "charge_max",
             "calibrant", "time", "time_window", "mz_window"
         }
-        _REF_COLS = {
+        ref_cols = {
             "peak", "charge_carrier", "mass_modifier", "mz", "relative_area",
             "mz_window", "time", "time_window", "calibrant"
         }
         file_cols = set(df.columns)
-
-        if file_cols == _ANALYTES_COLS:
-            # Validate as analytes list (shows error popups on failure).
+        if file_cols == analytes_cols:
             if not self.check_analytes_list(df):
-                self.ui.path_analytes_list.clear()
-                self.parent.analytes_list_df = None
-                self.parent.analytes_ref_df = None
-                self.ui.tableWidget_calibration.setRowCount(0)
-                self.parent.set_ref_file_mode(False)
                 return
-            # Store and populate calibration table.
+            self.ui.path_analytes_list.clear()
+            self.ui.path_analytes_list.addItem(file_path)
             self.parent.analytes_list_df = df
             self.parent.analytes_ref_df = None
+            ms_only = df["time"].isnull().all()
+            self.parent.set_ms_only_mode(ms_only)
             self.parent.set_ref_file_mode(False)
-            self.parent.calibration_table_manager.update_table()
-
-        elif file_cols == _REF_COLS:
-            # Validate as reference file (shows error popups on failure).
-            if not self.check_ref_file(df):
-                self.ui.path_analytes_list.clear()
-                self.parent.analytes_list_df = None
-                self.parent.analytes_ref_df = None
+            if ms_only:
                 self.ui.tableWidget_calibration.setRowCount(0)
-                self.parent.set_ref_file_mode(False)
+            else:
+                self.parent.calibration_table_manager.update_table()
+        elif file_cols == ref_cols:
+            if not self.check_ref_file(df):
                 return
+            self.ui.path_analytes_list.clear()
+            self.ui.path_analytes_list.addItem(file_path)
             self._apply_ref_file(df)
-
         else:
-            # Column set does not match either known format.
             UIHelpers.show_message_box(
                 self.parent,
                 title="Unrecognized file format",
@@ -204,12 +200,6 @@ class FileHandlers:
                 ),
                 icon="Critical"
             )
-            self.ui.path_analytes_list.clear()
-            self.parent.analytes_list_df = None
-            self.parent.analytes_ref_df = None
-            self.ui.tableWidget_calibration.setRowCount(0)
-            self.parent.set_ms_only_mode(False)
-            self.parent.set_ref_file_mode(False)
 
     def check_ref_file(self, df: pd.DataFrame) -> bool:
         """Check the structure of an analytes reference file.
@@ -220,6 +210,15 @@ class FileHandlers:
 
         Returns True if correctly formatted, False otherwise.
         """
+        if df.empty:
+            UIHelpers.show_message_box(
+                self.parent,
+                title="Empty analytes file",
+                text="The selected file contains no analytes.",
+                icon="Critical",
+            )
+            return False
+
         # Required columns are already guaranteed by the caller (column-set
         # routing in open_analytes_list), but we re-check here defensively.
         columns_required = {
@@ -488,6 +487,15 @@ class FileHandlers:
         
         Returns True if correctly formatted, False otherwise.
         """
+        if df.empty:
+            UIHelpers.show_message_box(
+                self.parent,
+                title="Empty analytes file",
+                text="The selected file contains no analytes.",
+                icon="Critical",
+            )
+            return False
+
         # Check required columns. `mz_window`, `time`, `time_window` are optional.
         columns_required = [
             "analyte", "charge_min", "charge_max",
@@ -645,19 +653,6 @@ class FileHandlers:
             )
             return False
         
-        # Detect MS-only mode (all time values are NaN)
-        all_time_missing = df["time"].isnull().all() and df["time_window"].isnull().all()
-        
-        if all_time_missing:
-            # MS-only mode detected
-            self.parent.set_ms_only_mode(True)
-        else:
-            # LC-MS mode (has retention time data)
-            self.parent.set_ms_only_mode(False)
-
-        # A regular analytes list was loaded; re-enable ref-file-locked controls.
-        self.parent.set_ref_file_mode(False)
-
         return True
 
     def open_blocks_folder(self) -> None:
