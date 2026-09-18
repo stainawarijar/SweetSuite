@@ -22,10 +22,20 @@ class ChromatogramWindow(QMainWindow):
         super().__init__(parent, Qt.WindowType.Window)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        launch_size = self.size()
+        self.setWindowFlags(
+            Qt.WindowType.Window
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
+            | Qt.WindowType.WindowSystemMenuHint
+            | Qt.WindowType.WindowMinimizeButtonHint
+            | Qt.WindowType.WindowCloseButtonHint
+        )
+        # Use setFixedSize below rather than the Windows dialog-border hint,
+        # which interferes with per-monitor DPI changes.
         self.setWindowTitle("SweetSuite — LC-FLD chromatogram viewer")
         if parent is not None:
             self.setWindowIcon(parent.windowIcon())
-        self.setFixedSize(self.size())
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
 
         # File loading and analysis will be connected when processing is added.
@@ -85,6 +95,8 @@ class ChromatogramWindow(QMainWindow):
             encoding="utf-8",
         )
         self.plot_view.load(QUrl.fromLocalFile(html_path))
+        self.setFixedSize(launch_size)
+        self.resize(launch_size)
 
 
 def launch_chromatogram_viewer(parent=None):

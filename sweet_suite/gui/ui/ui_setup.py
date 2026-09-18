@@ -52,6 +52,12 @@ class UISetup:
         ui.actionBlock_file.setIcon(QIcon(os.path.join(
             icon_path, "download.svg"
         )))
+        ui.actionLC_FLD_alignment_list.setIcon(QIcon(os.path.join(
+            icon_path, "download.svg"
+        )))
+        ui.actionLC_FLD_peaks_list.setIcon(QIcon(os.path.join(
+            icon_path, "download.svg"
+        )))
         
         # Tools menu
         ui.actionAdvanced_settings.setIcon(QIcon(os.path.join(
@@ -59,6 +65,9 @@ class UISetup:
         )))
         ui.actionVisualize_mass_spectrum.setIcon(QIcon(os.path.join(
             icon_path, "actionVisualize_mass_spectrum.svg"
+        )))
+        ui.actionView_LC_FLD_chromatogram.setIcon(QIcon(os.path.join(
+            icon_path, "actionView_LC_FLD_chromatogram.svg"
         )))
         
         # Help menu

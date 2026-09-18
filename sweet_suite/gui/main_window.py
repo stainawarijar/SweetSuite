@@ -91,8 +91,9 @@ class MainWindow(QMainWindow):
             | Qt.WindowType.WindowSystemMenuHint
             | Qt.WindowType.WindowMinimizeButtonHint
             | Qt.WindowType.WindowCloseButtonHint
-            | Qt.WindowType.MSWindowsFixedSizeDialogHint
         )
+        # setFixedSize already prevents resizing. The Windows dialog-border
+        # hint interferes with per-monitor DPI changes.
         self.setWindowIcon(QIcon(utils.resource_path(os.path.join(
             "sweet_suite", "resources", "images", "logo_head.png"
         ))))
@@ -479,6 +480,12 @@ class MainWindow(QMainWindow):
         self.ui.actionBlock_file.triggered.connect(
             self.download_block_template
         )
+        self.ui.actionLC_FLD_alignment_list.triggered.connect(
+            self.download_fld_alignment_template
+        )
+        self.ui.actionLC_FLD_peaks_list.triggered.connect(
+            self.download_fld_peaks_template
+        )
         self.ui.actionVisualize_mass_spectrum.triggered.connect(
             lambda: launch_xy_viewer(self)
         )
@@ -537,16 +544,24 @@ class MainWindow(QMainWindow):
             event.ignore()
     
     def download_alignment_template(self) -> None:
-        """Download alignment template Excel file."""
-        self.template_manager.download_template("alignment")
+        """Download LC-MS alignment template Excel file."""
+        self.template_manager.download_template("lc_ms_alignment")
 
     def download_analytes_template(self) -> None:
-        """Download analytes template Excel file."""
-        self.template_manager.download_template("analytes")
+        """Download (LC-)MS analytes template Excel file."""
+        self.template_manager.download_template("ms_analytes")
 
     def download_block_template(self) -> None:
         """Download block file template."""
         self.template_manager.download_template("block")
+
+    def download_fld_alignment_template(self) -> None:
+        """Download LC-FLD alignment template Excel file."""
+        self.template_manager.download_template("lc_fld_alignment")
+
+    def download_fld_peaks_template(self) -> None:
+        """Download LC-FLD peaks template Excel file."""
+        self.template_manager.download_template("lc_fld_peaks")
     
     def report_a_bug(self) -> None:
         """Direct to SweetSuite issues page on GitHub."""

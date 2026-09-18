@@ -15,8 +15,14 @@ class TemplateManager:
     """
     
     TEMPLATES = {
-        "alignment": ("alignment_template.xlsx", "Alignment template"),
-        "analytes": ("analytes_template.xlsx", "Analytes template"),
+        "lc_ms_alignment": (
+            "lc_ms_alignment_template.xlsx", "LC-MS alignment template"
+        ),
+        "ms_analytes": ("ms_analytes_template.xlsx", "(LC-)MS analytes template"),
+        "lc_fld_alignment": (
+            "lc_fld_alignment_template.xlsx", "LC-FLD alignment template"
+        ),
+        "lc_fld_peaks": ("lc_fld_peaks_template.xlsx", "LC-FLD peaks template"),
         "block": ("template.block", "Block template")
     }
     
@@ -32,7 +38,8 @@ class TemplateManager:
         """Download a template file.
         
         Args:
-            template_type: Type of template ('alignment', 'analytes', or 'block')
+            template_type: One of 'lc_ms_alignment', 'ms_analytes',
+                'lc_fld_alignment', 'lc_fld_peaks' or 'block'.
         """
         if template_type not in self.TEMPLATES:
             raise ValueError(f"Unknown template type: {template_type}")
@@ -43,7 +50,7 @@ class TemplateManager:
         ))
         
         folder = QFileDialog.getExistingDirectory(
-            self.parent, f"Select folder to save {display_name.lower()}"
+            self.parent, f"Select folder to save {display_name}"
         )
         
         if folder:
@@ -59,7 +66,7 @@ class TemplateManager:
                 )
             except Exception as e:
                 UIHelpers.show_message_box(
-                    self. parent,
+                    self.parent,
                     title="Error saving template",
                     text=f"Could not save {display_name.lower()}.",
                     informative_text=str(e),

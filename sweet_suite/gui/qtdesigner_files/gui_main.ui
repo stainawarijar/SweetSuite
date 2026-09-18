@@ -112,9 +112,11 @@
      <property name="title">
       <string>Templates</string>
      </property>
+     <addaction name="actionBlock_file"/>
      <addaction name="actionAnalytes_list"/>
      <addaction name="actionAlignment_list"/>
-     <addaction name="actionBlock_file"/>
+     <addaction name="actionLC_FLD_peaks_list"/>
+     <addaction name="actionLC_FLD_alignment_list"/>
     </widget>
     <addaction name="actionImport_settings"/>
     <addaction name="actionExport_settings"/>
@@ -185,12 +187,12 @@
   </action>
   <action name="actionAnalytes_list">
    <property name="text">
-    <string>Analytes list</string>
+    <string>(LC-)MS analytes list</string>
    </property>
   </action>
   <action name="actionAlignment_list">
    <property name="text">
-    <string>Alignment list</string>
+    <string>LC-MS alignment list</string>
    </property>
   </action>
   <action name="actionRevert_to_default_settings">
@@ -211,6 +213,16 @@
   <action name="actionView_LC_FLD_chromatogram">
    <property name="text">
     <string>LC-FLD chromatogram viewer</string>
+   </property>
+  </action>
+  <action name="actionLC_FLD_peaks_list">
+   <property name="text">
+    <string>LC-FLD peaks list</string>
+   </property>
+  </action>
+  <action name="actionLC_FLD_alignment_list">
+   <property name="text">
+    <string>LC-FLD alignment list</string>
    </property>
   </action>
  </widget>
