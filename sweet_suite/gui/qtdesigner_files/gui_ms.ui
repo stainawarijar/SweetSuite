@@ -788,47 +788,11 @@ font-size: 10.5pt</string>
      <double>5.000000000000000</double>
     </property>
    </widget>
-   <widget class="QLabel" name="label_alignment_mz_window">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>170</y>
-      <width>201</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <family>DejaVu Sans</family>
-      <pointsize>10</pointsize>
-      <italic>false</italic>
-     </font>
-    </property>
-    <property name="text">
-     <string>m/z window:</string>
-    </property>
-   </widget>
-   <widget class="QDoubleSpinBox" name="alignment_mz_window">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>190</y>
-      <width>221</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="singleStep">
-     <double>0.050000000000000</double>
-    </property>
-    <property name="value">
-     <double>0.100000000000000</double>
-    </property>
-   </widget>
    <widget class="QSpinBox" name="alignment_min_peaks">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>250</y>
+      <y>190</y>
       <width>221</width>
       <height>22</height>
      </rect>
@@ -844,7 +808,7 @@ font-size: 10.5pt</string>
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>290</y>
+      <y>230</y>
       <width>201</width>
       <height>16</height>
      </rect>
@@ -864,7 +828,7 @@ font-size: 10.5pt</string>
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>230</y>
+      <y>170</y>
       <width>211</width>
       <height>16</height>
      </rect>
@@ -884,7 +848,7 @@ font-size: 10.5pt</string>
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>310</y>
+      <y>250</y>
       <width>221</width>
       <height>22</height>
      </rect>
@@ -910,6 +874,42 @@ font-size: 10.5pt</string>
     </property>
     <property name="text">
      <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_alignment_mz_window">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>290</y>
+      <width>201</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>DejaVu Sans</family>
+      <pointsize>10</pointsize>
+      <italic>false</italic>
+     </font>
+    </property>
+    <property name="text">
+     <string>m/z window:</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="alignment_mz_window">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>310</y>
+      <width>221</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="singleStep">
+     <double>0.050000000000000</double>
+    </property>
+    <property name="value">
+     <double>0.100000000000000</double>
     </property>
    </widget>
   </widget>

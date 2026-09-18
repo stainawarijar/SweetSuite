@@ -32,6 +32,7 @@ if [ -d "dist/$APP_NAME" ] || [ -f "dist/$APP_NAME.exe" ]; then
 fi
 
 pyinstaller \
+  --hidden-import "sweet_suite.gui.qtdesigner_files.gui_lc-fld" \
   --onefile \
   --name "$APP_NAME" \
   --distpath "dist/$APP_NAME" \

@@ -16,6 +16,7 @@ from .managers.file_handlers import FileHandlers
 from .managers.settings_manager import SettingsManager
 from .managers.template_manager import TemplateManager
 from .ms_page import MsPage
+from .fld_page import FldPage
 from .processing_mode import ProcessingMode
 from .qtdesigner_files.gui_main import Ui_MainWindow
 from .ui.ui_helpers import UIHelpers
@@ -32,6 +33,12 @@ def launch_xy_viewer(*args, **kwargs):
     """
     from .viewers.xy_spectrum_viewer import launch_xy_viewer as _launch_xy_viewer
     return _launch_xy_viewer(*args, **kwargs)
+
+def launch_chromatogram_viewer(parent=None):
+    """Load Plotly and WebEngine only when the chromatogram tool is opened."""
+    from .viewers.chromatogram_viewer import launch_chromatogram_viewer as launch
+    return launch(parent)
+
 
 class MainWindow(QMainWindow):
     """Main application window coordinating all GUI components. 
@@ -69,6 +76,11 @@ class MainWindow(QMainWindow):
         page_layout.setContentsMargins(0, 0, 0, 0)
         page_layout.addWidget(self.ms_page)
         self.fld_page = self.ui.page_2
+        self.fld_form = FldPage(self.fld_page)
+        self.fld_ui = self.fld_form.ui
+        fld_layout = QVBoxLayout(self.fld_page)
+        fld_layout.setContentsMargins(0, 0, 0, 0)
+        fld_layout.addWidget(self.fld_form)
         self.setFixedSize(launch_size)
         # CustomizeWindowHint makes the title-bar controls explicit rather
         # than allowing the platform to supply the default window buttons.
@@ -204,6 +216,7 @@ class MainWindow(QMainWindow):
         if mode == ProcessingMode.LC_FLD:
             self.processing_mode = mode
             self._sync_mode_selection()
+            self.logger.info("Using LC-FLD mode")
         else:
             self.set_ms_only_mode(mode == ProcessingMode.MS_ONLY)
 
@@ -468,6 +481,9 @@ class MainWindow(QMainWindow):
         )
         self.ui.actionVisualize_mass_spectrum.triggered.connect(
             lambda: launch_xy_viewer(self)
+        )
+        self.ui.actionView_LC_FLD_chromatogram.triggered.connect(
+            lambda: launch_chromatogram_viewer(self)
         )
 
     # --- Functions connected to signals ---

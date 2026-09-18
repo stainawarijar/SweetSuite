@@ -1,7 +1,7 @@
 print("Launching SweetSuite...", flush=True)
 
-from datetime import datetime
 import ctypes
+from datetime import datetime
 import logging
 import os
 import sys

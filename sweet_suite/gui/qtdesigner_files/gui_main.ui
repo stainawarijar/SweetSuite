@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>781</width>
-    <height>623</height>
+    <width>771</width>
+    <height>615</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -79,8 +79,8 @@
    <widget class="QStackedWidget" name="stackedWidget">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>40</y>
+      <x>5</x>
+      <y>36</y>
       <width>761</width>
       <height>551</height>
      </rect>
@@ -100,7 +100,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>781</width>
+     <width>771</width>
      <height>22</height>
     </rect>
    </property>
@@ -210,7 +210,7 @@
   </action>
   <action name="actionView_LC_FLD_chromatogram">
    <property name="text">
-    <string>Open LC-FLD chromatogram</string>
+    <string>LC-FLD chromatogram viewer</string>
    </property>
   </action>
  </widget>

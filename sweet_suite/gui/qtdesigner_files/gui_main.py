@@ -12,7 +12,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(781, 623)
+        MainWindow.resize(771, 615)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -40,7 +40,7 @@ class Ui_MainWindow(object):
         self.label_processing_mode.setFont(font)
         self.label_processing_mode.setObjectName("label_processing_mode")
         self.stackedWidget = QtWidgets.QStackedWidget(parent=self.centralwidget)
-        self.stackedWidget.setGeometry(QtCore.QRect(10, 40, 761, 551))
+        self.stackedWidget.setGeometry(QtCore.QRect(5, 36, 761, 551))
         self.stackedWidget.setStyleSheet("")
         self.stackedWidget.setObjectName("stackedWidget")
         self.page = QtWidgets.QWidget()
@@ -51,7 +51,7 @@ class Ui_MainWindow(object):
         self.stackedWidget.addWidget(self.page_2)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menuBar = QtWidgets.QMenuBar(parent=MainWindow)
-        self.menuBar.setGeometry(QtCore.QRect(0, 0, 781, 22))
+        self.menuBar.setGeometry(QtCore.QRect(0, 0, 771, 22))
         self.menuBar.setObjectName("menuBar")
         self.menuFile = QtWidgets.QMenu(parent=self.menuBar)
         self.menuFile.setObjectName("menuFile")
@@ -139,4 +139,4 @@ class Ui_MainWindow(object):
         self.actionRevert_to_default_settings.setText(_translate("MainWindow", "Revert to default settings"))
         self.actionBlock_file.setText(_translate("MainWindow", "Block file"))
         self.actionVisualize_mass_spectrum.setText(_translate("MainWindow", "View \'.xy\' mass spectrum"))
-        self.actionView_LC_FLD_chromatogram.setText(_translate("MainWindow", "Open LC-FLD chromatogram"))
+        self.actionView_LC_FLD_chromatogram.setText(_translate("MainWindow", "LC-FLD chromatogram viewer"))
