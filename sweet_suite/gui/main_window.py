@@ -20,7 +20,6 @@ from .fld_page import FldPage
 from .processing_mode import ProcessingMode
 from .qtdesigner_files.gui_main import Ui_MainWindow
 from .ui.ui_helpers import UIHelpers
-from .ui.ui_setup import UISetup
 
 
 def launch_xy_viewer(*args, **kwargs):
@@ -113,11 +112,40 @@ class MainWindow(QMainWindow):
     def setup_ui(self) -> None:
         """Setup UI styling, icons, and tooltips."""
         UIHelpers.disable_spinbox_scroll(self)
-        UISetup.setup_table_styling(self.ms_ui.tableWidget_calibration)
-        UISetup.setup_menu_icons(self.ui)
-        UISetup.setup_button_icons(self.ms_ui)
-        UISetup.setup_tooltips(self.ms_ui)
+        self.setup_menu_icons()
         self.setup_quadratic_window_indicator()
+
+    def setup_menu_icons(self) -> None:
+        """Configure icons for actions owned by the main-window shell."""
+        icon_path = utils.resource_path(os.path.join(
+            "sweet_suite", "gui", "assets", "google-material-icons"
+        ))
+
+        action_icons = {
+            self.ui.actionImport_settings: "actionImport_settings.svg",
+            self.ui.actionExport_settings: "actionExport_settings.svg",
+            self.ui.actionRevert_to_default_settings: "reset_settings.svg",
+            self.ui.actionExit: "actionExit.svg",
+            self.ui.actionAlignment_list: "download.svg",
+            self.ui.actionAnalytes_list: "download.svg",
+            self.ui.actionBlock_file: "download.svg",
+            self.ui.actionLC_FLD_alignment_list: "download.svg",
+            self.ui.actionLC_FLD_peaks_list: "download.svg",
+            self.ui.actionAdvanced_settings: "actionAdvanced_settings.svg",
+            self.ui.actionVisualize_mass_spectrum:
+                "actionVisualize_mass_spectrum.svg",
+            self.ui.actionView_LC_FLD_chromatogram:
+                "actionView_LC_FLD_chromatogram.svg",
+            self.ui.actionDocumentation: "actionDocumentation.svg",
+            self.ui.actionReport_a_bug: "actionReport_a_bug.svg",
+            self.ui.actionAbout: "actionAbout.svg",
+        }
+        for action, filename in action_icons.items():
+            action.setIcon(QIcon(os.path.join(icon_path, filename)))
+
+        self.ui.menuTemplates.setIcon(QIcon(os.path.join(
+            icon_path, "sheet.svg"
+        )))
     
     def initialize_data_containers(self) -> None:
         """Initialize data container attributes."""
@@ -182,9 +210,9 @@ class MainWindow(QMainWindow):
         self.quadratic_window_mode = enabled
         self.quadratic_window_indicator.setVisible(enabled)
         self.ms_ui.quantitation_mz_window.setVisible(not enabled)
-        self._update_quantitation_window_state()
+        self.update_quantitation_window_state()
 
-    def _update_quantitation_window_state(self) -> None:
+    def update_quantitation_window_state(self) -> None:
         """Apply the combined quadratic- and reference-file disabled state."""
         quadratic = self.quadratic_window_mode
         disabled = quadratic or self.ref_file_mode
@@ -212,16 +240,16 @@ class MainWindow(QMainWindow):
     def set_processing_mode(self, mode: ProcessingMode) -> None:
         """Switch pages unless an uploaded analyte/reference file fixes the mode."""
         if self.analytes_list_df is not None or self.analytes_ref_df is not None:
-            self._sync_mode_selection()
+            self.sync_mode_selection()
             return
         if mode == ProcessingMode.LC_FLD:
             self.processing_mode = mode
-            self._sync_mode_selection()
+            self.sync_mode_selection()
             self.logger.info("Using LC-FLD mode")
         else:
             self.set_ms_only_mode(mode == ProcessingMode.MS_ONLY)
 
-    def _sync_mode_selection(self) -> None:
+    def sync_mode_selection(self) -> None:
         """Synchronize the selector, page, lock, and mode-specific menu actions."""
         selector = self.ui.comboBox_processing_mode
         with QSignalBlocker(selector):
@@ -257,7 +285,7 @@ class MainWindow(QMainWindow):
         self.processing_mode = (
             ProcessingMode.MS_ONLY if enabled else ProcessingMode.LC_MS
         )
-        self._sync_mode_selection()
+        self.sync_mode_selection()
         self.ms_only_mode = enabled
 
         # Keep the individual controls in sync with their container.  While a
@@ -389,7 +417,7 @@ class MainWindow(QMainWindow):
                 False to restore normal mode (controls enabled).
         """
         self.ref_file_mode = enabled
-        self._update_quantitation_window_state()
+        self.update_quantitation_window_state()
         self.ms_ui.comboBox_charge_carrier.setEnabled(not enabled)
         self.ms_ui.comboBox_mass_modifier.setEnabled(not enabled)
         dropdown_style = "color: transparent;" if enabled else ""
@@ -448,6 +476,27 @@ class MainWindow(QMainWindow):
         )
         self.ms_ui.pushButton_delete_analytes.clicked.connect(
             self.file_handlers.clear_analytes_file
+        )
+        self.fld_ui.open_mzxml_path.clicked.connect(
+            self.fld_form.select_raw_folder
+        )
+        self.fld_ui.open_peaks_list.clicked.connect(
+            lambda: self.fld_form.select_list(
+                self.fld_ui.path_peaks_list,
+                "Select LC-FLD peaks list",
+            )
+        )
+        self.fld_ui.open_alignment_list.clicked.connect(
+            lambda: self.fld_form.select_list(
+                self.fld_ui.path_alignment_list,
+                "Select LC-FLD alignment list",
+            )
+        )
+        self.fld_ui.pushButton_delete_peaks.clicked.connect(
+            self.fld_ui.path_peaks_list.clear
+        )
+        self.fld_ui.pushButton_delete_alignment.clicked.connect(
+            self.fld_ui.path_alignment_list.clear
         )
         # Toolbar actions.
         self.ui.actionAbout.triggered.connect(

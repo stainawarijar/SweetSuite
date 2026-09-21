@@ -24,7 +24,7 @@ SPECTRUM_COLORS = (
 )
 
 
-def _display_data(mz, intensity, xmin, xmax, max_points=MAX_POINTS):
+def display_data(mz, intensity, xmin, xmax, max_points=MAX_POINTS):
     """Keep each bucket's extremes, with neighbouring points at view edges."""
     start = max(0, int(np.searchsorted(mz, xmin, side="left")) - 1)
     end = min(len(mz), int(np.searchsorted(mz, xmax, side="right")) + 1)
@@ -78,7 +78,7 @@ class _XYSpectrumDialog(QDialog):
         fig = px.line()
         fig.data = ()
         for index, (name, mz, intensity) in enumerate(spectra):
-            x, y = _display_data(mz, intensity, full_min, full_max, self._points_per_spectrum)
+            x, y = display_data(mz, intensity, full_min, full_max, self._points_per_spectrum)
             trace = px.line(x=x, y=y, render_mode="svg").data[0]
             trace.update(
                 name=name, showlegend=True,
@@ -112,7 +112,7 @@ class _XYSpectrumDialog(QDialog):
         self._channel = QWebChannel(self._view.page())
         self._channel.registerObject("spectrumViewer", self)
         self._view.page().setWebChannel(self._channel)
-        self._profile.downloadRequested.connect(self._save_image)
+        self._profile.downloadRequested.connect(self.save_image)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self._view)
@@ -123,7 +123,7 @@ class _XYSpectrumDialog(QDialog):
         if not np.isfinite(xmin) or not np.isfinite(xmax):
             return
         displayed = [
-            _display_data(mz, intensity, min(xmin, xmax), max(xmin, xmax), self._points_per_spectrum)
+            display_data(mz, intensity, min(xmin, xmax), max(xmin, xmax), self._points_per_spectrum)
             for _, mz, intensity in self._spectra
         ]
         payload = json.dumps({
@@ -135,7 +135,7 @@ class _XYSpectrumDialog(QDialog):
             f"Plotly.restyle(document.getElementById('spectrum'), {payload}, {indices});"
         )
 
-    def _save_image(self, download):
+    def save_image(self, download):
         filepath, _ = QFileDialog.getSaveFileName(
             self, "Save spectrum image", download.downloadFileName(),
             "PNG images (*.png);;All files (*.*)",
@@ -148,7 +148,7 @@ class _XYSpectrumDialog(QDialog):
             download.cancel()
 
 
-def _load_spectrum(filepath):
+def load_spectrum(filepath):
     """Load and validate a spectrum, connecting points in ascending m/z order."""
     data = np.loadtxt(filepath, dtype=np.float64)
     if data.ndim != 2 or data.shape[1] < 2 or data.shape[0] < 2:
@@ -185,7 +185,7 @@ def launch_xy_viewer(parent=None) -> None:
     for filepath, basename in zip(filepaths, basenames):
         logger.info("Opening XY spectrum viewer for: %s", filepath)
         try:
-            mz, intensity = _load_spectrum(filepath)
+            mz, intensity = load_spectrum(filepath)
         except Exception as exc:
             logger.exception("Failed to load XY spectrum file: %s", filepath)
             errors.append(f"{filepath}: {exc}")

@@ -124,9 +124,8 @@ SweetSuite/
         │   ├── gui_chromatogram.ui / .py
         │   ├── gui_advanced_settings.ui / .py
         │   └── batch_status.ui / .py
-        ├── ui/                    # UI helpers and setup
-        │   ├── ui_helpers.py
-        │   └── ui_setup.py
+        ├── ui/                    # Shared UI helpers
+        │   └── ui_helpers.py
         ├── widgets/               # Custom PyQt6 widgets
         │   └── scientific_spin_box.py
         ├── workers/               # Background thread workers
@@ -444,7 +443,7 @@ and delegates all non-trivial behaviour to dedicated manager objects.
 
 Initialises and wires together all GUI components:
 
-- Calls `UISetup` to apply icons, tooltips, and table styling.
+- Applies main-window menu icons and global widget behaviour.
 - Creates manager instances and stores them as attributes.
 - Connects Qt signals (button clicks, menu actions) to the appropriate
   manager methods.
@@ -463,11 +462,14 @@ Initialises and wires together all GUI components:
 - **`ProcessingMode`** (`processing_mode.py`) defines `LC_MS`, `MS_ONLY`, and
   `LC_FLD`. The mode selector switches between `MsPage` and `FldPage`.
 - **`MsPage`** (`ms_page.py`) wraps `gui_ms.py` and is shared by both MS modes.
-  MS-only mode disables alignment and retention-time controls.
-- **`FldPage`** (`fld_page.py`) wraps the generated `gui_lc_fld.py`. It connects
-  folder and Excel-list selectors and clear buttons. It stores paths in widgets;
-  FLD input tables are not parsed or validated yet. The inherited widget names
-  `path_mzxml` and `open_mzxml_path` refer to the FLD raw-data folder on this page.
+  It owns its button icons, tooltips, and calibration-table styling. MS-only
+  mode disables alignment and retention-time controls.
+- **`FldPage`** (`fld_page.py`) wraps the generated `gui_lc_fld.py` and owns its
+  icons and tooltips through dedicated setup methods. `MainWindow` connects its
+  folder and Excel-list selectors and clear buttons, consistently with the MS
+  page. The page stores paths in widgets; FLD input tables are not parsed or
+  validated yet. The inherited widget names `path_mzxml` and
+  `open_mzxml_path` refer to the FLD raw-data folder on this page.
 - A validated MS analytes or reference file determines the MS mode from its
   retention-time columns and locks the mode selector until the file is cleared.
   Clearing the input restores LC-MS mode. A rejected replacement preserves the
@@ -494,7 +496,7 @@ UI object(s) it needs, making them independently testable.
 `start_batch_process()` validates MS inputs and constructs `MsBatchWorker`.
 `start_fld_batch_process()` reads paths and alignment settings from `fld_ui`
 and constructs `FldBatchWorker`, without parsing MS blocks or reading MS settings.
-Both call `_start_worker()` to move the worker to a `QThread` and connect signals.
+Both call `start_worker()` to move the worker to a `QThread` and connect signals.
 `finished(bool)` and `aborted()` stop the thread and schedule worker deletion;
 `error(...)` displays a message, with the worker subsequently emitting a terminal
 signal for cleanup. Both workers expose `run()` and cooperative `stop()` methods.
@@ -523,9 +525,6 @@ signal for cleanup. Both workers expose `run()` and cooperative `stop()` methods
 
 - **`UIHelpers`** — stateless helper methods: `show_message_box()`,
   `disable_spinbox_scroll()`.
-- **`UISetup`** — stateless setup methods called once during window
-  initialisation: `setup_menu_icons()`, `setup_button_icons()`,
-  `setup_tooltips()`, `setup_table_styling()`.
 
 #### widgets/
 
@@ -722,7 +721,7 @@ FldPage: select raw-data folder and optional peaks/alignment Excel paths
   └─ Start processing button
        └─ BatchCoordinator.start_fld_batch_process()
             └─ snapshot fld_ui paths and alignment settings
-            └─ _start_worker(): FldBatchWorker.run() in QThread
+            └─ start_worker(): FldBatchWorker.run() in QThread
                  ├─ cancellation requested → aborted()
                  ├─ missing folder → error(...) + finished(False)
                  └─ valid folder → "not implemented" message + finished(False)

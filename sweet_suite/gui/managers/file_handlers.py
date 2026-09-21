@@ -184,7 +184,7 @@ class FileHandlers:
                 return
             self.ui.path_analytes_list.clear()
             self.ui.path_analytes_list.addItem(file_path)
-            self._apply_ref_file(df)
+            self.apply_ref_file(df)
         else:
             UIHelpers.show_message_box(
                 self.parent,
@@ -355,7 +355,7 @@ class FileHandlers:
 
         return True
 
-    def _apply_ref_file(self, df: pd.DataFrame) -> None:
+    def apply_ref_file(self, df: pd.DataFrame) -> None:
         """Apply a validated reference file to the application state.
 
         Stores the reference DataFrame, detects LC-MS vs MS-only mode,

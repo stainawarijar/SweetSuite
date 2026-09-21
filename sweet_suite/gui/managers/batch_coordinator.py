@@ -171,7 +171,7 @@ class BatchCoordinator:
             save_xy=bool(self.advanced_ui.checkBox_save_xy.isChecked()),
             plot_mz_corrections=bool(self.advanced_ui.checkBox_plot_mz_corrections.isChecked())
         )
-        self._start_worker()
+        self.start_worker()
 
     def start_fld_batch_process(self) -> None:
         """Start the LC-FLD worker using only the FLD page settings."""
@@ -200,9 +200,9 @@ class BatchCoordinator:
         )
         self.parent.setEnabled(False)
         self.batch_start_time = time.perf_counter()
-        self._start_worker()
+        self.start_worker()
 
-    def _start_worker(self) -> None:
+    def start_worker(self) -> None:
         """Connect and start either worker with a shared thread lifecycle."""
         # Move batch worker to thread
         self.batch_thread = QThread()
