@@ -22,6 +22,7 @@ contributors understand how the components fit together.
 - [Key data flows](#key-data-flows)
   - [LC-MS mode](#lc-ms-mode)
   - [MS-only mode](#ms-only-mode)
+  - [LC-FLD scaffold](#lc-fld-scaffold)
 - [Dependencies](#dependencies)
 - [Build and distribution](#build-and-distribution)
 
@@ -29,8 +30,10 @@ contributors understand how the components fit together.
 
 ## Overview
 
-SweetSuite is a PyQt6 desktop application for processing **LC-MS** and **MS-only**
-glycoproteomics data. Its two main capabilities are:
+SweetSuite is a PyQt6 desktop application with **LC-MS**, **MS-only**, and
+**LC-FLD** settings pages. LC-MS and MS-only processing are implemented;
+LC-FLD currently provides GUI wiring and a batch-worker scaffold, without
+raw-data processing or results export. Its two implemented processing capabilities are:
 
 1. **Retention time alignment** — corrects systematic RT drift across mzXML files
    using a set of user-defined alignment features.
@@ -43,13 +46,15 @@ The application is intentionally structured in layers:
 ```
 GUI layer (PyQt6)
      │
-     └─ Batch orchestration (BatchWorker, QThread)
+     └─ BatchCoordinator (shared progress dialog and QThread lifecycle)
+             ├─ FldBatchWorker (LC-FLD scaffold; no analysis yet)
+             └─ MsBatchWorker (LC-MS and MS-only processing)
              │
-             ├─ Input parsing   (InputAnalyte, BlockParser)
-             ├─ Data I/O        (Mzxml, MzxmlDataBlock, SumSpectrum)
-             ├─ Chromatography  (AlignmentFeature, Eic, alignment)
-             ├─ Mass spectrometry (MassSpectrum, Analyte, IsotopicPeak, Calibrant)
-             └─ Reporting       (ms_tables, write_to_excel)
+                 ├─ Input parsing   (InputAnalyte, BlockParser)
+                 ├─ Data I/O        (Mzxml, MzxmlDataBlock, SumSpectrum)
+                 ├─ Chromatography  (AlignmentFeature, Eic, alignment)
+                 ├─ Mass spectrometry (MassSpectrum, Analyte, IsotopicPeak, Calibrant)
+                 └─ Reporting       (ms_tables, write_to_excel)
 ```
 
 ---
@@ -66,6 +71,7 @@ SweetSuite/
 │
 ├── blocks/                        # Block definition files (.block), scanned recursively
 ├── docs/                          # Documentation (this file)
+├── tests/                         # GUI regression tests using unittest
 ├── logs/                          # Runtime log files (auto-created)
 │
 └── sweet_suite/                   # Main Python package
@@ -99,6 +105,9 @@ SweetSuite/
     │
     └── gui/                       # PyQt6 GUI layer
         ├── main_window.py         # MainWindow: thin coordinator
+        ├── processing_mode.py     # ProcessingMode enum: LC-MS, MS-only, LC-FLD
+        ├── ms_page.py             # Persistent settings page for both MS modes
+        ├── fld_page.py            # LC-FLD settings page and input path selectors
         ├── dialogs/               # Modal dialogs
         │   └── advanced_settings_handler.py
         ├── managers/              # Business-logic managers
@@ -110,6 +119,9 @@ SweetSuite/
         │   └── template_manager.py
         ├── qtdesigner_files/      # Qt Designer .ui files + generated Python
         │   ├── gui_main.ui / .py
+        │   ├── gui_ms.ui / .py
+        │   ├── gui_lc-fld.ui / .py
+        │   ├── gui_chromatogram.ui / .py
         │   ├── gui_advanced_settings.ui / .py
         │   └── batch_status.ui / .py
         ├── ui/                    # UI helpers and setup
@@ -118,9 +130,11 @@ SweetSuite/
         ├── widgets/               # Custom PyQt6 widgets
         │   └── scientific_spin_box.py
         ├── workers/               # Background thread workers
-        │   └── batch_worker.py
+        │   ├── ms_batch_worker.py  # MsBatchWorker: implemented MS pipeline
+        │   └── fld_batch_worker.py # FldBatchWorker: LC-FLD scaffold
         ├── viewers/               # In-app data viewers
-        │   └── xy_spectrum_viewer.py
+        │   ├── xy_spectrum_viewer.py
+        │   └── chromatogram_viewer.py # LC-FLD viewer with synthetic placeholder plot
         └── assets/                # SVG icons (Google Material Icons)
 ```
 
@@ -139,6 +153,9 @@ Responsible for bootstrapping the application:
    `stdout`.
 3. Creates the `QApplication`, applies a custom Fusion-based light palette,
    and shows `MainWindow`.
+   Before creating the application, configures Chromium logging and enables
+   shared OpenGL contexts for Qt WebEngine. On Windows, also sets an explicit
+   application ID for the taskbar icon.
 
 ---
 
@@ -333,7 +350,7 @@ coefficients are assigned, and quantifies analytes from a reference DataFrame.
 1. **Calibration** — `fit_calibration()` fits the required correction
    `mz_exact - mz_observed` as a quadratic function of observed m/z. The fitted
    correction is added to every observed m/z value. In LC-MS mode,
-   `BatchWorker` applies the per-window S/N thresholds, pools qualifying
+   `MsBatchWorker` applies the per-window S/N thresholds, pools qualifying
    calibrants from all enabled sum spectra in an mzXML file, enforces the
    minimum calibrant count on that pool, fits once, and supplies the resulting
    coefficients to every enabled `MassSpectrum` for that file.
@@ -391,8 +408,10 @@ This is the single authoritative source of isotope data used by both
 
 | File | Purpose |
 |---|---|
-| `alignment_template.xlsx` | Template Excel file for the alignment list |
-| `analytes_template.xlsx` | Template Excel file for the analytes list |
+| `lc_ms_alignment_template.xlsx` | LC-MS alignment list template |
+| `ms_analytes_template.xlsx` | Analytes list template shared by LC-MS and MS-only |
+| `lc_fld_alignment_template.xlsx` | LC-FLD alignment list template |
+| `lc_fld_peaks_template.xlsx` | LC-FLD peaks list template |
 | `template.block` | Template block file with comments explaining the format |
 | `default_settings.csv` | Default GUI settings loaded on first run / settings reset |
 
@@ -430,7 +449,34 @@ Initialises and wires together all GUI components:
 - Connects Qt signals (button clicks, menu actions) to the appropriate
   manager methods.
 - Holds the shared application state: `alignment_list_df`, `analytes_list_df`,
-  `analytes_ref_df`, `blocks`, and `ms_only_mode`.
+  `analytes_ref_df`, `blocks`, `ms_only_mode`, `ref_file_mode`, and `processing_mode`.
+- Hosts persistent MS and FLD forms in the Designer shell's `stackedWidget`.
+  The shell UI is `ui`; managers for MS settings receive `ms_ui`, while FLD
+  startup reads `fld_ui`. Changing pages preserves their widget values.
+- Lazily imports the spectrum and chromatogram viewers when opened, deferring
+  Plotly and Qt WebEngine imports until needed.
+- Uses the fixed launch size from the Designer shell, with minimize and close
+  title-bar controls.
+
+#### Settings pages and processing mode
+
+- **`ProcessingMode`** (`processing_mode.py`) defines `LC_MS`, `MS_ONLY`, and
+  `LC_FLD`. The mode selector switches between `MsPage` and `FldPage`.
+- **`MsPage`** (`ms_page.py`) wraps `gui_ms.py` and is shared by both MS modes.
+  MS-only mode disables alignment and retention-time controls.
+- **`FldPage`** (`fld_page.py`) wraps the generated `gui_lc-fld.py`, loaded with
+  `import_module` because its filename contains a hyphen. It connects folder
+  and Excel-list selectors and clear buttons. It stores paths in widgets;
+  FLD input tables are not parsed or validated yet. The inherited widget names
+  `path_mzxml` and `open_mzxml_path` refer to the FLD raw-data folder on this page.
+- A validated MS analytes or reference file determines the MS mode from its
+  retention-time columns and locks the mode selector until the file is cleared.
+  Clearing the input restores LC-MS mode. A rejected replacement preserves the
+  existing input and mode. A reference file also disables controls whose values
+  are supplied by that file.
+- LC-FLD mode disables MS settings import/export/reset, advanced settings, the
+  mass-spectrum viewer, and MS template actions. FLD templates and the
+  chromatogram viewer remain separate menu actions.
 
 #### managers/
 
@@ -439,13 +485,20 @@ UI object(s) it needs, making them independently testable.
 
 | Class | File | Responsibility |
 |---|---|---|
-| `BatchCoordinator` | `batch_coordinator.py` | Starts/stops the batch worker thread; shows the progress dialog; routes `pyqtSignal` callbacks to the UI |
-| `BatchWorker` | `workers/batch_worker.py` | Runs the complete processing pipeline in a `QThread`; emits progress/finished/error signals |
+| `BatchCoordinator` | `batch_coordinator.py` | Creates the MS or FLD worker through separate startup methods; shares thread lifecycle, cancellation, progress dialog, and event handling |
 | `BlockParser` | `block_parser.py` | Reads all `.block` files in the selected directory and builds the `blocks` dict; validates element names and value types; populates the *Charge carrier* dropdown (`update_charge_carriers`) and the *Mass modifier (optional)* dropdown (`update_mass_modifiers`) from the parsed blocks |
 | `CalibrationTableManager` | `calibration_table_manager.py` | Populates the interactive calibration S/N table when an analytes list is loaded |
 | `FileHandlers` | `file_handlers.py` | Opens file dialogs; reads and validates alignment and analytes Excel files. When an `.xlsx` file is uploaded as the analytes input, detects automatically whether it is an analytes list or a pre-generated reference file, validates accordingly, and routes to the appropriate handler. Reference file validation includes the `charge_carrier` and `mass_modifier` string columns |
-| `SettingsManager` | `settings_manager.py` | Exports all GUI settings to CSV; imports settings from CSV; resets to defaults |
-| `TemplateManager` | `template_manager.py` | Copies template files (alignment list, analytes list, block) to a user-chosen directory |
+| `SettingsManager` | `settings_manager.py` | Exports/imports MS page and advanced settings as CSV; resets them to defaults |
+| `TemplateManager` | `template_manager.py` | Copies LC-MS alignment, MS analytes, LC-FLD alignment/peaks, and block templates to a user-chosen directory |
+
+`start_batch_process()` validates MS inputs and constructs `MsBatchWorker`.
+`start_fld_batch_process()` reads paths and alignment settings from `fld_ui`
+and constructs `FldBatchWorker`, without parsing MS blocks or reading MS settings.
+Both call `_start_worker()` to move the worker to a `QThread` and connect signals.
+`finished(bool)` and `aborted()` stop the thread and schedule worker deletion;
+`error(...)` displays a message, with the worker subsequently emitting a terminal
+signal for cleanup. Both workers expose `run()` and cooperative `stop()` methods.
 
 #### dialogs/
 
@@ -461,7 +514,7 @@ UI object(s) it needs, making them independently testable.
   batch start and persisted via `SettingsManager`. A further checkbox controls
   whether calibration figures display required m/z corrections instead of
   mass errors in ppm. When `save_xy` is enabled,
-  `BatchWorker` calls `MassSpectrum.write_xy()` after quantitation, writing
+  `MsBatchWorker` calls `MassSpectrum.write_xy()` after quantitation, writing
   tab-delimited `.xy` files into a dedicated `xy_<timestamp>/` subdirectory
   inside the batch folder. The written data is the (potentially calibrated)
   `MassSpectrum` content. In MS-only mode the file is only written when at
@@ -484,7 +537,9 @@ UI object(s) it needs, making them independently testable.
 #### qtdesigner_files/
 
 Contains the `.ui` files (Qt Designer XML) and the corresponding generated
-Python classes (`Ui_MainWindow`, `Ui_advanced_settings`, `Ui_batch_status`).
+Python classes (`Ui_MainWindow`, settings-page `Ui_Form` classes,
+`Ui_advanced_settings`, `Ui_batch_status`). The main form supplies the shell;
+MS, LC-FLD, and chromatogram layouts live in their own forms.
 These files should not be edited by hand; re-generate them with
 `pyuic6 <file>.ui -o <file>.py` after modifying layouts in Qt Designer.
 
@@ -502,9 +557,16 @@ These files should not be edited by hand; re-generate them with
   provides zoom, pan, reset, and image export controls. Triggered by
   `Tools → View '.xy' mass spectrum` in `MainWindow.connect_signals()`.
 
+- **`chromatogram_viewer.py`** — `launch_chromatogram_viewer(parent)` opens a
+  non-modal `ChromatogramWindow` using `gui_chromatogram.py`. A Plotly figure
+  embedded in `QWebEngineView` displays a labelled synthetic chromatogram.
+  File loading, peak detection, export, and clear controls are disabled pending
+  processing implementation. HTML is stored in a `QTemporaryDir`; open windows
+  are retained in a module-level set until destroyed.
+
 #### workers/
 
-- **`BatchWorker(QObject)`** — the core processing engine. Instantiated and
+- **`MsBatchWorker(QObject)`** (`ms_batch_worker.py`) — the MS processing engine. Instantiated and
   moved to a `QThread` by `BatchCoordinator`. The `run()` method executes the
   full pipeline sequentially and emits `ref_progress`, `alignment_progress`,
   and `quantitation_progress` signals to drive the progress bar in the UI.
@@ -524,6 +586,15 @@ These files should not be edited by hand; re-generate them with
   When a pre-loaded reference DataFrame (`analytes_ref_df`) is available,
   the reference generation step is skipped and the DataFrame is written
   directly to disk via `write_ref_df()`.
+
+- **`FldBatchWorker(QObject)`** (`fld_batch_worker.py`) — scaffold that stores
+  the raw-data folder, optional peaks/alignment list paths, alignment time
+  window, S/N threshold, minimum peak count, and aligned-only quantitation flag.
+  It exposes the same completion, abort, error, and progress signals as the MS
+  worker. `run()` checks cancellation and folder existence, then reports that
+  LC-FLD processing is not implemented and emits `finished(False)`. It does not
+  load chromatograms, align, integrate peaks, or write output. The coordinator
+  marks all three progress bars as *Not performed* for this scaffold.
 
 ---
 
@@ -576,7 +647,7 @@ User uploads:
 
 BatchCoordinator.start_batch_process()
   └─ BlockParser.parse_blocks()  → blocks dict
-  └─ BatchWorker(run in QThread)
+  └─ MsBatchWorker(run in QThread)
 
   1. Build reference table
      [skipped if a reference file was uploaded directly]
@@ -595,7 +666,7 @@ BatchCoordinator.start_batch_process()
         Mzxml.plot_alignment_fit(fit_eics)  → alignment PDF (matplotlib)
         Mzxml.align_retention_times(fit_eics) → rewrite RT values in XML
 
-     c. Sum spectra generation  [if analytes list provided]
+     c. Sum spectra generation  [if analytes or reference input provided]
         Mzxml.create_sum_spectrum(time, time_window, resolution)
           └─ SumSpectrum (per RT window)
 
@@ -607,7 +678,7 @@ BatchCoordinator.start_batch_process()
         )
           └─ Calibrant (per locally available calibrant peak)
                └─ IsotopicPeak: extract data, spline max → mz_observed
-        BatchWorker:
+        MsBatchWorker:
           └─ pool calibrants from enabled sum spectra
           └─ filter each window's calibrants by its S/N threshold
           └─ enforce the minimum count on the global pool
@@ -621,21 +692,47 @@ BatchCoordinator.start_batch_process()
 
      e. Reporting
         ms_tables.build_quantitation_table(mass_spectra)
-        utils.write_to_excel()  → results .xlsx
+        accumulate results in a temporary CSV across files
+
+  Final export after processing:
+    utils.write_to_excel() → results .xlsx with results and settings
 
   BatchCoordinator: update progress bar, show completion message
 ```
+
+The worker performs alignment across the batch before starting quantitation;
+the diagram above groups the operations by input file for readability. With
+aligned-only quantitation enabled, only mzXML files whose basenames start with `aligned` are
+used for quantitation.
 
 ### MS-only mode
 
 The MS-only mode skips mzXML parsing and alignment entirely.
 The user provides `.xy` files (two-column tab-delimited m/z and intensity).
-`BatchWorker` reads each `.xy` file directly into a NumPy array and constructs
+`MsBatchWorker` reads each `.xy` file directly into a NumPy array and constructs
 one `MassSpectrum` per file without an intermediate `SumSpectrum`. Calibrants
 are filtered using the global S/N cut-off and calibration is applied when the
 minimum count is met; m/z-coverage and retention-time-group rules do not apply.
 XY export in this mode occurs only when calibrants were supplied, avoiding an
 unchanged copy when calibration was not attempted.
+
+### LC-FLD scaffold
+
+```
+FldPage: select raw-data folder and optional peaks/alignment Excel paths
+  └─ Start processing button
+       └─ BatchCoordinator.start_fld_batch_process()
+            └─ snapshot fld_ui paths and alignment settings
+            └─ _start_worker(): FldBatchWorker.run() in QThread
+                 ├─ cancellation requested → aborted()
+                 ├─ missing folder → error(...) + finished(False)
+                 └─ valid folder → "not implemented" message + finished(False)
+            └─ close progress dialog, restore GUI, clean up thread
+```
+
+No FLD data format is loaded and no results are produced. The separate
+chromatogram viewer also uses synthetic data and is not connected to batch
+analysis yet.
 
 ---
 
@@ -646,6 +743,8 @@ Runtime dependencies are pinned in `requirements.txt` for Python 3.14.
 | Package | Purpose |
 |---|---|
 | `PyQt6` | GUI framework |
+| `PyQt6-WebEngine` | Embedded browser for Plotly viewers |
+| `plotly` | Interactive spectrum and placeholder chromatogram plots |
 | `numpy` | Numerical arrays, signal processing |
 | `scipy` | Curve fitting (`curve_fit`), spline interpolation |
 | `pandas` | Tabular data (analyte lists, results) |
@@ -670,6 +769,9 @@ not part of `requirements.txt`.
   `--add-data`. It does not use a maintained `.spec` file or bundle a splash
   screen. The `blocks/` directory is copied beside the generated executable so
   users can inspect and organize block definitions independently.
+  A hidden import includes `sweet_suite.gui.qtdesigner_files.gui_lc-fld`,
+  which is loaded dynamically by `FldPage`. Pillow is installed for converting
+  the bundled PNG logo to an ICO during the build.
 - **`build/`** — PyInstaller build artefacts (`.toc`, `.pyz`, intermediate
   files); not committed to version control.
 - **`dist/`** — versioned executable output and the accompanying copied
