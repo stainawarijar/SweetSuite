@@ -21,11 +21,15 @@ class FldBatchWorker(QObject):
     error = pyqtSignal(str, str, str, str)
 
     def __init__(
-        self, raw_folder_path: str, peaks_list_path: str | None = None,
-        alignment_list_path: str | None = None,
-        alignment_time_window: float = 5.0, alignment_sn_cutoff: float = 27.0,
-        alignment_min_peaks: int = 5, quantitate_aligned_only: bool = True,
-        parent=None,
+        self, 
+        raw_folder_path: str, 
+        peaks_list_path: str | None,
+        alignment_list_path: str | None,
+        alignment_time_window: float, 
+        alignment_sn_cutoff: float,
+        alignment_min_peaks: int, 
+        quantitate_aligned_only: bool,
+        parent=None
     ):
         super().__init__(parent)
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -43,19 +47,20 @@ class FldBatchWorker(QObject):
         self.stop_requested = True
 
     def run(self) -> None:
-        """Validate the folder and report the pending processing implementation."""
-        if self.stop_requested:
-            self.aborted.emit()
-            return
+        # TODO: Batch processing steps (see MsBatchWorker)
+
         if not Path(self.raw_folder_path).is_dir():
             self.error.emit(
-                "Missing batch directory", "The specified folder does not exist.",
-                self.raw_folder_path, "Warning",
+                "Missing batch directory", 
+                "The specified folder does not exist.",
+                self.raw_folder_path, 
+                "Warning"
             )
         else:
-            self.logger.info("LC-FLD batch requested: %s", self.raw_folder_path)
             self.error.emit(
-                "LC-FLD processing", "LC-FLD batch processing is not implemented yet.",
-                "No data were processed or exported.", "Information",
+                "LC-FLD processing",
+                "LC-FLD batch processing is not implemented yet.",
+                "No data were processed or exported.", 
+                "Information"
             )
         self.finished.emit(False)
