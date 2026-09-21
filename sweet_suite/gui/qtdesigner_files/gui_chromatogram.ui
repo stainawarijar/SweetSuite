@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MainWindow</class>
- <widget class="QMainWindow" name="MainWindow">
+ <class>ChromatogramWindow</class>
+ <widget class="QMainWindow" name="ChromatogramWindow">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>SweetSuite</string>
+   <string>LC-FLD chromatogram viewer</string>
   </property>
   <property name="statusTip">
    <string/>
@@ -467,71 +467,6 @@ font-weight: bold;</string>
     </layout>
    </widget>
   </widget>
-  <action name="actionDocumentation">
-   <property name="text">
-    <string>Documentation</string>
-   </property>
-  </action>
-  <action name="actionReport_a_bug">
-   <property name="text">
-    <string>Report a bug</string>
-   </property>
-  </action>
-  <action name="actionAbout">
-   <property name="text">
-    <string>About</string>
-   </property>
-  </action>
-  <action name="actionAdvanced_settings">
-   <property name="text">
-    <string>Advanced settings</string>
-   </property>
-  </action>
-  <action name="actionImport_settings">
-   <property name="text">
-    <string>Import settings</string>
-   </property>
-  </action>
-  <action name="actionExport_settings">
-   <property name="text">
-    <string>Export settings</string>
-   </property>
-  </action>
-  <action name="actionExit">
-   <property name="text">
-    <string>Exit</string>
-   </property>
-  </action>
-  <action name="actionAnalytes_list">
-   <property name="text">
-    <string>Analytes list</string>
-   </property>
-  </action>
-  <action name="actionAlignment_list">
-   <property name="text">
-    <string>Alignment list</string>
-   </property>
-  </action>
-  <action name="actionRevert_to_default_settings">
-   <property name="text">
-    <string>Revert to default settings</string>
-   </property>
-  </action>
-  <action name="actionBlock_file">
-   <property name="text">
-    <string>Block file</string>
-   </property>
-  </action>
-  <action name="actionVisualize_mass_spectrum">
-   <property name="text">
-    <string>View '.xy' mass spectrum</string>
-   </property>
-  </action>
-  <action name="actionView_LC_FLD_chromatogram">
-   <property name="text">
-    <string>Open LC-FLD chromatogram</string>
-   </property>
-  </action>
  </widget>
  <resources/>
  <connections/>

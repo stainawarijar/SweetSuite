@@ -167,7 +167,7 @@
   </action>
   <action name="actionAdvanced_settings">
    <property name="text">
-    <string>Advanced settings</string>
+    <string>Advanced settings (MS data)</string>
    </property>
   </action>
   <action name="actionImport_settings">

@@ -9,7 +9,7 @@ from PyQt6.QtCore import Qt, QTemporaryDir, QUrl
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QMainWindow, QMessageBox
 
-from ..qtdesigner_files.gui_chromatogram import Ui_MainWindow
+from ..qtdesigner_files.gui_chromatogram import Ui_ChromatogramWindow
 
 logger = logging.getLogger(__name__)
 _open_viewers = set()
@@ -20,7 +20,7 @@ class ChromatogramWindow(QMainWindow):
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Window)
-        self.ui = Ui_MainWindow()
+        self.ui = Ui_ChromatogramWindow()
         self.ui.setupUi(self)
         launch_size = self.size()
         self.setWindowFlags(
@@ -33,7 +33,6 @@ class ChromatogramWindow(QMainWindow):
         )
         # Use setFixedSize below rather than the Windows dialog-border hint,
         # which interferes with per-monitor DPI changes.
-        self.setWindowTitle("SweetSuite — LC-FLD chromatogram viewer")
         if parent is not None:
             self.setWindowIcon(parent.windowIcon())
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)

@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Advanced settings</string>
+   <string>Advanced settings (MS data)</string>
   </property>
   <property name="styleSheet">
    <string notr="true">* {

@@ -475,9 +475,8 @@ Initialises and wires together all GUI components:
   Clearing the input restores LC-MS mode. A rejected replacement preserves the
   existing input and mode. A reference file also disables controls whose values
   are supplied by that file.
-- LC-FLD mode disables MS settings import/export/reset, advanced settings, the
-  mass-spectrum viewer, and MS template actions. FLD templates and the
-  chromatogram viewer remain separate menu actions.
+- Toolbar and menu actions remain enabled in every processing mode. MS and FLD
+  templates and viewers remain available as separate menu actions.
 
 #### managers/
 

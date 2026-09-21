@@ -250,7 +250,7 @@ class MainWindow(QMainWindow):
             self.set_ms_only_mode(mode == ProcessingMode.MS_ONLY)
 
     def sync_mode_selection(self) -> None:
-        """Synchronize the selector, page, lock, and mode-specific menu actions."""
+        """Synchronize the selector, page, lock, and menu actions."""
         selector = self.ui.comboBox_processing_mode
         with QSignalBlocker(selector):
             selector.setCurrentText(self.processing_mode.value)
@@ -264,6 +264,9 @@ class MainWindow(QMainWindow):
         self.ui.stackedWidget.setCurrentWidget(
             self.ui.page if ms_mode else self.fld_page
         )
+        # Toolbar and menu actions stay available in every processing mode.
+        # Some actions open MS-specific tools, but selecting LC-FLD should not
+        # prevent users from accessing them.
         for action in (
             self.ui.actionImport_settings,
             self.ui.actionExport_settings,
@@ -274,7 +277,7 @@ class MainWindow(QMainWindow):
             self.ui.actionAnalytes_list,
             self.ui.actionBlock_file,
         ):
-            action.setEnabled(ms_mode)
+            action.setEnabled(True)
 
     def set_ms_only_mode(self, enabled: bool) -> None:
         """Enable or disable MS-only mode in the GUI.

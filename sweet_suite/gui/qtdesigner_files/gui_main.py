@@ -136,7 +136,7 @@ class Ui_MainWindow(object):
         self.actionDocumentation.setText(_translate("MainWindow", "Documentation"))
         self.actionReport_a_bug.setText(_translate("MainWindow", "Report a bug"))
         self.actionAbout.setText(_translate("MainWindow", "About"))
-        self.actionAdvanced_settings.setText(_translate("MainWindow", "Advanced settings"))
+        self.actionAdvanced_settings.setText(_translate("MainWindow", "Advanced settings (MS data)"))
         self.actionImport_settings.setText(_translate("MainWindow", "Import settings"))
         self.actionExport_settings.setText(_translate("MainWindow", "Export settings"))
         self.actionExit.setText(_translate("MainWindow", "Exit"))
