@@ -6,7 +6,8 @@ from PyQt6.QtWidgets import QDialog, QMessageBox, QListWidgetItem
 from ..qtdesigner_files.batch_status import Ui_batch_status
 from ...utils import utils
 from ..ui.ui_helpers import UIHelpers
-from ..workers.batch_worker import BatchWorker
+from ..workers.ms_batch_worker import MsBatchWorker
+from ..workers.fld_batch_worker import FldBatchWorker
 
 
 class BatchCoordinator:
@@ -135,7 +136,7 @@ class BatchCoordinator:
             raw_folder_path = None
         
         # Set up batch worker
-        self.batch_worker = BatchWorker(
+        self.batch_worker = MsBatchWorker(
             blocks=self.parent.blocks,
             raw_folder_path=raw_folder_path,
             ms_only=self.parent.ms_only_mode,
@@ -170,6 +171,39 @@ class BatchCoordinator:
             save_xy=bool(self.advanced_ui.checkBox_save_xy.isChecked()),
             plot_mz_corrections=bool(self.advanced_ui.checkBox_plot_mz_corrections.isChecked())
         )
+        self._start_worker()
+
+    def start_fld_batch_process(self) -> None:
+        """Start the LC-FLD worker using only the FLD page settings."""
+        ui = self.parent.fld_ui
+        folder = ui.path_mzxml.item(0)
+        if folder is None or not folder.text().strip():
+            UIHelpers.show_message_box(
+                self.parent, title="Missing batch directory",
+                text="Select a folder containing LC-FLD raw data files.",
+                informative_text="", icon="Warning",
+            )
+            return
+
+        def selected_path(widget):
+            item = widget.item(0)
+            return item.text() if item is not None else None
+
+        self.batch_worker = FldBatchWorker(
+            raw_folder_path=folder.text(),
+            peaks_list_path=selected_path(ui.path_peaks_list),
+            alignment_list_path=selected_path(ui.path_alignment_list),
+            alignment_time_window=float(ui.alignment_time_window.value()),
+            alignment_sn_cutoff=float(ui.alignment_sn_cutoff.value()),
+            alignment_min_peaks=int(ui.alignment_min_peaks.value()),
+            quantitate_aligned_only=ui.quantify_aligned.isChecked(),
+        )
+        self.parent.setEnabled(False)
+        self.batch_start_time = time.perf_counter()
+        self._start_worker()
+
+    def _start_worker(self) -> None:
+        """Connect and start either worker with a shared thread lifecycle."""
         # Move batch worker to thread
         self.batch_thread = QThread()
         self.batch_worker.moveToThread(self.batch_thread)
@@ -186,8 +220,6 @@ class BatchCoordinator:
         self.batch_worker.aborted.connect(self.batch_worker.deleteLater)
         self.batch_worker.aborted.connect(self.on_batch_aborted)
         # Worker error signal
-        self.batch_worker.error.connect(self.batch_thread.quit)
-        self.batch_worker.error.connect(self.batch_worker.deleteLater)
         self.batch_worker.error.connect(self.on_batch_error)
         # Progress signals
         self.batch_worker.ref_progress.connect(self.on_ref_progress_update)
@@ -278,6 +310,17 @@ class BatchCoordinator:
         """Setup the batch progress dialog with initial state."""
         self.batch_ui.pushButton.setEnabled(True)
         self.batch_ui.label_processing.setText("Processing files...")
+
+        if isinstance(self.batch_worker, FldBatchWorker):
+            self.batch_ui.label_processing.setText("Preparing LC-FLD batch...")
+            for bar in (
+                self.batch_ui.progressBar_analytes_ref,
+                self.batch_ui.progressBar_alignment,
+                self.batch_ui.progressBar_quantitation,
+            ):
+                bar.setValue(0)
+                bar.setFormat("Not performed")
+            return
 
         has_analytes = (
             self.parent.analytes_list_df is not None

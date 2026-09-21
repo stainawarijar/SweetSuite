@@ -418,6 +418,9 @@ class MainWindow(QMainWindow):
 
     def connect_signals(self) -> None:
         """Connect all UI signals to their handlers."""
+        self.fld_ui.pushButton_start_processing.clicked.connect(
+            self.batch_coordinator.start_fld_batch_process
+        )
         self.ui.comboBox_processing_mode.currentTextChanged.connect(
             lambda text: self.set_processing_mode(ProcessingMode(text))
         )

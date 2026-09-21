@@ -18,7 +18,7 @@ class MassSpectrum():
     calibrant observations for the spectrum's retention-time window. It can
     fit a quadratic m/z calibration from explicitly assigned calibrants or
     apply supplied calibration coefficients. In LC-MS processing,
-    `BatchWorker` pools calibrants across enabled sum spectra, fits one global
+    `MsBatchWorker` pools calibrants across enabled sum spectra, fits one global
     calibration per mzXML file, and supplies that fit to every enabled sum
     spectrum. The class also provides methods for quantifying analytes,
     plotting the calibration, and exporting spectrum data.

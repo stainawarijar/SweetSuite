@@ -22,7 +22,7 @@ from ...mzxml import Mzxml
 from ...utils import utils
 
 
-class BatchWorker(QObject):
+class MsBatchWorker(QObject):
     """
     PyQt6 worker for batch processing mass spectrometry data in SweetSuite.
 
@@ -76,7 +76,7 @@ class BatchWorker(QObject):
         super().__init__(parent)
         self.start_time = datetime.now().strftime("%d-%m-%Y_%H%M")
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.logger.info(f"\nBatchWorker initialized at {self.start_time}")
+        self.logger.info(f"\nMsBatchWorker initialized at {self.start_time}")
         self.blocks = blocks
         self.raw_folder_path = raw_folder_path
         self.ms_only = ms_only
@@ -125,12 +125,12 @@ class BatchWorker(QObject):
 
     def stop(self) -> None:
         """Request the worker to stop processing."""
-        self.logger.info("BatchWorker stop requested by user")
+        self.logger.info("MsBatchWorker stop requested by user")
         self.stop_requested = True
     
     def run(self) -> None:
         """Main execution method for batch processing."""
-        self.logger.info("BatchWorker run started")
+        self.logger.info("MsBatchWorker run started")
         # Generate analytes reference file if applicable.
         if self.analytes_list_df is None and self.analytes_ref_df is None:
             self.logger.info(
@@ -219,7 +219,7 @@ class BatchWorker(QObject):
         # Check if stopped before continuing.
         if self.stop_requested:
             self.logger.info(
-                "BatchWorker aborted after generation of reference file"
+                "MsBatchWorker aborted after generation of reference file"
             )
             self.aborted.emit()
             return
@@ -291,7 +291,7 @@ class BatchWorker(QObject):
         
         # Check if stopped before continuing.
         if self.stop_requested:
-            self.logger.info("BatchWorker aborted after alignment")
+            self.logger.info("MsBatchWorker aborted after alignment")
             self.aborted.emit()
             return
         
@@ -401,7 +401,7 @@ class BatchWorker(QObject):
                 ),
                 quantitation_results=quantitation_results
             )
-            self.logger.info("BatchWorker finished successfully")
+            self.logger.info("MsBatchWorker finished successfully")
             self.finished.emit(True)
         except Exception as e:
                 self.logger.exception(
@@ -618,7 +618,7 @@ class BatchWorker(QObject):
             for idx, path in enumerate(mzxml_file_paths):
                 # Check if stop was requested.
                 if self.stop_requested:
-                    self.logger.info("BatchWorker stop requested during alignment")
+                    self.logger.info("MsBatchWorker stop requested during alignment")
                     self.aborted.emit()
                     return False
 
@@ -885,7 +885,7 @@ class BatchWorker(QObject):
                 # Check if stop was requested.
                 if self.stop_requested:
                     self.logger.info(
-                        "BatchWorker stop requested during quantitation"
+                        "MsBatchWorker stop requested during quantitation"
                     )
                     self.aborted.emit()
                     return
@@ -1171,7 +1171,7 @@ class BatchWorker(QObject):
                 # Check if stop was requested.
                 if self.stop_requested:
                     self.logger.info(
-                        "BatchWorker stop requested during quantitation"
+                        "MsBatchWorker stop requested during quantitation"
                     )
                     self.aborted.emit()
                     return
