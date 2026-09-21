@@ -1,12 +1,8 @@
-"""LC-FLD settings page designed in gui_lc-fld.ui."""
-
-from importlib import import_module
+"""LC-FLD settings page designed in gui_lc_fld.ui."""
 
 from PyQt6.QtWidgets import QFileDialog, QWidget
 
-
-# Designer's generated filename contains a hyphen, so load it by module name.
-Ui_Form = import_module(".qtdesigner_files.gui_lc-fld", __package__).Ui_Form
+from .qtdesigner_files.gui_lc_fld import Ui_Form
 
 
 class FldPage(QWidget):

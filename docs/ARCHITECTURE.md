@@ -120,7 +120,7 @@ SweetSuite/
         ├── qtdesigner_files/      # Qt Designer .ui files + generated Python
         │   ├── gui_main.ui / .py
         │   ├── gui_ms.ui / .py
-        │   ├── gui_lc-fld.ui / .py
+        │   ├── gui_lc_fld.ui / .py
         │   ├── gui_chromatogram.ui / .py
         │   ├── gui_advanced_settings.ui / .py
         │   └── batch_status.ui / .py
@@ -464,9 +464,8 @@ Initialises and wires together all GUI components:
   `LC_FLD`. The mode selector switches between `MsPage` and `FldPage`.
 - **`MsPage`** (`ms_page.py`) wraps `gui_ms.py` and is shared by both MS modes.
   MS-only mode disables alignment and retention-time controls.
-- **`FldPage`** (`fld_page.py`) wraps the generated `gui_lc-fld.py`, loaded with
-  `import_module` because its filename contains a hyphen. It connects folder
-  and Excel-list selectors and clear buttons. It stores paths in widgets;
+- **`FldPage`** (`fld_page.py`) wraps the generated `gui_lc_fld.py`. It connects
+  folder and Excel-list selectors and clear buttons. It stores paths in widgets;
   FLD input tables are not parsed or validated yet. The inherited widget names
   `path_mzxml` and `open_mzxml_path` refer to the FLD raw-data folder on this page.
 - A validated MS analytes or reference file determines the MS mode from its
@@ -769,9 +768,8 @@ not part of `requirements.txt`.
   `--add-data`. It does not use a maintained `.spec` file or bundle a splash
   screen. The `blocks/` directory is copied beside the generated executable so
   users can inspect and organize block definitions independently.
-  A hidden import includes `sweet_suite.gui.qtdesigner_files.gui_lc-fld`,
-  which is loaded dynamically by `FldPage`. Pillow is installed for converting
-  the bundled PNG logo to an ICO during the build.
+  Pillow is installed for converting the bundled PNG logo to an ICO during the
+  build.
 - **`build/`** — PyInstaller build artefacts (`.toc`, `.pyz`, intermediate
   files); not committed to version control.
 - **`dist/`** — versioned executable output and the accompanying copied

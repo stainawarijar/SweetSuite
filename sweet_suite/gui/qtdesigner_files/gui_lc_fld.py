@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'gui_lc-fld.ui'
+# Form implementation generated from reading ui file 'gui_lc_fld.ui'
 #
 # Created by: PyQt6 UI code generator 6.10.0
 #
