@@ -528,7 +528,7 @@ class InputAnalyte:
 
     def get_variable_composition(self) -> dict[str, int]:
         """Determine number of atoms whose isotopes can vary for the following
-        elements: C, H, O, N, S, Na, K, Fe.
+        elements: C, H, O, N, S, Na, K, Fe, F, Cl.
 
         For natural analytes, this should simply be the elemental composition
         of the molecule. When an analyte is labeled using heavy isotopes,
@@ -538,8 +538,8 @@ class InputAnalyte:
         specified in the block file, it is equivalent to setting it to 0.
 
         Returns:
-            A dictionary containing the number of C, H, O, N, S, Na, K and Fe
-            whose isotopes can vary.
+            A dictionary containing the number of C, H, O, N, S, Na, K, Fe,
+            F and Cl whose isotopes can vary.
 
         Raises:
             KeyError: If a block referenced by the analyte name or mass modifier
@@ -557,7 +557,9 @@ class InputAnalyte:
             "sulfurs": 0,
             "sodiums": 0,
             "potassiums": 0,
-            "irons": 0
+            "irons": 0,
+            "fluorines": 0,
+            "chlorines": 0
         }
         
         for i, unit in enumerate(analyte_parts):
