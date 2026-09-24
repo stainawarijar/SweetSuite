@@ -138,12 +138,10 @@ class Mzxml:
     ) -> SumSpectrum:
         """Create a sum spectrum based on a specified retention time range.
 
-        Starts by generating an empty spectrum with equally sized m/z bins,
-        where the number of bins per Th is specified by `resolution`.
-        The sum spectrum bins are then filled by summing the intensities of all
-        data points that have an m/z value larger than the lower edge of the
-        bin and smaller than or equal to the upper edge of the bin, using all
-        the spectra that fall within the specified retention time range.
+        Scans within the specified retention time range are interpolated onto
+        a shared, evenly spaced m/z axis. Their interpolated intensities are
+        then summed. `resolution` determines the approximate number of axis
+        points per Th.
 
         Args:
             time: Center of the desired retention time range.
@@ -273,7 +271,7 @@ class Mzxml:
                 as returned by the function `get_alignment_fit_eics`.
         
         Returns:
-            A matplotlib figure.
+            A matplotlib figure, or `None` when alignment fitting failed.
         """
         # Split into fit coefficients and the EICs.
         fit_coeffs, eics = fit_eics[0], fit_eics[1]

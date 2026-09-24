@@ -110,8 +110,7 @@ class BatchWorker(QObject):
         """Set path to Excel file to which final results will be written.
         
         Returns:
-            The path as a string, or None if the raw folder path does
-            not exist (possible when only an analytes list is uploaded).
+            The path as a string, or `None` if no raw folder was selected.
         """
         if self.raw_folder_path is None:
             return
@@ -818,8 +817,8 @@ class BatchWorker(QObject):
             mzxml_file_paths: List of paths to mzXML files.
 
         Returns:
-            Dataframe with quantitation results if processing finished for
-            all files. None if batch process was aborted during quantitation.
+            DataFrame with quantitation results, or `None` if processing was
+            aborted or no mzXML file produced output.
         """
         # Get distinct retention times ranges as a list of tuples.
         rt_ranges = list(self.sum_spectra_calibration.keys())
@@ -1100,8 +1099,8 @@ class BatchWorker(QObject):
             xy_file_paths: List of paths to .xy files.
         
         Returns:
-            Dataframe with quantitation results if processing finished for
-            all files. None if batch process was aborted during quantitation.
+            DataFrame with quantitation results, or `None` if processing was
+            aborted or no `.xy` file produced output.
         """
         # Read in analytes reference Excel file.
         # Then extract the data for the calibrants.

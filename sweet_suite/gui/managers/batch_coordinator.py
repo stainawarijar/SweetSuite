@@ -51,7 +51,7 @@ class BatchCoordinator:
         self.batch_ui.pushButton.setDefault(False)
     
     def start_batch_process(self) -> None:
-        """Start batch processing of the mzXML files."""
+        """Start batch processing of mzXML or MS-only `.xy` files."""
         # Disable all widgets to prevent settings from changing
         self.parent.setEnabled(False)
         

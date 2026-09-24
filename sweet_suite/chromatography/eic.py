@@ -175,9 +175,10 @@ class Eic:
     def get_signal_to_noise(self) -> float:
         """Returns the signal-to-noise (S/N).
         
-        The signal is calculated as the intensity minus the background area.
-        In case of a negative signal-to-noise, zero is returned. Returns
-        `np.nan` when noise is 0, or when background and/or noise are `nan`.
+        The signal is calculated as the intensity minus the mean background
+        intensity.
+        Non-positive or indeterminate ratios return `0.0`; a positive signal
+        with zero NumPy noise produces positive infinity.
         """
         intensity = self.maximum[1]
         background = self.background_and_noise[0]

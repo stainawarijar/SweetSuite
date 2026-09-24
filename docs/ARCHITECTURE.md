@@ -34,9 +34,9 @@ glycoproteomics data. Its two main capabilities are:
 
 1. **Retention time alignment** — corrects systematic RT drift across mzXML files
    using a set of user-defined alignment features.
-2. **Targeted analyte quantitation** — integrates isotopic peaks in sum spectra,
-   applies polynomial m/z calibration, and reports areas, mass errors, S/N ratios,
-   and isotopic pattern quality (IPQ) per analyte per file.
+2. **Targeted analyte quantitation** — quantifies isotopic peaks by area or peak
+   height, applies polynomial m/z calibration, and reports abundance, mass error,
+   S/N ratio, and isotopic pattern quality (IPQ) per analyte per file.
 
 The application is intentionally structured in layers:
 
@@ -91,7 +91,8 @@ SweetSuite/
     │   └── ms_tables.py           # Build long-format quantitation DataFrames
     │
     ├── resources/
-    │   ├── constants.py           # ISOTOPES table (masses + natural abundances)
+    │   ├── constants.py           # Isotope/particle masses and isotope lookup tables
+    │   ├── images/                # Application logo used by the GUI and executable
     │   └── templates/             # Excel templates, default settings CSV, block template
     │
     ├── utils/
@@ -137,8 +138,10 @@ Responsible for bootstrapping the application:
 2. Creates the `logs/` directory and configures a global
    `logging.basicConfig` that writes to both a timestamped log file and
    `stdout`.
-3. Creates the `QApplication`, applies a custom Fusion-based light palette,
-   and shows `MainWindow`.
+3. On Windows, assigns the application user-model ID so the taskbar associates
+   the process with SweetSuite rather than `python.exe`.
+4. Creates the `QApplication`, loads the packaged logo as the application icon,
+   applies a custom Fusion-based light palette, and shows `MainWindow`.
 
 ---
 
@@ -196,17 +199,19 @@ Interface for reading, processing, and aligning mzXML files.
 - **Spectrum construction** — `create_mass_spectra()` Base64-decodes the
   selected scans, decompresses zlib data, and unpacks interleaved
   m/z–intensity float arrays into 2D NumPy arrays.
-- **Sum spectra** — `create_sum_spectrum(time, time_window, resolution)` accumulates
-  all scans within `[time ± time_window]` into a `SumSpectrum`, merging data
-  points within the given resolution tolerance.
+- **Sum spectra** — `create_sum_spectrum(time, time_window, resolution)` selects
+  scans within `[time ± time_window]`, interpolates each scan onto a shared,
+  evenly spaced m/z axis with `resolution` points per Th, and sums the
+  interpolated intensities into a `SumSpectrum`.
 - **Retention time alignment** — three methods orchestrate the full alignment
   workflow for one file:
   1. `get_alignment_fit_eics(alignment_features, min_peaks)` — extracts EICs for
      each `AlignmentFeature` and returns those that pass the S/N cut-off.
   2. `plot_alignment_fit(fit_eics)` — fits the time-mapping function and returns a
      `matplotlib` figure for the PDF alignment report.
-  3. `align_retention_times(fit_eics)` — rewrites the mzXML XML with adjusted
-     `retentionTime` attributes.
+  3. `align_retention_times(fit_eics)` — writes a new `aligned_*.mzXML` file
+     with adjusted `retentionTime` attributes. If fitting failed, it writes an
+     empty `unaligned_*.mzXML` marker file instead.
 
 ---
 
@@ -292,8 +297,9 @@ provides:
 - `get_background_and_noise()` — defines evenly-spaced m/z bins around
   `target_mz` (bin centers separated by the ¹³C–¹²C mass difference / charge).
   Evaluates all windows of 5 consecutive bins and selects the one with the
-  lowest average intensity as the background region. Background is the mean
-  area / intensity of those 5 bins; noise is their standard deviation.
+  lowest average intensity as the background region. Returns the region's
+  average intensity, its mean per-bin area, and the standard deviation of its
+  intensity values as noise.
 
 #### `calibrant.py` — `Calibrant(IsotopicPeak)`
 
@@ -310,12 +316,12 @@ at one charge state into high-level metrics:
 | Attribute | Description |
 |---|---|
 | `total_area` | Sum of per-peak trapezoidal areas (or maximum intensities when `use_peak_height=True`) |
-| `total_background` | Sum of background areas (or average background intensities when `use_peak_height=True`) |
-| `total_noise` | Sum of per-peak noise values |
-| `total_area_background_subtracted` | `total_area − total_background` |
+| `total_background` | Background estimated at the lowest-mass peak, multiplied by the number of quantified isotopologues (area or average intensity, according to mode) |
+| `total_noise` | Noise estimated at the lowest-mass peak, multiplied by the number of quantified isotopologues |
+| `total_area_background_subtracted` | Sum of positive per-isotopologue values after subtracting the shared background estimate |
 | `signal_to_noise` | S/N of the most abundant isotopologue |
 | `mass_error_ppm` | ppm error of the most abundant isotopologue |
-| `isotopic_pattern_quality` | IPQ: similarity of observed to theoretical isotope ratios |
+| `isotopic_pattern_quality` | IPQ: summed absolute difference between normalized observed and theoretical isotope ratios (lower is a closer match) |
 
 Accepts an optional `use_peak_height: bool` flag (default `False`). When `True`, all
 area-based calculations switch to using the `maximum_intensity` column from the peaks
@@ -338,8 +344,9 @@ coefficients are assigned, and quantifies analytes from a reference DataFrame.
    minimum calibrant count on that pool, fits once, and supplies the resulting
    coefficients to every enabled `MassSpectrum` for that file.
 2. **Peak quantitation** — for each row in the reference DataFrame, creates an
-   `IsotopicPeak`, computes its area, maximum intensity, mass error, background,
-   and noise, and stores the results. An analyte is skipped when its required
+   `IsotopicPeak` and computes its area, maximum intensity, and mass error.
+   Background and noise are estimated once at the lowest-mass isotopologue of
+   each analyte/charge group. An analyte is skipped when its required
    quantitation or background windows extend beyond the spectrum m/z range.
 3. **Analyte assembly** — groups peaks by `(analyte, charge)` and creates one
    `Analyte` per group, forwarding the `use_peak_height` flag so the correct
@@ -384,8 +391,17 @@ are produced by `MassSpectrum.plot_calibration()`.
 
 Defines the `ISOTOPES` dictionary: masses and natural abundances for C, H, O,
 N, S, Na, K, Fe, F, and Cl, sourced from the NIST Atomic Weights database.
-This is the single authoritative source of isotope data used by both
-`InputAnalyte` and `IsotopicPeak`.
+It also defines proton and electron masses and builds `EXTRA_NEUTRON_LOOKUP`,
+which maps isotope labels to their extra-neutron counts relative to the
+lightest isotope of each element. This module is the authoritative source of
+isotope data used by reference generation, block validation, and background
+bin spacing during peak quantitation.
+
+#### `images/`
+
+Contains `logo_head.png`, the application/window icon bundled by PyInstaller.
+The build script temporarily converts this PNG to an `.ico` file for the
+Windows executable icon and removes that generated file after the build.
 
 #### `templates/`
 
@@ -426,6 +442,7 @@ and delegates all non-trivial behaviour to dedicated manager objects.
 Initialises and wires together all GUI components:
 
 - Calls `UISetup` to apply icons, tooltips, and table styling.
+- Loads the packaged SweetSuite logo as the main-window icon.
 - Creates manager instances and stores them as attributes.
 - Connects Qt signals (button clicks, menu actions) to the appropriate
   manager methods.
@@ -631,8 +648,9 @@ The MS-only mode skips mzXML parsing and alignment entirely.
 The user provides `.xy` files (two-column tab-delimited m/z and intensity).
 `BatchWorker` reads each `.xy` file directly into a NumPy array and constructs
 one `MassSpectrum` per file without an intermediate `SumSpectrum`. Calibrants
-are filtered using the global S/N cut-off and calibration is applied when the
-minimum count is met; m/z-coverage and retention-time-group rules do not apply.
+available within each spectrum's m/z range are filtered using the global S/N
+cut-off, and that spectrum is calibrated independently when the minimum count
+is met. There are no retention-time groups or per-window calibration settings.
 XY export in this mode occurs only when calibrants were supplied, avoiding an
 unchanged copy when calibration was not attempted.
 
@@ -653,8 +671,8 @@ Runtime dependencies are pinned in `requirements.txt` for Python 3.14.
 | `xlsxwriter` | Writing `.xlsx` output files |
 | `pybase64` | Fast base64 decoding of mzXML peak data |
 
-PyInstaller is a build-only dependency installed by `compile_to_exe.sh`; it is
-not part of `requirements.txt`.
+PyInstaller and Pillow are build-only dependencies installed by
+`compile_to_exe.sh`; they are not part of `requirements.txt`.
 
 ---
 
@@ -665,10 +683,13 @@ not part of `requirements.txt`.
 - **`compile_to_exe.sh`** — builds a standalone Windows executable using
   [PyInstaller](https://pyinstaller.org/) in one-file mode. The script creates
   a Python 3.14 virtual environment, installs runtime dependencies and
-  PyInstaller, and passes GUI assets and resource templates through
-  `--add-data`. It does not use a maintained `.spec` file or bundle a splash
-  screen. The `blocks/` directory is copied beside the generated executable so
-  users can inspect and organize block definitions independently.
+  the build-only PyInstaller and Pillow packages. Pillow converts the packaged
+  PNG logo to a temporary `.ico`; PyInstaller embeds that executable icon and
+  bundles the PNG, GUI assets, and resource templates through `--add-data`.
+  The temporary `.ico` and generated `.spec` file are removed after the build,
+  so the project does not maintain a `.spec` file. The `blocks/` directory is
+  copied beside the generated executable so users can inspect and organize
+  block definitions independently.
 - **`build/`** — PyInstaller build artefacts (`.toc`, `.pyz`, intermediate
   files); not committed to version control.
 - **`dist/`** — versioned executable output and the accompanying copied

@@ -247,9 +247,8 @@ class MassSpectrum():
 
         Required m/z corrections or mass errors (ppm) are plotted against the 
         observed m/z values. Calibrant data points are colored by their 
-        retention time window if applicable. The quadratic fit is shown as a 
-        smooth curve. The required calibrant m/z range is shown by light 
-        shading.
+        retention time window if applicable. The quadratic fit is shown as a
+        smooth curve.
 
         Args:
             calibration_fit: Quadratic fit coefficients in the order
@@ -374,11 +373,10 @@ class MassSpectrum():
     ) -> list[Analyte] | None:
         """Quantify analytes and calculate quality control parameters.
 
-        Each molecule in a specific charge state is considered to be 
-        a separate analyte. For each analyte the total background subtracted
-        area is calculated. The following quality control parameters are 
-        also determined: signal-to-noise (S/N), isotopic pattern quality 
-        (IPQ), mass error in parts-per-million (ppm).
+        Each molecule in a specific charge state is considered to be a
+        separate analyte. Quantitation uses either trapezoidal peak areas or
+        peak heights. Signal-to-noise (S/N), isotopic pattern quality (IPQ),
+        and mass error in parts-per-million (ppm) are also determined.
         
         Args:
             analytes_ref: Reference data with one row per isotopic peak and

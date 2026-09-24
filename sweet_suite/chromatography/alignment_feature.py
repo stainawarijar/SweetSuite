@@ -18,7 +18,7 @@ class AlignmentFeature:
             retention time within which to search for the observed time.
         alignment_mz_window (float): The m/z window (Th) to use around the 
             exact m/z of the feature to create when creating an EIC.
-        sn_cutoff (float): Minimum chomatographic S/N value that the EIC
+        alignment_sn_cutoff (float): Minimum chomatographic S/N value that the EIC
             feature must have to be used for alignment.
         required (bool): Indicates whether the feature is required for 
             for alignment. When `True`, the alignment of the corresponding

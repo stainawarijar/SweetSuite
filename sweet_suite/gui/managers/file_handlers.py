@@ -675,7 +675,7 @@ class FileHandlers:
         self.parent.block_parser.update_mass_modifiers()
     
     def open_mzxml_path(self) -> None:
-        """Open file dialog for selecting a folder with mzXML files."""
+        """Open a dialog for selecting the mzXML or `.xy` input folder."""
         mzxml_path = QFileDialog.getExistingDirectory(
             None, "Select folder containing mzXML files:"
         )

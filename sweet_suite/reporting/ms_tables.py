@@ -10,11 +10,10 @@ def build_quantitation_table(
     output_params: list[str],
     use_peak_height: bool = False
 ) -> pd.DataFrame:
-    """Create a table in long format with quantitation results for all 
-    sum spectra of an mzXML file.
+    """Create a table in long format with quantitation results for one file.
 
     Args:
-        filename: Name of the mzXML file.
+        filename: Name of the mzXML or `.xy` file.
         mass_spectra: A list with instances of MassSpectrum.
         analytes_ref: Analytes reference dataframe.
         output_params: A list with required output parameters.
@@ -23,7 +22,7 @@ def build_quantitation_table(
     
     Returns:
         A pandas dataframe with the following columns: `file`, `analyte`,
-        `charge`, `mz_monoisotopic`, `mz_most_abundant`, `isotopic_fraction` 
+        `charge`, `mz_most_abundant`, `mz_monoisotopic`, `isotopic_fraction`
         and a column for each specified output parameter.
     """
     # Build dataframe with analyte names, charge, isotopologue number and m/z.
