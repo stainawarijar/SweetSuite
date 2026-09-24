@@ -5,7 +5,11 @@ from ..qtdesigner_files.gui_advanced_settings import Ui_advanced_settings
 
 
 class AdvancedSettingsHandler:
-    """Handles advanced settings dialog setup and operations."""
+    """Manage the advanced-settings dialog for the main window.
+
+    The handler configures dialog behavior, connects its controls, and
+    restores the previous settings when the user cancels their changes.
+    """
     
     def __init__(self, parent):
         """Initialize advanced settings handler. 
@@ -86,11 +90,13 @@ class AdvancedSettingsHandler:
             widget.setEnabled(checked)
         # Connect checkbox to toggle handler
         self.ui.checkBox_quadratic.toggled.connect(self.on_quadratic_toggled)
+        self.parent.set_quadratic_window_mode(checked)
 
     def on_quadratic_toggled(self, checked: bool) -> None:
         """Enable or disable coefficient inputs when checkbox changes."""
         for widget in self.quadratic_widgets:
             widget.setEnabled(checked)
+        self.parent.set_quadratic_window_mode(checked)
 
     def show_dialog(self) -> None:
         """Show the advanced settings dialog."""
@@ -98,4 +104,3 @@ class AdvancedSettingsHandler:
         result = self.dialog.exec()
         if result == QDialog.DialogCode.Rejected:
             self.restore_settings(snapshot)
-    

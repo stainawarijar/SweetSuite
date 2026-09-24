@@ -102,7 +102,12 @@ elemental compositions are taken into account when computing theoretical
 isotopologue distributions.
 
 After you load the analyte list into SweetSuite, an interactive table appears 
-where you can adjust the calibrant S/N cut-off for each retention time range. 
+where you can enable or disable calibration and adjust the calibrant S/N cut-off
+for each retention time range. For each mzXML file, calibrants that pass the
+S/N cut-off are pooled across all enabled retention time ranges. SweetSuite fits
+one global calibration from this pool and applies it to every enabled sum
+spectrum in that file. If fewer than the configured minimum number of
+calibrants pass the cut-offs, calibration and quantitation fail for that file.
 When quantitation is finished, SweetSuite creates an Excel file containing all results.
 
 Below is an example of a valid analytes list:
@@ -175,12 +180,17 @@ The "Data" tab contains for each file the following outputs per analyte and per 
 - `total_background`: <br>Summed background values of all isotopic peaks.
 - `total_noise`: <br>Summed noise of all isotopic peaks.
 
-*Note*: when the output data exceeds $2^{20}$ rows, it is split across multiple sheets labeled `Data1`, `Data2`, etc.
+*Note*: an Excel worksheet can contain $2^{20}$ rows, including its header row.
+When the output contains more than 1,048,575 data rows, it is therefore split
+across multiple sheets labeled `Data1`, `Data2`, etc.
 
 **Advanced settings** (accessible via the toolbar) provide additional quantitation options:
 - *Use quadratic quantitation m/z window* — applies a charge-state-dependent quadratic m/z window instead of the fixed global window. The window is defined by three terms of the form *coeff* × 10^*exp*, covering the (m/z)², (m/z), and constant contributions respectively. The effective window is: `a·(m/z)² + b·(m/z) + c` where each coefficient is entered as a significand and an integer exponent.
-- *Use peak heights instead of areas for quantitation* — replaces trapezoidal integration with the maximum intensity in the quantitation m/z window for each isotopic peak. Background subtraction then uses the average background intensity instead of the background area.
+- *Use peak heights instead of areas for quantitation* — replaces trapezoidal quantitation with the maximum intensity in the quantitation m/z window for each isotopic peak. Background subtraction then uses the average background intensity instead of the background area.
 - *Save sum spectra as .xy files* — writes each quantitated (and, where applicable, calibrated) mass spectrum to a tab-delimited `.xy` file inside a dedicated `xy_<timestamp>/` subdirectory in the batch folder. In MS-only mode, files are only written when at least one calibrant is present.
+- *Plot required m/z corrections in calibration figures* — displays the required
+  m/z correction (`exact m/z - observed m/z`) instead of the mass error in ppm
+  on the calibration plots.
 
 ### Viewing .xy spectra
 A built-in spectrum viewer is available under `Tools → View '.xy' mass spectrum`. After selecting a `.xy` file, an interactive plot opens inside the application. Large files are handled efficiently by dynamically resampling the displayed data as you zoom in. The viewer toolbar provides `Home` (reset view) and `Save` (export figure) buttons; zooming is done with the mouse wheel and panning by click-dragging inside the plot.

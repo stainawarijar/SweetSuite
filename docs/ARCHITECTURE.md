@@ -34,9 +34,9 @@ glycoproteomics data. Its two main capabilities are:
 
 1. **Retention time alignment** — corrects systematic RT drift across mzXML files
    using a set of user-defined alignment features.
-2. **Targeted analyte quantitation** — integrates isotopic peaks in sum spectra,
-   applies polynomial m/z calibration, and reports areas, mass errors, S/N ratios,
-   and isotopic pattern quality (IPQ) per analyte per file.
+2. **Targeted analyte quantitation** — quantifies isotopic peaks by area or peak
+   height, applies polynomial m/z calibration, and reports abundance, mass error,
+   S/N ratio, and isotopic pattern quality (IPQ) per analyte per file.
 
 The application is intentionally structured in layers:
 
@@ -63,12 +63,10 @@ SweetSuite/
 ├── requirements.txt               # Python dependencies
 ├── SweetSuite.bat                 # Windows launcher
 ├── compile_to_exe.sh              # PyInstaller build script
-├── main.spec                      # PyInstaller spec file
 │
 ├── blocks/                        # Block definition files (.block), scanned recursively
 ├── docs/                          # Documentation (this file)
 ├── logs/                          # Runtime log files (auto-created)
-├── tests/                         # Test suite (currently a stub)
 │
 └── sweet_suite/                   # Main Python package
     ├── __init__.py                # Version metadata
@@ -82,7 +80,7 @@ SweetSuite/
     │   ├── alignment_feature.py   # One alignment target (m/z + required RT)
     │   └── eic.py                 # Extracted ion chromatogram (EIC)
     │
-    ├── mass_spectrometry/         # Peak integration and calibration
+    ├── mass_spectrometry/         # Peak quantitation and calibration
     │   ├── isotopic_peak.py       # Single isotopic peak extraction + background
     │   ├── calibrant.py           # Calibrant peak (spline-based m/z refinement)
     │   ├── analyte.py             # Aggregated analyte result (area, S/N, IPQ)
@@ -93,7 +91,8 @@ SweetSuite/
     │   └── ms_tables.py           # Build long-format quantitation DataFrames
     │
     ├── resources/
-    │   ├── constants.py           # ISOTOPES table (masses + natural abundances)
+    │   ├── constants.py           # Isotope/particle masses and isotope lookup tables
+    │   ├── images/                # Application logo used by the GUI and executable
     │   └── templates/             # Excel templates, default settings CSV, block template
     │
     ├── utils/
@@ -139,10 +138,10 @@ Responsible for bootstrapping the application:
 2. Creates the `logs/` directory and configures a global
    `logging.basicConfig` that writes to both a timestamped log file and
    `stdout`.
-3. Creates the `QApplication`, applies a custom Fusion-based light palette,
-   and shows `MainWindow`.
-4. When running as a frozen PyInstaller executable, opens and closes the splash
-   screen via `pyi_splash`.
+3. On Windows, assigns the application user-model ID so the taskbar associates
+   the process with SweetSuite rather than `python.exe`.
+4. Creates the `QApplication`, loads the packaged logo as the application icon,
+   applies a custom Fusion-based light palette, and shows `MainWindow`.
 
 ---
 
@@ -170,14 +169,13 @@ described analyte object ready for quantitation.
   counts from the optional mass modifier block (if one is selected).
 - **Monoisotopic mass** (`get_monoisotopic_mass`) — sums the block masses,
   plus the mass modifier block mass if applicable.
-- **Isotopologue distribution** (`compute_distribution`) — uses sequential
-  convolution over elements rather than enumerating all combinations at once.
-  Starting from a delta distribution at the monoisotopic mass, the method
-  folds one element's heavy-isotope distribution at a time into the running
-  list, merging peaks within instrument resolution after each step. This is
-  O(n_elements × n_peaks) rather than O(product of per-element distribution
-  sizes), making it fast even for large glycans with heavy charge carriers
-  such as potassium.
+- **Isotopologue distribution** (`compute_distribution`) — builds an isotopic
+  fine-structure pattern by successively convolving element-specific isotope
+  patterns. Configurations below the probability threshold are discarded
+  while generating elemental patterns and after each convolution. The fine
+  structure is then collapsed into nominal `M`, `M+1`, `M+2`, … groups by
+  extra-neutron count; each group's mass is its probability-weighted average.
+  The signed charge-state electron-mass correction is included.
 - **Reference DataFrame** (`get_reference_df`) — for each charge state in
   `[charge_min, charge_max]`, builds the full ion composition (analyte +
   modifier + n × carrier) and calls `compute_distribution` with that
@@ -185,7 +183,7 @@ described analyte object ready for quantitation.
   (e.g. ⁴¹K for potassium) is correctly included per charge state. Produces
   one row per selected isotopologue with the expected m/z, relative abundance,
   retention time window, calibration flag, `charge_carrier`, and
-  `mass_modifier` columns. This DataFrame drives peak integration in
+  `mass_modifier` columns. This DataFrame drives peak quantitation in
   `MassSpectrum`.
 
 ---
@@ -196,21 +194,24 @@ Interface for reading, processing, and aligning mzXML files.
 
 **Responsibilities:**
 
-- **Parsing** — reads the mzXML XML as a string, splits on `<scan` boundaries,
-  and creates one `MzxmlDataBlock` per scan.
-- **Spectrum construction** — `create_mass_spectra()` decompresses zlib data
-  and unpacks interleaved m/z–intensity float arrays into 2D NumPy arrays.
-- **Sum spectra** — `create_sum_spectrum(time, time_window, resolution)` accumulates
-  all scans within `[time ± time_window]` into a `SumSpectrum`, merging data
-  points within the given resolution tolerance.
+- **Parsing** — reads the mzXML XML line by line and creates one
+  `MzxmlDataBlock` per scan.
+- **Spectrum construction** — `create_mass_spectra()` Base64-decodes the
+  selected scans, decompresses zlib data, and unpacks interleaved
+  m/z–intensity float arrays into 2D NumPy arrays.
+- **Sum spectra** — `create_sum_spectrum(time, time_window, resolution)` selects
+  scans within `[time ± time_window]`, interpolates each scan onto a shared,
+  evenly spaced m/z axis with `resolution` points per Th, and sums the
+  interpolated intensities into a `SumSpectrum`.
 - **Retention time alignment** — three methods orchestrate the full alignment
   workflow for one file:
   1. `get_alignment_fit_eics(alignment_features, min_peaks)` — extracts EICs for
      each `AlignmentFeature` and returns those that pass the S/N cut-off.
   2. `plot_alignment_fit(fit_eics)` — fits the time-mapping function and returns a
      `matplotlib` figure for the PDF alignment report.
-  3. `align_retention_times(fit_eics)` — rewrites the mzXML XML with adjusted
-     `retentionTime` attributes.
+  3. `align_retention_times(fit_eics)` — writes a new `aligned_*.mzXML` file
+     with adjusted `retentionTime` attributes. If fitting failed, it writes an
+     empty `unaligned_*.mzXML` marker file instead.
 
 ---
 
@@ -218,11 +219,10 @@ Interface for reading, processing, and aligning mzXML files.
 
 Parses one `<scan>` element from an mzXML file.
 
-Extracts retention time, compression type, byte order, and encoding precision
-from the raw XML, then base64-decodes the peak data using
-`pybase64` (a C-backed base64 library), and stores the result as a
-`decoded_data` dictionary. The raw XML string is discarded after parsing
-to free memory.
+Extracts retention time, compression type, byte order, encoding precision, and
+the Base64 peak text from the raw XML and stores them in an `encoded_data`
+dictionary. Base64 decoding with `pybase64` is deferred until a spectrum is
+needed. The raw XML string is discarded after parsing to free memory.
 
 ---
 
@@ -279,14 +279,14 @@ exceeding `alignment_sn_cutoff`.
 
 #### `isotopic_peak.py` — `IsotopicPeak`
 
-Base class for a single isotopic peak in a spectrum. Given an exact m/z and an
-integration window, it slices the relevant region from the spectrum array and
+Base class for a single isotopic peak in a spectrum. Given an exact m/z and a
+quantitation window, it slices the relevant region from the spectrum array and
 provides:
 
-- `get_area()` — trapezoidal integration over `[mz_exact ± mz_window]`.
+- `get_area()` — trapezoidal quantitation over `[mz_exact ± mz_window]`.
 - `get_maximum_intensity()` — returns the intensity of the highest local
-  maximum within `[mz_exact ± integration_mz_window]`. Falls back to the
-  highest intensity point in the window if no local maximum is found.
+  maximum within `[mz_exact ± quantitation_mz_window]`. Returns `0.0` if the
+  window contains data but no local maximum, and `NaN` if it contains no data.
 - `get_spline_maximum()` — fits a cubic spline over `[mz_exact ± mz_window]`
   and returns the `(m/z, intensity)` of the highest local maximum. Falls back
   to raw data if fewer than 4 points or spline fitting fails. If no local
@@ -297,8 +297,9 @@ provides:
 - `get_background_and_noise()` — defines evenly-spaced m/z bins around
   `target_mz` (bin centers separated by the ¹³C–¹²C mass difference / charge).
   Evaluates all windows of 5 consecutive bins and selects the one with the
-  lowest average intensity as the background region. Background is the mean
-  area / intensity of those 5 bins; noise is their standard deviation.
+  lowest average intensity as the background region. Returns the region's
+  average intensity, its mean per-bin area, and the standard deviation of its
+  intensity values as noise.
 
 #### `calibrant.py` — `Calibrant(IsotopicPeak)`
 
@@ -309,18 +310,18 @@ theoretical `mz_exact` to produce one calibration data point.
 
 #### `analyte.py` — `Analyte`
 
-Aggregates the integration results for all isotopologue peaks of one analyte
+Aggregates the quantitation results for all isotopologue peaks of one analyte
 at one charge state into high-level metrics:
 
 | Attribute | Description |
 |---|---|
 | `total_area` | Sum of per-peak trapezoidal areas (or maximum intensities when `use_peak_height=True`) |
-| `total_background` | Sum of background areas (or average background intensities when `use_peak_height=True`) |
-| `total_noise` | Sum of per-peak noise values |
-| `total_area_background_subtracted` | `total_area − total_background` |
+| `total_background` | Background estimated at the lowest-mass peak, multiplied by the number of quantified isotopologues (area or average intensity, according to mode) |
+| `total_noise` | Noise estimated at the lowest-mass peak, multiplied by the number of quantified isotopologues |
+| `total_area_background_subtracted` | Sum of positive per-isotopologue values after subtracting the shared background estimate |
 | `signal_to_noise` | S/N of the most abundant isotopologue |
 | `mass_error_ppm` | ppm error of the most abundant isotopologue |
-| `isotopic_pattern_quality` | IPQ: similarity of observed to theoretical isotope ratios |
+| `isotopic_pattern_quality` | IPQ: summed absolute difference between normalized observed and theoretical isotope ratios (lower is a closer match) |
 
 Accepts an optional `use_peak_height: bool` flag (default `False`). When `True`, all
 area-based calculations switch to using the `maximum_intensity` column from the peaks
@@ -330,29 +331,37 @@ S/N computation is intensity-based regardless of this flag.
 
 #### `mass_spectrum.py` — `MassSpectrum`
 
-The central quantitation object. Given raw `(m/z, intensity)` data and a
-reference DataFrame (from `InputAnalyte`), it:
+The central spectrum-level quantitation object. It stores raw `(m/z, intensity)`
+data, creates `Calibrant` observations from the calibrant table supplied for
+its retention-time window, fits or applies calibration when calibrants or fit
+coefficients are assigned, and quantifies analytes from a reference DataFrame.
 
-1. **Calibration** — instantiates `Calibrant` objects for each flagged
-   calibrant peak, checks their S/N against `min_calibrant_sn`, fits a
-   second-degree polynomial to `(observed_mz → required_mz)` with
-   `numpy.polyfit`, then applies the polynomial to shift all m/z values.
-   Calibration fails (and is skipped) when fewer than `min_calibrant_number`
-   calibrants pass the S/N cut-off.
-2. **Peak integration** — for each row in the reference DataFrame, creates an
-   `IsotopicPeak`, computes its area, maximum intensity, and background, and stores the results.
+1. **Calibration** — `fit_calibration()` fits the required correction
+   `mz_exact - mz_observed` as a quadratic function of observed m/z. The fitted
+   correction is added to every observed m/z value. In LC-MS mode,
+   `BatchWorker` applies the per-window S/N thresholds, pools qualifying
+   calibrants from all enabled sum spectra in an mzXML file, enforces the
+   minimum calibrant count on that pool, fits once, and supplies the resulting
+   coefficients to every enabled `MassSpectrum` for that file.
+2. **Peak quantitation** — for each row in the reference DataFrame, creates an
+   `IsotopicPeak` and computes its area, maximum intensity, and mass error.
+   Background and noise are estimated once at the lowest-mass isotopologue of
+   each analyte/charge group. An analyte is skipped when its required
+   quantitation or background windows extend beyond the spectrum m/z range.
 3. **Analyte assembly** — groups peaks by `(analyte, charge)` and creates one
    `Analyte` per group, forwarding the `use_peak_height` flag so the correct
    metric is used for all quantitation calculations.
+4. **Output** — `plot_calibration()` creates the active calibration figure,
+   displaying either mass errors in ppm or required m/z corrections, and
+   `write_xy()` exports calibrated or uncalibrated spectrum data according to
+   calibration status.
 
 #### `plotting.py`
 
-Standalone plotting functions used by `MassSpectrum`:
-
-- **`plot_polynomial()`** — side-by-side calibration plot (scatter + polynomial
-  curve) and error table (pre/post calibration ppm errors, colour-coded).
-- **`plot_calibration_failure()`** — simplified plot shown when calibration
-  was skipped or failed.
+Contains the legacy standalone `plot_polynomial()` helper for plotting an
+observed-to-exact m/z polynomial and a pre/post-calibration error table. The
+current batch pipeline does not call this helper; active calibration figures
+are produced by `MassSpectrum.plot_calibration()`.
 
 ---
 
@@ -368,7 +377,11 @@ Standalone plotting functions used by `MassSpectrum`:
   `isotopic_pattern_quality`, `signal_to_noise`, `total_area`, 
   `total_background` and `total_noise`.
   Accepts a `use_peak_height: bool` parameter that is forwarded to
-  `MassSpectrum.quantify_analytes()` and from there to each `Analyte`.
+  `MassSpectrum.quantify_analytes()` and from there to each `Analyte`. The
+  reference table supplies a base row for every analyte/charge pair, so failed
+  calibration leaves blank result fields instead of dropping the row. Analytes
+  whose required m/z windows are outside every relevant spectrum are removed
+  from the final table.
 
 ---
 
@@ -378,8 +391,17 @@ Standalone plotting functions used by `MassSpectrum`:
 
 Defines the `ISOTOPES` dictionary: masses and natural abundances for C, H, O,
 N, S, Na, K, Fe, F, and Cl, sourced from the NIST Atomic Weights database.
-This is the single authoritative source of isotope data used by both
-`InputAnalyte` and `IsotopicPeak`.
+It also defines proton and electron masses and builds `EXTRA_NEUTRON_LOOKUP`,
+which maps isotope labels to their extra-neutron counts relative to the
+lightest isotope of each element. This module is the authoritative source of
+isotope data used by reference generation, block validation, and background
+bin spacing during peak quantitation.
+
+#### `images/`
+
+Contains `logo_head.png`, the application/window icon bundled by PyInstaller.
+The build script temporarily converts this PNG to an `.ico` file for the
+Windows executable icon and removes that generated file after the build.
 
 #### `templates/`
 
@@ -405,7 +427,8 @@ General-purpose helpers:
   human-readable `H hours, M minutes, S seconds` string.
 - **`write_to_excel(out_path, data_dict)`** — writes one or more `DataFrame`
   objects to an `.xlsx` file using `xlsxwriter`, with auto-adjusted column
-  widths and centred text.
+  widths and centred text. DataFrames exceeding Excel's row limit are divided
+  across numbered worksheets by `split_excel_sheet()`.
 
 ---
 
@@ -419,6 +442,7 @@ and delegates all non-trivial behaviour to dedicated manager objects.
 Initialises and wires together all GUI components:
 
 - Calls `UISetup` to apply icons, tooltips, and table styling.
+- Loads the packaged SweetSuite logo as the main-window icon.
 - Creates manager instances and stores them as attributes.
 - Connects Qt signals (button clicks, menu actions) to the appropriate
   manager methods.
@@ -451,7 +475,9 @@ UI object(s) it needs, making them independently testable.
   the *Use peak heights instead of areas for quantitation* checkbox
   (`checkBox_peakHeights`) and the *Save sum spectra as .xy files* checkbox
   (`checkBox_save_xy`), both of which are read by `BatchCoordinator` at
-  batch start and persisted via `SettingsManager`. When `save_xy` is enabled,
+  batch start and persisted via `SettingsManager`. A further checkbox controls
+  whether calibration figures display required m/z corrections instead of
+  mass errors in ppm. When `save_xy` is enabled,
   `BatchWorker` calls `MassSpectrum.write_xy()` after quantitation, writing
   tab-delimited `.xy` files into a dedicated `xy_<timestamp>/` subdirectory
   inside the batch folder. The written data is the (potentially calibrated)
@@ -504,6 +530,13 @@ These files should not be edited by hand; re-generate them with
   quantitation of each spectrum, writing the (potentially calibrated) spectrum
   as a tab-delimited `.xy` file into a `xy_<timestamp>/` subdirectory. In
   MS-only mode this only fires when calibrants are present.
+  In LC-MS mode, each enabled sum spectrum creates observations for the
+  calibrants assigned to its RT window. The worker pools observations that pass
+  their window-specific S/N thresholds across all enabled sum spectra in an
+  mzXML file. If the global pool meets the minimum calibrant count, one
+  quadratic fit is calculated and applied to every enabled sum spectrum in
+  that file. Disabled windows neither contribute calibrants nor receive the
+  global fit.
   When a pre-loaded reference DataFrame (`analytes_ref_df`) is available,
   the reference generation step is skipped and the DataFrame is written
   directly to disk via `write_ref_df()`.
@@ -568,7 +601,7 @@ BatchCoordinator.start_batch_process()
   2. For each mzXML file:
      a. Read file
         Mzxml(path)
-          └─ MzxmlDataBlock (per scan) → decoded bytes
+          └─ MzxmlDataBlock (per scan) → encoded scan data
           └─ create_mass_spectra()    → list of (RT, ndarray)
 
      b. Retention time alignment  [if alignment list provided]
@@ -582,14 +615,25 @@ BatchCoordinator.start_batch_process()
         Mzxml.create_sum_spectrum(time, time_window, resolution)
           └─ SumSpectrum (per RT window)
 
-     d. Calibration + quantitation  [per SumSpectrum]
-        MassSpectrum(SumSpectrum.data, calibrants_list, reference_df)
-          └─ Calibrant (per calibrant peak)
+     d. Calibration + quantitation  [one global fit per mzXML file]
+        MassSpectrum(
+            name, file_raw, data_uncalibrated,
+            background_mass_window, calibrate,
+            calibration_mass_window, calibrants_df, ...
+        )
+          └─ Calibrant (per locally available calibrant peak)
                └─ IsotopicPeak: extract data, spline max → mz_observed
-          └─ numpy.polyfit(mz_observed, mz_exact) → polynomial
-          └─ apply polynomial → data_calibrated
+        BatchWorker:
+          └─ pool calibrants from enabled sum spectra
+          └─ filter each window's calibrants by its S/N threshold
+          └─ enforce the minimum count on the global pool
+          └─ assign the pool once to MassSpectrum.calibrants_to_fit
+        MassSpectrum:
+          └─ numpy.polyfit(...) once → global correction coefficients
+          └─ apply the same correction to every enabled sum spectrum
           └─ IsotopicPeak (per reference row): area, background, noise
           └─ Analyte (per analyte+charge): aggregate metrics
+          └─ plot_calibration() → calibration PDF figure
 
      e. Reporting
         ms_tables.build_quantitation_table(mass_spectra)
@@ -602,13 +646,19 @@ BatchCoordinator.start_batch_process()
 
 The MS-only mode skips mzXML parsing and alignment entirely.
 The user provides `.xy` files (two-column tab-delimited m/z and intensity).
-`BatchWorker` reads each `.xy` file directly into a NumPy array, wraps it
-in a `SumSpectrum`, and proceeds with the same calibration and quantitation
-steps as LC-MS mode.
+`BatchWorker` reads each `.xy` file directly into a NumPy array and constructs
+one `MassSpectrum` per file without an intermediate `SumSpectrum`. Calibrants
+available within each spectrum's m/z range are filtered using the global S/N
+cut-off, and that spectrum is calibrated independently when the minimum count
+is met. There are no retention-time groups or per-window calibration settings.
+XY export in this mode occurs only when calibrants were supplied, avoiding an
+unchanged copy when calibration was not attempted.
 
 ---
 
 ## Dependencies
+
+Runtime dependencies are pinned in `requirements.txt` for Python 3.14.
 
 | Package | Purpose |
 |---|---|
@@ -621,6 +671,9 @@ steps as LC-MS mode.
 | `xlsxwriter` | Writing `.xlsx` output files |
 | `pybase64` | Fast base64 decoding of mzXML peak data |
 
+PyInstaller and Pillow are build-only dependencies installed by
+`compile_to_exe.sh`; they are not part of `requirements.txt`.
+
 ---
 
 ## Build and distribution
@@ -628,8 +681,16 @@ steps as LC-MS mode.
 - **`SweetSuite.bat`** — activates the local virtual environment and runs
   `main.py` directly.
 - **`compile_to_exe.sh`** — builds a standalone Windows executable using
-  [PyInstaller](https://pyinstaller.org/) with the `main.spec` spec file.
-  The spec file bundles all `blocks/`, `sweet_suite/resources/templates/`,
-  and GUI assets. A splash screen image is also bundled.
+  [PyInstaller](https://pyinstaller.org/) in one-file mode. The script creates
+  a Python 3.14 virtual environment, installs runtime dependencies and
+  the build-only PyInstaller and Pillow packages. Pillow converts the packaged
+  PNG logo to a temporary `.ico`; PyInstaller embeds that executable icon and
+  bundles the PNG, GUI assets, and resource templates through `--add-data`.
+  The temporary `.ico` and generated `.spec` file are removed after the build,
+  so the project does not maintain a `.spec` file. The `blocks/` directory is
+  copied beside the generated executable so users can inspect and organize
+  block definitions independently.
 - **`build/`** — PyInstaller build artefacts (`.toc`, `.pyz`, intermediate
   files); not committed to version control.
+- **`dist/`** — versioned executable output and the accompanying copied
+  `blocks/` directory; not committed to version control.

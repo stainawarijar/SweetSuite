@@ -31,13 +31,13 @@ class Eic:
     """
     
     def __init__(
-            self,
-            mz_exact: float,
-            data: np.ndarray,
-            time_required: float,
-            alignment_time_window: float,
-            alignment_sn_cutoff: float,
-            required_for_alignment: bool
+        self,
+        mz_exact: float,
+        data: np.ndarray,
+        time_required: float,
+        alignment_time_window: float,
+        alignment_sn_cutoff: float,
+        required_for_alignment: bool
     ):
         """Initialize an EIC instance.
 
@@ -69,8 +69,7 @@ class Eic:
         self.signal_to_noise = self.get_signal_to_noise()
     
     def get_peak_data(self) -> np.ndarray:
-        """Returns a subset of the chromatographic run with only those
-        retention times that are inside the specified alignment rime range."""
+        """Return data within the specified alignment time range."""
         start_idx = np.searchsorted(
             self.data[:, 0],
             self.time_required - self.alignment_time_window,
@@ -176,9 +175,10 @@ class Eic:
     def get_signal_to_noise(self) -> float:
         """Returns the signal-to-noise (S/N).
         
-        The signal is calculated as the intensity minus the background area.
-        In case of a negative signal-to-noise, zero is returned. Returns
-        `np.nan` when noise is 0, or when background and/or noise are `nan`.
+        The signal is calculated as the intensity minus the mean background
+        intensity.
+        Non-positive or indeterminate ratios return `0.0`; a positive signal
+        with zero NumPy noise produces positive infinity.
         """
         intensity = self.maximum[1]
         background = self.background_and_noise[0]

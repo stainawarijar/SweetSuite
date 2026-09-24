@@ -23,9 +23,9 @@ class InputAnalyte:
         charge_min (int): Minimum charge state to consider.
         charge_max (int): Maximum charge state to consider.
         mz_window_coeffs (tuple[float, float, float]): Coefficients (a, b, c) 
-            describing the peak integration window (Th) as a quadratic 
+            describing the peak quantitation window (Th) as a quadratic 
             function of m/z: window = a*(m/z)^2 + b*(m/z) + c. 
-            The integration window can be constant setting a = b = 0.
+            The quantitation window can be constant setting a = b = 0.
         time (float | None): Retention time of the analyte (for LC-MS data).
         time_window (float | None): Retention time window around `time`
             (for LC-MS data).
@@ -66,9 +66,9 @@ class InputAnalyte:
             charge_min: Minimum charge state to include.
             charge_max: Maximum charge state to include.
             mz_window_coeffs (tuple[float, float, float]): Coefficients 
-            (a, b, c) describing the peak integration window (Th) as a quadratic 
-            function of m/z: window = a*(m/z)^2 + b*(m/z) + c. The integration 
-            window can be constant setting a = b = 0.
+                (a, b, c) describing the peak quantitation window (Th) as a 
+                quadratic function of m/z: window = a*(m/z)^2 + b*(m/z) + c. 
+                The quantitation window can be constant setting a = b = 0.
             time: Retention time (LC-MS data), or None for non-LC data.
             time_window: Retention time window around `time`, or None for 
                 non-LC data.
@@ -182,7 +182,7 @@ class InputAnalyte:
     def element_fine_structure(
         element: str,
         atom_count: int,
-        min_prob: float = 1e-12
+        min_prob: float = 1e-10
     ) -> list[dict[str, Any]]:
         """Calculate the isotopic fine structure for one element.
 
@@ -252,7 +252,7 @@ class InputAnalyte:
     def convolve_patterns(
         pattern_a: list[dict[str, Any]],
         pattern_b: list[dict[str, Any]],
-        min_prob: float = 1e-12
+        min_prob: float = 1e-10
     ) -> list[dict[str, Any]]:
         """Convolve two isotopic fine-structure patterns.
 
@@ -297,7 +297,7 @@ class InputAnalyte:
     def calculate_fine_structure(
         composition: dict[str, int],
         charge: int,
-        min_prob: float = 1e-12
+        min_prob: float = 1e-10
     ) -> list[dict]:
         """Calculate the isotopic fine structure for an ion composition.
 
@@ -528,7 +528,7 @@ class InputAnalyte:
 
     def get_variable_composition(self) -> dict[str, int]:
         """Determine number of atoms whose isotopes can vary for the following
-        elements: C, H, O, N, S, Na, K, Fe.
+        elements: C, H, O, N, S, Na, K, Fe, F, Cl.
 
         For natural analytes, this should simply be the elemental composition
         of the molecule. When an analyte is labeled using heavy isotopes,
@@ -538,8 +538,8 @@ class InputAnalyte:
         specified in the block file, it is equivalent to setting it to 0.
 
         Returns:
-            A dictionary containing the number of C, H, O, N, S, Na, K and Fe
-            whose isotopes can vary.
+            A dictionary containing the number of C, H, O, N, S, Na, K, Fe,
+            F and Cl whose isotopes can vary.
 
         Raises:
             KeyError: If a block referenced by the analyte name or mass modifier
@@ -557,7 +557,9 @@ class InputAnalyte:
             "sulfurs": 0,
             "sodiums": 0,
             "potassiums": 0,
-            "irons": 0
+            "irons": 0,
+            "fluorines": 0,
+            "chlorines": 0
         }
         
         for i, unit in enumerate(analyte_parts):
@@ -698,7 +700,7 @@ class InputAnalyte:
         - `mz`: m/z value of the isotopologue ion.
         - `relative_area`: theoretical relative abundance of the isotopologue,
             as a fraction.
-        - `mz_window`: integration window (Th) to be used around the exact m/z
+        - `mz_window`: quantitation window (Th) to be used around the exact m/z
             value of the isotopologue.
         - `time`: retention time of the corresponding cluster for which a
             sum spectrum will be created (LC-MS data), or `np.nan` (MS-only data).
@@ -812,4 +814,3 @@ class InputAnalyte:
                     reference = df
 
         return reference
-

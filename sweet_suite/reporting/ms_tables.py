@@ -4,17 +4,16 @@ from ..mass_spectrometry.mass_spectrum import MassSpectrum
 
 
 def build_quantitation_table(
-        filename: str,
-        mass_spectra: list[MassSpectrum],
-        analytes_ref: pd.DataFrame,
-        output_params: list[str],
-        use_peak_height: bool = False
+    filename: str,
+    mass_spectra: list[MassSpectrum],
+    analytes_ref: pd.DataFrame,
+    output_params: list[str],
+    use_peak_height: bool = False
 ) -> pd.DataFrame:
-    """Create a table in long format with quantitation results for all 
-    sum spectra of an mzXML file.
+    """Create a table in long format with quantitation results for one file.
 
     Args:
-        filename: Name of the mzXML file.
+        filename: Name of the mzXML or `.xy` file.
         mass_spectra: A list with instances of MassSpectrum.
         analytes_ref: Analytes reference dataframe.
         output_params: A list with required output parameters.
@@ -23,7 +22,7 @@ def build_quantitation_table(
     
     Returns:
         A pandas dataframe with the following columns: `file`, `analyte`,
-        `charge`, `mz_monoisotopic`, `mz_most_abundant`, `isotopic_fraction` 
+        `charge`, `mz_most_abundant`, `mz_monoisotopic`, `isotopic_fraction`
         and a column for each specified output parameter.
     """
     # Build dataframe with analyte names, charge, isotopologue number and m/z.
@@ -106,7 +105,10 @@ def build_quantitation_table(
     keep = {}  # (filename, analyte, charge): {parameters}
     skipped_labels: set[str] = set()
     for spectrum in mass_spectra:
-        analytes = spectrum.quantify_analytes(analytes_ref, use_peak_height=use_peak_height)
+        analytes = spectrum.quantify_analytes(
+            analytes_ref=analytes_ref, 
+            use_peak_height=use_peak_height
+        )
         skipped_labels.update(getattr(spectrum, "skipped_analytes", set()))
         if not analytes:
             continue  # Uncalibrated, grid keeps blank row for it.

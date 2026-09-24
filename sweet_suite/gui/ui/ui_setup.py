@@ -129,28 +129,30 @@ class UISetup:
         
         # Settings tooltips
         ui.sum_spectrum_resolution.setToolTip(
-            "Number of data points per m/z unit in an LC-MS spectrum."
+            "Number of data points per m/z unit (Th) in an LC-MS spectrum."
         )
         ui.background_mass_window.setToolTip(
-            "m/z window used around each analyte to determine " \
-            "the background signal."
+            "Determines the m/z window used around each analyte to determine "
+            "the background signal.\nThe background m/z window equals the mass "
+            "window (Da) divided by the analyte charge state."
         )
         ui.calibration_mass_window.setToolTip(
-            "Mass window used around the exact m/z of a calibrant" \
-            " to determine its observed m/z."
+            "Determines the m/z window used around the exact m/z of a calibrant "
+            "peak to determine its observed m/z.\nThe calibration m/z window equals "
+            "the mass window (Da) divided by the calibrant charge state."
         )
         ui.quantitation_mz_window.setToolTip(
-            "m/z window used around the exact m/z of each isotopic peak" \
-            " for area integration\n" \
-            "(or for determining peak height, if enabled under advanced settings).\n" \
+            "m/z window used around the exact m/z of each isotopic peak"
+            " for area quantitation\n" \
+            "(or for determining peak height, if enabled under advanced settings).\n"
             "Can be overwritten for individual analytes in the analytes list."
         )
         ui.min_isotopic_fraction.setToolTip(
-            "Minimum fraction of the total isotopic pattern that should\n" \
-            "be integrated per analyte and charge state."
+            "Minimum fraction of the total isotopic pattern that should\n"
+            "be quantified per analyte and charge state."
         )
         ui.min_calibrant_number.setToolTip(
-            "Minimum number of calibrants to use when calibrating a sum spectrum.\n" \
+            "Minimum number of calibrants to use when calibrating a sum spectrum.\n"
             "When less calibrants have a S/N above the cut-off, calibration fails."
         )
         ui.calibrant_sn_cutoff.setToolTip(
@@ -158,19 +160,19 @@ class UISetup:
             "Can be modified per retention time window in the table below."
         )
         ui.alignment_time_window.setToolTip(
-            "Time window used around each alignment feature to determine its "\
+            "Time window used around each alignment feature to determine its "
             "observed \nretention time. "
             "Can be overwritten for individual features in the alignment file."
         )
         ui.alignment_mz_window.setToolTip(
-            "m/z window used around the exact m/z of an alignment feature\n" \
+            "m/z window used around the exact m/z of an alignment feature\n" 
             "when creating an extracted ion chromatogram. "
             "Can be overwritten\nfor individual features in the alignment file."
         )
         ui.alignment_min_peaks.setToolTip(
-            "Minimum number of alignment features to use when aligning a\n" \
-            "chromatogram. When less features have a S/N above the cut-off,\n" \
-            "alignment fails for the corresponding sample."
+            "Minimum number of alignment features to use when aligning a\n"
+            "chromatogram. When less features have a S/N above the cut-off,\n"
+            "alignment fails for the corresponding measurement."
         )
         ui.alignment_sn_cutoff.setToolTip(
             "Minimum signal-to-noise required for an alignment feature to be used.\n"

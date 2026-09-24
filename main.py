@@ -1,15 +1,17 @@
 print("Launching SweetSuite...", flush=True)
 
 from datetime import datetime
+import ctypes
 import logging
 import os
 import sys
 
-from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtGui import QPalette, QColor, QIcon
 from PyQt6.QtWidgets import QApplication, QStyleFactory
 from PyQt6.QtCore import qInstallMessageHandler
 
 from sweet_suite.gui.main_window import MainWindow
+from sweet_suite.utils import utils
 
 
 def suppress_qt_warnings(_mode, _context, message):
@@ -78,6 +80,9 @@ def apply_light_palette(app: QApplication) -> None:
 
 
 def main():
+    # Tell Windows to use this process's icon for the taskbar (not python.exe).
+    if sys.platform == "win32":
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("SweetSuite")
     # Install Qt message handler to suppress warnings.
     qInstallMessageHandler(suppress_qt_warnings)
     # Setup global logging.
@@ -85,6 +90,9 @@ def main():
     logging.info("SweetSuite application started\n")
     # Create instance of QApplication.
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(utils.resource_path(os.path.join(
+        "sweet_suite", "resources", "images", "logo_head.png"
+    ))))
     # Apply Fusion + light palette.
     apply_light_palette(app)
     # Create and show the main window.
@@ -96,4 +104,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

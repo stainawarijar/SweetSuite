@@ -6,7 +6,11 @@ from ..ui.ui_helpers import UIHelpers
 
 
 class FileHandlers:
-    """Handles file dialog operations and validation."""
+    """Manage input-file selection, validation, and clearing for the GUI.
+
+    This includes alignment lists, analyte lists, reference files, block
+    directories, and raw mzXML or XY data paths.
+    """
     
     def __init__(self, parent, ui):
         """Initialize file handlers. 
@@ -170,6 +174,7 @@ class FileHandlers:
             # Store and populate calibration table.
             self.parent.analytes_list_df = df
             self.parent.analytes_ref_df = None
+            self.parent.set_ref_file_mode(False)
             self.parent.calibration_table_manager.update_table()
 
         elif file_cols == _REF_COLS:
@@ -235,7 +240,14 @@ class FileHandlers:
             return False
 
         # Columns that must never contain missing values.
-        always_required = ["peak", "charge_carrier", "mass_modifier", "mz", "relative_area", "mz_window", "calibrant"]
+        always_required = [
+            "peak", 
+            "charge_carrier", 
+            "mass_modifier", 
+            "mz", "relative_area", 
+            "mz_window", 
+            "calibrant"
+        ]
         for col in always_required:
             if df[col].isnull().any():
                 UIHelpers.show_message_box(
@@ -663,7 +675,7 @@ class FileHandlers:
         self.parent.block_parser.update_mass_modifiers()
     
     def open_mzxml_path(self) -> None:
-        """Open file dialog for selecting a folder with mzXML files."""
+        """Open a dialog for selecting the mzXML or `.xy` input folder."""
         mzxml_path = QFileDialog.getExistingDirectory(
             None, "Select folder containing mzXML files:"
         )

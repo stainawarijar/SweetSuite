@@ -7,8 +7,8 @@ from .eic import Eic
 
 
 def fit_power(
-        eics: list[Eic],
-        min_peaks: int
+    eics: list[Eic],
+    min_peaks: int
 ) -> np.ndarray | None:
     """Fit a power function through a list of (observed, required) retention
     time pairs.
@@ -24,8 +24,8 @@ def fit_power(
         min_peaks: Minimum number of peaks to use for alignment.
     
     Returns:
-        An array containing coefficients of the fit. For a quadratic fit, 
-        it takes the form [a, b, c] for Y = a*X^b + C.
+        An array containing coefficients of the fit. For a power-law fit,
+        it takes the form [a, b, c] for Y = a*X^b + c.
         For a linear fit, it takes on the form [a, b] for Y = a*X + b.
         `None` if minimum number of peaks is not met, or if fitting failed
         for some other reason.
@@ -66,10 +66,10 @@ def fit_power(
 
 
 def plot_fit(
-        times_observed: np.ndarray,
-        times_required: np.ndarray,
-        fit_coeffs: np.ndarray,
-        title: str
+    times_observed: np.ndarray,
+    times_required: np.ndarray,
+    fit_coeffs: np.ndarray,
+    title: str
 ) -> Figure:
     """Visualize the curve fitting for retention alignment.
     
@@ -77,7 +77,7 @@ def plot_fit(
     for all features that were used for alignment, using red points.
     The power/linear fit is plotted through the data points. 
     The (adjusted, required) retention time pairs of the features are 
-    plotted using blue squares. A blue dotted line is used to indicate
+    plotted using blue squares. A blue dashed line is used to indicate
     the target. The closer the blue squares are to the target line, the
     more accurate the retention time alignment.
 
@@ -126,4 +126,3 @@ def plot_fit(
     ax.legend(loc="best")
 
     return fig
-

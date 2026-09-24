@@ -11,8 +11,8 @@ EXCEL_MAX_SHEET_NAME_LENGTH = 31
 
 
 def format_execution_time(
-        start_time: float,
-        end_time: float
+    start_time: float,
+    end_time: float
 ) -> str:
     """Return a human-readable elapsed time between two timestamps.
 
@@ -41,8 +41,8 @@ def resource_path(relative_path: str) -> str:
 
 
 def write_to_excel(
-        out_path: str,
-        data_dict: dict[str, pd.DataFrame] = None
+    out_path: str,
+    data_dict: dict[str, pd.DataFrame] = None
 ) -> None:
     """Writes dataframes to an Excel file, and sets the widths of
     the columns for readability.
@@ -79,8 +79,8 @@ def write_to_excel(
 
 
 def split_excel_sheet(
-        sheet_name: str,
-        data: pd.DataFrame
+    sheet_name: str,
+    data: pd.DataFrame
 ) -> list[tuple[str, pd.DataFrame]]:
     """Split a dataframe over multiple xlsx sheets if it exceeds row limits."""
     sheets = []

@@ -4,7 +4,7 @@ import zlib
 
 from matplotlib.figure import Figure
 import numpy as np
-from scipy.interpolate import interp1d
+import pybase64
 
 from .chromatography import alignment
 from .chromatography.alignment_feature import AlignmentFeature
@@ -24,10 +24,10 @@ class Mzxml:
     Attributes:
         path (str): Path to the mzXML file.
         file_name (str): File name without extension.
-        times_bytes (list[float, dict]): A list of containing tuples 
-            `(time, decoded_data)` where `time` is the retention time of an
-            mzXML data block and `decoded_data` is a dictionary containing 
-            decoded data (bytes), compression (bool), endian (str) and 
+        times_encoded_data (list[tuple[float, dict]]): A list of tuples
+            `(time, encoded_data)` where `time` is the retention time of an
+            mzXML data block and `encoded_data` is a dictionary containing
+            Base64-encoded data (str), compression (bool), endian (str) and
             encoding precision (str).
         retention_times (np.ndarray): 1D array with retention times of all
             MS scans.
@@ -41,39 +41,46 @@ class Mzxml:
         """
         self.path = path
         self.file_name = self.get_file_name()
-        self.times_bytes = self.read_data_blocks()
+        self.times_encoded_data = self.read_data_blocks()
         self.retention_times = self.get_retention_times()
     
     @staticmethod
-    def create_mass_spectra(times_bytes: list[float, dict]) -> np.ndarray:
-        """Creates mass spectra from compressed bytes data.
+    def create_mass_spectra(
+        times_encoded_data: list[tuple[float, dict]]
+    ) -> list[tuple[float, np.ndarray]]:
+        """Create mass spectra from Base64-encoded scan data.
 
-        Processes a list of retention time and bytes dictionary pairs to extract
-        and decompress mass spectrometry data, converting it into 2D arrays
+        Processes retention-time and encoded-data pairs by decoding and
+        decompressing mass spectrometry data, converting it into 2D arrays
         containing m/z and intensity values.
 
         Args:
-            times_bytes: List of tuples where each tuple contains a retention 
-            time (float) and a dictionary with keys: 'bytes' (compressed data), 
-            'compression' (bool), 'endian' (str), and 'precision' (str).
+            times_encoded_data: List of tuples where each tuple contains a
+            retention time (float) and a dictionary with keys: 'encoded'
+            (Base64 text), 'compression' (bool), 'endian' (str), and
+            'precision' (str).
 
         Returns:
-            List of tuples containing retention times and corresponding 2D 
-            arrays with m/z values in the first column and intensity values 
-            in the second column.
+            A list of `(retention_time, spectrum)` tuples. Each spectrum is a
+            2D array with m/z values in the first column and intensities in
+            the second column.
         """
         data_required = []
-        for rt, bytes_dict in times_bytes:
-            data = bytes_dict["bytes"]
+        for rt, scan_data in times_encoded_data:
+            # Decode only spectra that are actually needed. This keeps Mzxml
+            # construction fast when only part of a file is processed.
+            data = pybase64.b64decode(scan_data["encoded"])
+
             # Decompress if necessary.
-            if bytes_dict["compression"]:
+            if scan_data["compression"]:
                 data = zlib.decompress(data)
-            # Get 1D array of data.
-            data = np.frombuffer(data, dtype=(
-                bytes_dict["endian"] + "f" + bytes_dict["precision"]
-            ))
-            # Turn into 2D array with m/z and intensity columns.
-            data = np.vstack((data[::2], data[1::2])).T
+            
+            # Create 2D array with m/z and intensity columns.
+            data = np.frombuffer(
+                data,
+                dtype=scan_data["endian"] + "f" + scan_data["precision"]
+            ).reshape(-1, 2)
+
             # Add to list.
             data_required.append((rt, data)) 
         
@@ -83,16 +90,17 @@ class Mzxml:
         """Return extensionless file name from the file path."""
         return Path(self.path).stem
 
-    def read_data_blocks(self) -> list[float, dict]:
+    def read_data_blocks(self) -> list[tuple[float, dict]]:
         """Read data blocks from mzXML file.
 
         Returns:
-            A list of containing tuples `(time, decoded_data)` where `time`
-            is the retention time of a data block and `decoded_data` is 
-            a dictionary containing decoded data (bytes), compression (bool),
-            endian (str) and encoding precision (str).
+            A list of `(time, encoded_data)` tuples, one per scan, where:
+            - `time` (float): retention time of the scan.
+            - `encoded_data` (dict): dictionary with keys `'encoded'`
+                (Base64 text), `'compression'` (bool), `'endian'` (str), and
+                `'precision'` (str).
         """
-        times_bytes = []
+        times_encoded_data = []
 
         header = True  # mzXML files start with a header.
         with open(self.path, "r") as file:
@@ -103,26 +111,24 @@ class Mzxml:
                     header = False  # Scan number 1 also means end of header.
                     # Start of a new block of data.
                     # Continue reading the next lines until </scan> is reached.
-                    current_data_block = ""
+                    current_data_block = []
                 elif "</scan>" in line:
                     # End of the current data block.
                     # Create instance of MzXmlDataBlock class.
-                    data_block = MzxmlDataBlock(current_data_block)
+                    data_block = MzxmlDataBlock("".join(current_data_block))
                     # Append data to list.
-                    times_bytes.append((
-                        data_block.retention_time, data_block.decoded_data
+                    times_encoded_data.append((
+                        data_block.retention_time, data_block.encoded_data
                     ))
                 elif not header:
                     # Line part of current data block.
-                    if not isinstance(current_data_block, str):
-                        current_data_block = ""
-                    current_data_block += line
+                    current_data_block.append(line)
 
-        return times_bytes
+        return times_encoded_data
     
     def get_retention_times(self) -> np.ndarray:
         """Return an array with all retention times."""
-        return np.array([t for t, _ in self.times_bytes])
+        return np.array([t for t, _ in self.times_encoded_data])
 
     def create_sum_spectrum(
         self,
@@ -132,12 +138,10 @@ class Mzxml:
     ) -> SumSpectrum:
         """Create a sum spectrum based on a specified retention time range.
 
-        Starts by generating an empty spectrum with equally sized m/z bins,
-        where the number of bins per Th is specified by `resolution`.
-        The sum spectrum bins are then filled by summing the intensities of all
-        data points that have an m/z value larger than the lower edge of the
-        bin and smaller than or equal to the upper edge of the bin, using all
-        the spectra that fall within the specified retention time range.
+        Scans within the specified retention time range are interpolated onto
+        a shared, evenly spaced m/z axis. Their interpolated intensities are
+        then summed. `resolution` determines the approximate number of axis
+        points per Th.
 
         Args:
             time: Center of the desired retention time range.
@@ -165,11 +169,11 @@ class Mzxml:
                 self.file_name, time, time_window, np.empty((0, 2))
             )
 
-        # Extract the decoded data for this retention time range.
-        times_bytes_required = self.times_bytes[idx_low:idx_high]
+        # Extract the encoded data for this retention time range.
+        times_encoded_data_required = self.times_encoded_data[idx_low:idx_high]
 
-        # Convert the bytes into 2D mass spectrum.
-        data_required = self.create_mass_spectra(times_bytes_required)
+        # Decode and convert the selected data into 2D mass spectra.
+        data_required = self.create_mass_spectra(times_encoded_data_required)
 
         # Determine the lowest and highest m/z values out of the spectra.
         min_mz = np.min([
@@ -186,18 +190,14 @@ class Mzxml:
 
         # Sum the spectra.
         for time_spectrum in data_required:
-            # Get two tuples: one with m/z values, one with intensities.
-            mzs, intensities = zip(*time_spectrum[-1])
-            # Interpolation (piecewise linear spline).
-            fit = interp1d(
-                x=mzs, y=intensities,
-                # Spectra generally don't cover the whole range of min_mz
-                # to max_mz. Set `bounds_error` to False and `fill_value`
-                # to 0 to handle that situation.
-                bounds_error=False, fill_value=0
+            spectrum = time_spectrum[1]
+            intensity_axis += np.interp(
+                mz_axis,
+                spectrum[:, 0],  # m/z values
+                spectrum[:, 1],  # intensities
+                left=0,
+                right=0
             )
-            # Add to intensity axis.
-            intensity_axis = np.add(intensity_axis, fit(mz_axis))
 
         # Combine m/z values and intensities into one spectrum.
         combined_spectrum = np.stack((mz_axis, intensity_axis), axis=-1)
@@ -208,9 +208,9 @@ class Mzxml:
         return SumSpectrum(self.file_name, time, time_window, rounded)
     
     def get_alignment_fit_eics(
-            self,
-            alignment_features: list[AlignmentFeature],
-            min_peaks: int
+        self,
+        alignment_features: list[AlignmentFeature],
+        min_peaks: int
     ) -> tuple[np.ndarray | None, list[Eic]]:
         """Fit the required retention times as a function of observed
         retention times for a list of alignment features.
@@ -235,7 +235,7 @@ class Mzxml:
             The first element is `None` when curve fitting fails.
         """
         # Create 2D MS array for all retention times. 
-        times_spectra = self.create_mass_spectra(self.times_bytes)
+        times_spectra = self.create_mass_spectra(self.times_encoded_data)
 
         # Create EICs for the alignment features.
         eics = []
@@ -258,8 +258,8 @@ class Mzxml:
         return (fit_coeffs, eics)
 
     def plot_alignment_fit(
-            self,
-            fit_eics: tuple[np.ndarray | None, list[Eic]]
+        self,
+        fit_eics: tuple[np.ndarray | None, list[Eic]]
     ) -> Figure:
         """Visualize the curve fitting for retention alignment.
 
@@ -271,7 +271,7 @@ class Mzxml:
                 as returned by the function `get_alignment_fit_eics`.
         
         Returns:
-            A matplotlib figure.
+            A matplotlib figure, or `None` when alignment fitting failed.
         """
         # Split into fit coefficients and the EICs.
         fit_coeffs, eics = fit_eics[0], fit_eics[1]
@@ -293,8 +293,8 @@ class Mzxml:
         return plot
 
     def align_retention_times(
-            self,
-            fit_eics: tuple[np.ndarray, list[Eic]]
+        self,
+        fit_eics: tuple[np.ndarray, list[Eic]]
     ) -> None:
         """Align retention times and write to a new mzXML file.
 
@@ -353,10 +353,3 @@ class Mzxml:
                     idx += 1
                 else:
                     new_file.write(line)
-
-
-
-
-    
-    
-        

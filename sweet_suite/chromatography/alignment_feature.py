@@ -18,7 +18,7 @@ class AlignmentFeature:
             retention time within which to search for the observed time.
         alignment_mz_window (float): The m/z window (Th) to use around the 
             exact m/z of the feature to create when creating an EIC.
-        sn_cutoff (float): Minimum chomatographic S/N value that the EIC
+        alignment_sn_cutoff (float): Minimum chomatographic S/N value that the EIC
             feature must have to be used for alignment.
         required (bool): Indicates whether the feature is required for 
             for alignment. When `True`, the alignment of the corresponding
@@ -27,13 +27,13 @@ class AlignmentFeature:
     """
 
     def __init__(
-            self,
-            mz_exact: float,
-            time_required: float,
-            alignment_time_window: float,
-            alignment_mz_window: float,
-            alignment_sn_cutoff: float,
-            required: bool
+        self,
+        mz_exact: float,
+        time_required: float,
+        alignment_time_window: float,
+        alignment_mz_window: float,
+        alignment_sn_cutoff: float,
+        required: bool
     ):
         """Initialize an alignment feature.
 
@@ -60,9 +60,9 @@ class AlignmentFeature:
         self.required = required
     
     def get_intensity(
-            self,
-            mz_window: float,
-            spectrum: np.ndarray
+        self,
+        mz_window: float,
+        spectrum: np.ndarray
     ) -> float:
         """Find the observed intensity of the feature in one spectrum.
 
@@ -97,8 +97,8 @@ class AlignmentFeature:
         return np.max(spectrum_subset[:, 1])
     
     def create_eic(
-            self,
-            times_spectra: list[tuple[float, np.ndarray]]
+        self,
+        times_spectra: list[tuple[float, np.ndarray]]
     ) -> Eic:
         """Create an extracted ion chromatogram for the alignment feature.
         

@@ -12,8 +12,8 @@ class SumSpectrum:
     the spectrum to a `.xy` file.
 
     Attributes:
-        file_raw (str): Name of the file (mzXML or mzXML) from which the 
-            raw data originates, excluding file extension.
+        file_raw (str): Name of the mzXML file from which the raw data
+            originates, excluding the file extension.
         time (float): Center of the retention time window.
         time_window (float): Half-width of the retention time range around
             the center.
@@ -33,8 +33,8 @@ class SumSpectrum:
         """Initialize a summed spectrum.
 
         Args:
-            file_raw: Name of the file (mzXML or mzXML) from which the raw data 
-                originates, excluding file extension,
+            file_raw: Name of the mzXML file from which the raw data
+                originates, excluding the file extension.
             time: Center of the retention time window.
             time_window: Half-width of the retention time range around the 
                 center.
