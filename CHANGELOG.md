@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.0]
 ### Added
-- New calibration method (NEED TO DESCRIBE THIS...)
+-  Global quadratic m/z calibration, pooled across LC-MS sum spectra.
 
 ### Changed
 - Improved performance in processing mzXML files.
