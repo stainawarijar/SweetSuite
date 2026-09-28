@@ -1,0 +1,22 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+from .chromatogram import Chromatogram
+
+
+class FldChromatogram(Chromatogram):
+    """Represents and HPLC-FLD chromatogram.
+    
+    ...
+    """
+
+    def __init__(
+        self,
+        data: np.ndarray
+    ):
+        """
+        """
+        super().__init__(data)
+        
+
+    

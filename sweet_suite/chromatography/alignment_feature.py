@@ -4,7 +4,7 @@ from .eic import Eic
 
 
 class AlignmentFeature:
-    """Represents a specified alignment feature.
+    """Represents a specified alignment feature in LC-MS data.
 
     An AlignmentFeature encodes a target defined by an exact m/z and an
     expected retention time. It provides method to get the feature's observed
