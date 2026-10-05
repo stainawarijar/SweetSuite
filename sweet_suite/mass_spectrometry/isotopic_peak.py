@@ -49,7 +49,9 @@ class IsotopicPeak:
         self.quantitation_mz_window = quantitation_mz_window
         self.data = self.get_data()
 
-    def get_data(self) -> np.ndarray:
+    def get_data_old(self) -> np.ndarray:
+        # NOTE: Old method, kept only for reference.
+        # TODO: Remove at some point.
         """Return an array with the MS data in the m/z range
         [exact m/z ± quantitation window].
         """
@@ -65,7 +67,42 @@ class IsotopicPeak:
         )
 
         return self.spectrum[idx_low:idx_high, :]
-    
+
+    def get_data(self) -> np.ndarray:
+        """Return MS data within the exact quantitation m/z window.
+
+        The intensities at the exact lower and upper boundaries are obtained by
+        linear interpolation when those boundaries do not coincide with spectrum
+        data points.
+
+        Returns:
+            An array containing m/z and intensity values within the quantitation
+            window, including the exact lower and upper boundaries.
+        """
+        mz = self.spectrum[:, 0]
+        intensity = self.spectrum[:, 1]
+
+        mz_low = self.mz_exact - self.quantitation_mz_window
+        mz_high = self.mz_exact + self.quantitation_mz_window
+
+        # Select only existing points strictly inside the integration window.
+        idx_low = np.searchsorted(mz, mz_low, side="right")
+        idx_high = np.searchsorted(mz, mz_high, side="left")
+
+        mz_inner = mz[idx_low:idx_high]
+        intensity_inner = intensity[idx_low:idx_high]
+
+        # Interpolate intensity at the exact integration boundaries.
+        intensity_low = np.interp(mz_low, mz, intensity)
+        intensity_high = np.interp(mz_high, mz, intensity)
+
+        mz_data = np.concatenate(([mz_low], mz_inner, [mz_high]))
+        intensity_data = np.concatenate(
+            ([intensity_low], intensity_inner, [intensity_high])
+        )
+
+        return np.column_stack((mz_data, intensity_data))
+
     def get_area(self) -> float:
         """Integrate the region [exact m/z ± quantitation window] using the
         trapezoidal rule and return the total area.

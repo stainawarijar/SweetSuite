@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [NEXT VERSION]
+### Changed
+- Changed isotopic peak integration to include the exact lower and upper quantitation-window boundaries by linearly interpolating their intensities before trapezoidal integration. This reduces grid-resolution-dependent area differences, especially at lower sum-spectrum resolutions.
+
+
 ## [0.4.0]
 ### Added
 -  Global quadratic m/z calibration, pooled across LC-MS sum spectra.

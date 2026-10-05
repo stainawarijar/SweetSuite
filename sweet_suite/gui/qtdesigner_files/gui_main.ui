@@ -391,7 +391,7 @@ font-size: 10.5pt</string>
       <rect>
        <x>10</x>
        <y>170</y>
-       <width>241</width>
+       <width>231</width>
        <height>16</height>
       </rect>
      </property>
@@ -402,7 +402,7 @@ font-size: 10.5pt</string>
       </font>
      </property>
      <property name="text">
-      <string>Sum spectrum resolution (1 / Th):</string>
+      <string>Sum spectrum data points per Th:</string>
      </property>
     </widget>
     <widget class="QSpinBox" name="sum_spectrum_resolution">
@@ -415,13 +415,16 @@ font-size: 10.5pt</string>
       </rect>
      </property>
      <property name="minimum">
-      <number>1</number>
+      <number>100</number>
      </property>
      <property name="maximum">
-      <number>1000</number>
+      <number>10000</number>
+     </property>
+     <property name="singleStep">
+      <number>100</number>
      </property>
      <property name="value">
-      <number>100</number>
+      <number>1000</number>
      </property>
     </widget>
     <widget class="QLabel" name="label_background_mass_window">
