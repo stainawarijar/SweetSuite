@@ -64,3 +64,5 @@ class FldBatchWorker(QObject):
                 "Information"
             )
         self.finished.emit(False)
+
+    
