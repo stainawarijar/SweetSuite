@@ -152,8 +152,8 @@ class MassSpectrum():
 
             # Check m/z value is not outside MS range.
             half_span = max(
-                self.calibration_mass_window / charge,
-                self.background_mass_window / charge + mz_window
+                self.calibration_mass_window / abs(charge),
+                self.background_mass_window / abs(charge) + mz_window
             )
             if mz - half_span < mz_min or mz + half_span > mz_max:
                 self.logger.warning(
@@ -437,7 +437,7 @@ class MassSpectrum():
             # For the first peak of each analyte, also check background window.
             if analyte_label != prev_analyte_label:
                 background_half_span = (
-                    self.background_mass_window / charge + mz_window
+                    self.background_mass_window / abs(charge) + mz_window
                 )
                 if (
                     mz_val - background_half_span < mz_min or 

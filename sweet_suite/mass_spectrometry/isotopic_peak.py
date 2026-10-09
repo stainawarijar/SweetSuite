@@ -156,7 +156,7 @@ class IsotopicPeak:
         In the range [`target_mz` ± `background_mass_window` / z], a number of 
         m/z regions are defined and integrated. The centers of the regions are 
         separated by (1.00335 / z), corresponding to the mass difference between 
-        13C and 12C, with 'z' being the charge state. Each region has a width of
+        13C and 12C, with 'z' being the absolute charge state. Each region has a width of
         twice `self.quantitation_mz_window`.
 
         For all possible 5 consecutive regions, the average intensity is 
@@ -169,7 +169,7 @@ class IsotopicPeak:
             target_mz: m/z value for which background and noise should be 
                 determined.
             background_mass_window: Mass window (Da) around `target_mz`. The 
-                actual m/z window is divided by the charge state.
+                actual m/z window is divided by the absolute charge state.
 
         Returns:
             A tuple of (background average intensity, background area, noise).
@@ -181,13 +181,13 @@ class IsotopicPeak:
         )
 
         # Define background m/z window (Th).
-        background_mz_window = background_mass_window / self.charge
+        background_mz_window = background_mass_window / abs(self.charge)
 
         # Create array from -window to +window in steps of 1/z.
         mz_steps = np.arange(
             start=-background_mz_window,
-            stop=background_mz_window + 1 / self.charge,
-            step=1 / self.charge
+            stop=background_mz_window + 1 / abs(self.charge),
+            step=1 / abs(self.charge)
         )
 
         # Collect bin data.

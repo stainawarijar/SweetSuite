@@ -741,13 +741,27 @@ class InputAnalyte:
             self.mass_modifier if self.mass_modifier is not None else "None"
         )
 
-        # Loop over charge states (in steps of charge unit).
-        # NOTE: Requires `charge_min <= charge_max` for positive charge
-        # and `charge_min >= charge_max` for negative charge.
+        # Charge bounds are numerically ordered for either polarity.
+        # The carrier sign determines polarity, not the iteration direction.
+        if charge_unit == 0:
+            raise ValueError("The charge carrier must have a nonzero charge.")
+        if self.charge_min > self.charge_max:
+            raise ValueError(
+                "'charge_min' must be less than or equal to 'charge_max'."
+            )
+        if self.charge_min * charge_unit <= 0 or self.charge_max * charge_unit <= 0:
+            raise ValueError(
+                "Charge states must have the same sign as the charge carrier."
+            )
+        if self.charge_min % charge_unit or self.charge_max % charge_unit:
+            raise ValueError(
+                "Charge bounds must be multiples of the charge carrier's charge."
+            )
+
         for charge in range(
             self.charge_min,
-            self.charge_max + charge_unit,
-            charge_unit
+            self.charge_max + 1,
+            abs(charge_unit)
         ):
             n_carriers = charge // charge_unit
 
@@ -757,6 +771,10 @@ class InputAnalyte:
                 el: self.variable_composition[el] + n_carriers * carrier_composition[el]
                 for el in self.variable_composition
             }
+            if any(count < 0 for count in ion_composition.values()):
+                raise ValueError(
+                    f"Charge state {charge} gives a negative atom count for analyte '{self.name}'."
+                )
 
             # Calculate nominal mass-probability distribution.
             distribution = self.compute_distribution(

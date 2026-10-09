@@ -18,7 +18,7 @@ class Calibrant(IsotopicPeak):
         calibration_mass_window (float): Mass window (Da) used to derive 
             the calibration m/z window.
         calibration_mz_window (float): m/z window (Th), equal to
-            `calibration_mass_window / charge`.
+            `calibration_mass_window / abs(charge)`.
         spline_maximum (tuple[float, float]): (m/z, intensity) at the
             spline-derived maximum within the window.
         mz_observed (float): Observed m/z at the spline maximum.
@@ -65,7 +65,7 @@ class Calibrant(IsotopicPeak):
 
     def get_calibration_mz_window(self) -> float:
         """Return the calibration m/z window (Th)."""
-        return self.calibration_mass_window / self.charge
+        return self.calibration_mass_window / abs(self.charge)
 
     def get_mz_observed(self) -> float:
         """Return observed m/z from the spline maximum."""

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ## [NEXT VERSION]
+### Fixed
+- Fixed negative-ion isotopologue calculations for numerically ordered charge ranges (e.g. -2 to -1) and negative charge carriers such as proton loss. Background and calibration windows now use the absolute charge.
+
 ### Changed
 - Changed isotopic peak integration to include the exact lower and upper quantitation-window boundaries by linearly interpolating their intensities before trapezoidal integration. This reduces grid-resolution-dependent area differences, especially at lower sum-spectrum resolutions.
 
