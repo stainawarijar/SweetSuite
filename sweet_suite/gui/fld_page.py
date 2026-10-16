@@ -59,8 +59,14 @@ class FldPage(QWidget):
         self.ui.alignment_sn_cutoff.setToolTip(
             "LC-FLD S/N cut-off tooltip placeholder."
         )
-        self.ui.quantify_aligned.setToolTip(
-            "LC-FLD aligned-files option tooltip placeholder."
+        self.ui.roi_start.setToolTip(
+            "Start ROI tooltip placeholder."
+        )
+        self.ui.roi_end.setToolTip(
+            "End ROI tooltip placeholder."
+        )
+        self.ui.peak_width.setToolTip(
+            "Peak width tooltip placeholder."
         )
 
     def select_raw_folder(self) -> None:
