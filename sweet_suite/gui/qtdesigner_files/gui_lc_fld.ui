@@ -31,6 +31,10 @@
     border: 1px solid #b0b0b0;
 }
 
+#frame_roi {
+    border: 1px solid #b0b0b0;
+}
+
 QListWidget {
     border: 1px solid #b0b0b0;
 }</string>
@@ -41,7 +45,7 @@ QListWidget {
      <x>10</x>
      <y>10</y>
      <width>491</width>
-     <height>401</height>
+     <height>341</height>
     </rect>
    </property>
    <property name="frameShape">
@@ -53,7 +57,7 @@ QListWidget {
    <property name="lineWidth">
     <number>1</number>
    </property>
-   <widget class="QLabel" name="label_quantitation">
+   <widget class="QLabel" name="label_roi">
     <property name="geometry">
      <rect>
       <x>160</x>
@@ -271,7 +275,7 @@ font-size: 10.5pt</string>
      </font>
     </property>
     <property name="text">
-     <string>Time window (seconds):</string>
+     <string>Time window (minutes):</string>
     </property>
    </widget>
    <widget class="QDoubleSpinBox" name="alignment_time_window">
@@ -284,7 +288,7 @@ font-size: 10.5pt</string>
      </rect>
     </property>
     <property name="value">
-     <double>5.000000000000000</double>
+     <double>1.000000000000000</double>
     </property>
    </widget>
    <widget class="QSpinBox" name="alignment_min_peaks">
@@ -515,6 +519,155 @@ font-size: 10.5pt</string>
     </property>
     <property name="text">
      <string>Batch process</string>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QFrame" name="frame_roi">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>360</y>
+     <width>491</width>
+     <height>181</height>
+    </rect>
+   </property>
+   <property name="frameShape">
+    <enum>QFrame::StyledPanel</enum>
+   </property>
+   <property name="frameShadow">
+    <enum>QFrame::Raised</enum>
+   </property>
+   <widget class="QLabel" name="label_quantitation_3">
+    <property name="geometry">
+     <rect>
+      <x>90</x>
+      <y>10</y>
+      <width>321</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>DejaVu Sans</family>
+      <pointsize>11</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">font-weight: bold;
+font-size: 10.5pt</string>
+    </property>
+    <property name="text">
+     <string>Baseline correction</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="roi_start">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>70</y>
+      <width>221</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="maximum">
+     <double>1000.000000000000000</double>
+    </property>
+    <property name="value">
+     <double>5.000000000000000</double>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_roi_start">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>50</y>
+      <width>231</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>DejaVu Sans</family>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>Start region of interest (minutes):</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="roi_end">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>130</y>
+      <width>221</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="maximum">
+     <double>1000.000000000000000</double>
+    </property>
+    <property name="value">
+     <double>30.000000000000000</double>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_roi_end">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>110</y>
+      <width>221</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>DejaVu Sans</family>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>End region of interest (minutes):</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="peak_width">
+    <property name="geometry">
+     <rect>
+      <x>260</x>
+      <y>70</y>
+      <width>221</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="maximum">
+     <double>10.000000000000000</double>
+    </property>
+    <property name="value">
+     <double>1.000000000000000</double>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_peak_width">
+    <property name="geometry">
+     <rect>
+      <x>260</x>
+      <y>50</y>
+      <width>221</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>DejaVu Sans</family>
+      <pointsize>10</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>Typical peak width (minutes):</string>
     </property>
    </widget>
   </widget>

@@ -38,6 +38,18 @@ class FldChromatogram(Chromatogram):
         super().__init__(data, start_time, end_time)
         self.peak_width = peak_width
 
+        @staticmethod
+        def parse_number(value):
+            """Helper function used to ensure that decimals are denoted
+            using dots rather than commas.
+            """
+            value = value.strip()
+            # A comma marks European formatting: 1.259,25 -> 1259.25.
+            # Without a comma, retain the dot as the decimal separator.
+            if "," in value:
+                value = value.replace(".", "").replace(",", ".")
+            return float(value)
+
         @property
         def n_snip_iterations(self) -> int:
             """Determine the number of SNIP iterations to use for baseline

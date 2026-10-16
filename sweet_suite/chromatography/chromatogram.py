@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
@@ -7,6 +9,7 @@ class Chromatogram:
     """Represents a chromatogram.
 
     Attributes:
+        filename (str): ...
         data (np.ndarray): Chromatogram as an array of shape (N, 2) where
             column 0 is time and column 1 is intensity.
         start_time (float): Start of the retention time region of interest in

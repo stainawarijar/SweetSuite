@@ -208,7 +208,7 @@ font-size: 10.5pt</string>
      <rect>
       <x>10</x>
       <y>170</y>
-      <width>241</width>
+      <width>231</width>
       <height>16</height>
      </rect>
     </property>
@@ -219,7 +219,7 @@ font-size: 10.5pt</string>
      </font>
     </property>
     <property name="text">
-     <string>Sum spectrum resolution (1 / Th):</string>
+     <string>Sum spectrum data points per Th:</string>
     </property>
    </widget>
    <widget class="QSpinBox" name="sum_spectrum_resolution">
@@ -280,8 +280,8 @@ font-size: 10.5pt</string>
    <widget class="QDoubleSpinBox" name="calibration_mass_window">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>310</y>
+      <x>260</x>
+      <y>190</y>
       <width>221</width>
       <height>22</height>
      </rect>
@@ -302,8 +302,8 @@ font-size: 10.5pt</string>
    <widget class="QLabel" name="label_calibration_mass_window">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>290</y>
+      <x>260</x>
+      <y>170</y>
       <width>221</width>
       <height>16</height>
      </rect>
@@ -336,7 +336,7 @@ font-size: 10.5pt</string>
      </font>
     </property>
     <property name="text">
-     <string>Quantitation m/z window:</string>
+     <string>Quantitation m/z window (Th):</string>
     </property>
    </widget>
    <widget class="QDoubleSpinBox" name="quantitation_mz_window">
@@ -437,8 +437,8 @@ font-size: 10.5pt</string>
    <widget class="QLabel" name="label_isotopic_fraction">
     <property name="geometry">
      <rect>
-      <x>260</x>
-      <y>170</y>
+      <x>10</x>
+      <y>290</y>
       <width>211</width>
       <height>16</height>
      </rect>
@@ -457,8 +457,8 @@ font-size: 10.5pt</string>
    <widget class="QDoubleSpinBox" name="min_isotopic_fraction">
     <property name="geometry">
      <rect>
-      <x>260</x>
-      <y>190</y>
+      <x>10</x>
+      <y>310</y>
       <width>221</width>
       <height>22</height>
      </rect>
@@ -584,7 +584,7 @@ font-size: 10.5pt</string>
       <x>341</x>
       <y>371</y>
       <width>141</width>
-      <height>20</height>
+      <height>21</height>
      </rect>
     </property>
     <property name="toolTip">

@@ -28,6 +28,7 @@ def parse_fld_txt_file(path: str) -> np.ndarray:
     Args:
         path: Path to text file containing data.
     """
+    rows = []
     with open(path, encoding="utf-8-sig") as file:
         for line in file:
             if line.strip() in {"Raw Data:", "Chromatogram Data:"}:
@@ -35,19 +36,15 @@ def parse_fld_txt_file(path: str) -> np.ndarray:
         else:
             raise ValueError("Chromatogram Data section not found")
 
-    next(file)  # Time, step and value column names
+        next(file)  # Time, step and value column names
 
-    rows = []
-    for line in file:
-        columns = line.rstrip().split("\t")
-        if len(columns) >= 3:
-            rows.append((
-                parse_number(columns[0]),
-                parse_number(columns[2]),
-            ))
+        for line in file:
+            columns = line.rstrip().split("\t")
+            if len(columns) >= 3:
+                rows.append((
+                    parse_number(columns[0]),
+                    parse_number(columns[2]),
+                ))
 
     return np.asarray(rows, dtype=float)
 
-
-
-    
