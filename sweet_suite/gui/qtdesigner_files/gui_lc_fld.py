@@ -275,6 +275,7 @@ class Ui_Form(object):
         self.label_alignment.setText(_translate("Form", "Alignment"))
         self.open_alignment_list.setText(_translate("Form", "..."))
         self.label_alignment_time_window.setText(_translate("Form", "Time window (minutes):"))
+        self.alignment_time_window.setPrefix(_translate("Form", "±"))
         self.label_alignment_sn_cutoff.setText(_translate("Form", "S/N cut-off:"))
         self.label_alignment_min_peak.setText(_translate("Form", "Minimum number of peaks:"))
         self.label_mzxml.setText(_translate("Form", "Folder containing raw data:"))
