@@ -15,6 +15,8 @@ This reduces grid-resolution-dependent area differences, especially at lower sum
 ### Fixed
 - Fixed negative-ion isotopologue calculations for numerically ordered charge ranges (e.g. -2 to -1) and negative charge carriers such as proton loss. 
 Background and calibration windows now use the absolute charge.
+- Prevent negative retention times in aligned mzXML files. This sometimes happened to scans at the very beginning of LC runs.
+Negative retention times are now set to zero as a temporary solution.
 
 
 ## [0.4.0]
