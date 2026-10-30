@@ -176,7 +176,7 @@ class Ui_MainWindow(object):
         self.sum_spectrum_resolution.setMinimum(100)
         self.sum_spectrum_resolution.setMaximum(10000)
         self.sum_spectrum_resolution.setSingleStep(100)
-        self.sum_spectrum_resolution.setProperty("value", 1000)
+        self.sum_spectrum_resolution.setProperty("value", 500)
         self.sum_spectrum_resolution.setObjectName("sum_spectrum_resolution")
         self.label_background_mass_window = QtWidgets.QLabel(parent=self.frame_calibration_quantitation)
         self.label_background_mass_window.setGeometry(QtCore.QRect(10, 230, 231, 16))
