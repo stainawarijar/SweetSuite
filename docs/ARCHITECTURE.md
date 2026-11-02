@@ -92,7 +92,6 @@ SweetSuite/
     │
     ├── resources/
     │   ├── constants.py           # Isotope/particle masses and isotope lookup tables
-    │   ├── images/                # Application logo used by the GUI and executable
     │   └── templates/             # Excel templates, default settings CSV, block template
     │
     ├── utils/
@@ -397,12 +396,6 @@ lightest isotope of each element. This module is the authoritative source of
 isotope data used by reference generation, block validation, and background
 bin spacing during peak quantitation.
 
-#### `images/`
-
-Contains `logo_head.png`, the application/window icon bundled by PyInstaller.
-The build script temporarily converts this PNG to an `.ico` file for the
-Windows executable icon and removes that generated file after the build.
-
 #### `templates/`
 
 | File | Purpose |
@@ -683,10 +676,9 @@ PyInstaller and Pillow are build-only dependencies installed by
 - **`compile_to_exe.sh`** — builds a standalone Windows executable using
   [PyInstaller](https://pyinstaller.org/) in one-file mode. The script creates
   a Python 3.14 virtual environment, installs runtime dependencies and
-  the build-only PyInstaller and Pillow packages. Pillow converts the packaged
-  PNG logo to a temporary `.ico`; PyInstaller embeds that executable icon and
-  bundles the PNG, GUI assets, and resource templates through `--add-data`.
-  The temporary `.ico` and generated `.spec` file are removed after the build,
+  the build-only PyInstaller package. PyInstaller bundles GUI assets and
+  resource templates through `--add-data`.
+  The generated `.spec` file is removed after the build,
   so the project does not maintain a `.spec` file. The `blocks/` directory is
   copied beside the generated executable so users can inspect and organize
   block definitions independently.

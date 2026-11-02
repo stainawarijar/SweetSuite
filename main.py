@@ -6,12 +6,11 @@ import logging
 import os
 import sys
 
-from PyQt6.QtGui import QPalette, QColor, QIcon
+from PyQt6.QtGui import QPalette, QColor
 from PyQt6.QtWidgets import QApplication, QStyleFactory
 from PyQt6.QtCore import qInstallMessageHandler
 
 from sweet_suite.gui.main_window import MainWindow
-from sweet_suite.utils import utils
 
 
 def suppress_qt_warnings(_mode, _context, message):
@@ -90,9 +89,6 @@ def main():
     logging.info("SweetSuite application started\n")
     # Create instance of QApplication.
     app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon(utils.resource_path(os.path.join(
-        "sweet_suite", "resources", "images", "logo_head.png"
-    ))))
     # Apply Fusion + light palette.
     apply_light_palette(app)
     # Create and show the main window.
