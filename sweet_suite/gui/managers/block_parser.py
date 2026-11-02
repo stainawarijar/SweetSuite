@@ -168,7 +168,7 @@ class BlockParser:
             # Move proton and/or sodium to the front, in that order.
             for name in ("sodium", "proton"):
                 for option in options:
-                    if option.startswith(name):
+                    if option.rsplit(" (", 1)[0] == name:
                         options.remove(option)
                         options.insert(0, option)
                         break
