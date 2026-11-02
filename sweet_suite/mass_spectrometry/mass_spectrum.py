@@ -87,9 +87,9 @@ class MassSpectrum():
     def apply_calibration(
         self,
         plot: bool = True,
-        color_map: dict[
+        rt_styles: dict[
             tuple[float, float],
-            tuple[float, float, float, float]
+            dict[str, tuple[float, float, float, float] | str]
         ] | None = None
     ) -> None:
         """Calibrate the data using a calibration fit, but only if fit 
@@ -98,9 +98,9 @@ class MassSpectrum():
         Args:
             plot: Whether to create a calibration figure or not. 
                 Set to `True` by default.
-            color_map: An optional dictionary that maps (time, window)
-                combinations to colors. These are used for coloring
-                data points in the calibration fit figure.
+            rt_styles: An optional dictionary that maps (time, window)
+                combinations to dictionaries with color and marker styles
+                for data points in the calibration fit figure.
 
         The fitted coefficients are used to populate `data_calibrated` and
         `calibration_plot`. If a calibration fit is in `self.calibration_fit`
@@ -118,7 +118,7 @@ class MassSpectrum():
         if plot:
             self.calibration_plot = self.plot_calibration(
                 calibration_fit=fit, 
-                color_map=color_map
+                rt_styles=rt_styles
             )
         else:
             self.calibration_plot = None
@@ -238,9 +238,9 @@ class MassSpectrum():
     def plot_calibration(
         self,
         calibration_fit: np.ndarray | None,
-        color_map: dict[
+        rt_styles: dict[
             tuple[float, float],
-            tuple[float, float, float, float]
+            dict[str, tuple[float, float, float, float] | str]
         ] | None = None
     ) -> Figure | None:
         """Plot the calibration fit.
@@ -253,8 +253,8 @@ class MassSpectrum():
         Args:
             calibration_fit: Quadratic fit coefficients in the order
                 [quadratic, linear, intercept].
-            color_map: An optional dictionary that maps (time, window)
-                combinations to colors. 
+            rt_styles: An optional dictionary that maps (time, window)
+                combinations to dictionaries with color and marker styles.
 
         Returns:
             A matplotlib Figure. `None` if `calibration_fit` is `None`. `None`
@@ -325,7 +325,8 @@ class MassSpectrum():
                     mz_observed[mask],
                     y_values[mask],
                     s=45,
-                    color=color_map[key] if color_map is not None else None,
+                    color=rt_styles[key]["color"] if rt_styles is not None else None,
+                    marker=rt_styles[key]["marker"] if rt_styles is not None else "o",
                     edgecolor="black",
                     linewidths=0.4,
                     label=f"{time_value:g} ± {window_value:g} s"

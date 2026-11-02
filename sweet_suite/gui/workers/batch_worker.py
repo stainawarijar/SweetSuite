@@ -663,9 +663,9 @@ class BatchWorker(QObject):
         file_name: str,
         calibrants: list[Calibrant],
         color_by_time: bool = False,
-        color_map: dict[
+        rt_styles: dict[
             tuple[float, float],
-            tuple[float, float, float, float]
+            dict[str, tuple[float, float, float, float] | str]
         ] | None = None
     ) -> Figure:
         """Plot calibrants for a failed calibration attempt.
@@ -681,8 +681,8 @@ class BatchWorker(QObject):
             file_name: Name of raw file, used as a title for the plot.
             color_by_time: Whether to color the data points by retention    
                 time window.
-            color_map: An optional dictionary that maps (time, window)
-                combinations to colors.
+            rt_styles: An optional dictionary that maps (time, window)
+                combinations to dictionaries with color and marker styles.
 
         Returns:
             A matplotlib Figure.
@@ -753,7 +753,8 @@ class BatchWorker(QObject):
                     mz_observed[mask],
                     y_values[mask],
                     s=45,
-                    color=color_map[key] if color_map is not None else None,
+                    color=rt_styles[key]["color"] if rt_styles is not None else None,
+                    marker=rt_styles[key]["marker"] if rt_styles is not None else "o",
                     edgecolor="black",
                     linewidths=0.4,
                     label=f"{time_value:g} ± {window_value:g} s"
@@ -823,11 +824,24 @@ class BatchWorker(QObject):
         # Get distinct retention times ranges as a list of tuples.
         rt_ranges = list(self.sum_spectra_calibration.keys())
 
-        # Map each RT range to a unique color, these will be used in the
-        # calibation fit figures.
+        # Map RT ranges to combinations of color and marker.
         cmap = plt.get_cmap("tab10")
-        rt_colors = {
-            rt_range: cmap(i)
+
+        markers = [
+            "o",  # circles:   RT ranges 1–10
+            "s",  # squares:   RT ranges 11–20
+            "^",  # triangles: RT ranges 21–30
+            "D",  # diamonds:  RT ranges 31–40
+            "v",  # downward triangles: 41–50
+            "P",  # filled plus: 51–60
+            "X",  # filled X: 61–70
+        ]
+
+        rt_styles = {
+            rt_range: {
+                "color": cmap(i % 10),
+                "marker": markers[(i // 10) % len(markers)],
+            }
             for i, rt_range in enumerate(rt_ranges)
         }
 
@@ -1005,7 +1019,7 @@ class BatchWorker(QObject):
                         ms.calibrants_to_fit = calibrants
                         calibration_fit = ms.fit_calibration()
                         ms.calibration_fit = calibration_fit
-                        ms.apply_calibration(plot=True, color_map=rt_colors)
+                        ms.apply_calibration(plot=True, rt_styles=rt_styles)
                         calibration_plot = ms.calibration_plot
                         ms.calibration_plot = None  # Free up memory
 
@@ -1028,7 +1042,7 @@ class BatchWorker(QObject):
                         file_name=mzxml.file_name,
                         calibrants=calibrants,
                         color_by_time=True,
-                        color_map=rt_colors
+                        rt_styles=rt_styles
                     )
                     try:
                         pdf.savefig(failed_plot)

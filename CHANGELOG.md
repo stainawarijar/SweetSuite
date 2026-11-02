@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed isotopic peak integration to include the exact lower and upper quantitation-window boundaries by linearly interpolating their intensities before trapezoidal integration. 
 This reduces grid-resolution-dependent area differences, especially at lower sum-spectrum resolutions.
 - Changed the default number of data points per Th in a sum spectrum from 100 to 500.
+- When there are more than 10 retention time ranges in the calibration figures, the ranges are now specified using a combination of color and shape.
+This makes the ranges easier to distinguish compared to when only different colors are used.
 
 ### Fixed
 - Fixed negative-ion isotopologue calculations for numerically ordered charge ranges (e.g. -2 to -1) and negative charge carriers such as proton loss. 
