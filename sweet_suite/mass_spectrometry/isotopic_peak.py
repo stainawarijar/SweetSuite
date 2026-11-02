@@ -158,6 +158,8 @@ class IsotopicPeak:
         separated by (1.00335 / z), corresponding to the mass difference between 
         13C and 12C, with 'z' being the absolute charge state. Each region has a width of
         twice `self.quantitation_mz_window`.
+        Bin areas include linearly interpolated intensities at the exact
+        boundaries; average intensity and noise use only measured points.
 
         For all possible 5 consecutive regions, the average intensity is 
         calculated. The set of 5 bins with the lowest average intensity are 
@@ -192,6 +194,8 @@ class IsotopicPeak:
 
         # Collect bin data.
         bins = []
+        mz = self.spectrum[:, 0]
+        intensity = self.spectrum[:, 1]
 
         for step in mz_steps:
             # Define center of bin.
@@ -209,7 +213,23 @@ class IsotopicPeak:
                 side="right"
             )
             bin_data = self.spectrum[idx_low:idx_high]
-            bin_area = np.trapezoid(y=bin_data[:, 1], x=bin_data[:, 0])
+            mz_low = mz_center - self.quantitation_mz_window
+            mz_high = mz_center + self.quantitation_mz_window
+
+            # Select only existing points strictly inside the integration window.
+            idx_inner_low = np.searchsorted(mz, mz_low, side="right")
+            idx_inner_high = np.searchsorted(mz, mz_high, side="left")
+            mz_inner = mz[idx_inner_low:idx_inner_high]
+            intensity_inner = intensity[idx_inner_low:idx_inner_high]
+
+            # Interpolate intensity at the exact integration boundaries.
+            intensity_low = np.interp(mz_low, mz, intensity)
+            intensity_high = np.interp(mz_high, mz, intensity)
+            mz_data = np.concatenate(([mz_low], mz_inner, [mz_high]))
+            intensity_data = np.concatenate(
+                ([intensity_low], intensity_inner, [intensity_high])
+            )
+            bin_area = np.trapezoid(y=intensity_data, x=mz_data)
             bins.append((bin_area, bin_data[:, 1]))
 
         # Find 5 consecutive bins with lowest average intensity.
