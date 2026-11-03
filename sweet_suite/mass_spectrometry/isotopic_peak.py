@@ -47,28 +47,9 @@ class IsotopicPeak:
         self.charge = charge
         self.spectrum = spectrum
         self.quantitation_mz_window = quantitation_mz_window
-        self.data = self.get_data()
 
-    def get_data_old(self) -> np.ndarray:
-        # NOTE: Old method, kept only for reference.
-        # TODO: Remove at some point.
-        """Return an array with the MS data in the m/z range
-        [exact m/z ± quantitation window].
-        """
-        idx_low = np.searchsorted(
-            self.spectrum[:, 0], 
-            self.mz_exact - self.quantitation_mz_window, 
-            side="left"
-        )
-        idx_high = np.searchsorted(
-            self.spectrum[:, 0], 
-            self.mz_exact + self.quantitation_mz_window, 
-            side="right"
-        )
-
-        return self.spectrum[idx_low:idx_high, :]
-
-    def get_data(self) -> np.ndarray:
+    @property
+    def data(self) -> np.ndarray:
         """Return MS data within the exact quantitation m/z window.
 
         The intensities at the exact lower and upper boundaries are obtained by
@@ -146,6 +127,27 @@ class IsotopicPeak:
         
         return float(intensities[max_idx])
     
+    def get_background_bin_centers(
+        self,
+        target_mz: float,
+        background_mass_window: float
+    ) -> np.ndarray:
+        """Return the exact bin centers used for background estimation."""
+        mass_difference = (
+            ISOTOPES["carbon"]["C13"]["mass"]
+            - ISOTOPES["carbon"]["C12"]["mass"]
+        )
+
+        background_mz_window = background_mass_window / abs(self.charge)
+
+        mz_steps = np.arange(
+            start=-background_mz_window,
+            stop=background_mz_window + 1 / abs(self.charge),
+            step=1 / abs(self.charge)
+        )
+
+        return target_mz + mz_steps * mass_difference
+
     def get_background_and_noise(
         self,
         target_mz: float,
@@ -156,10 +158,11 @@ class IsotopicPeak:
         In the range [`target_mz` ± `background_mass_window` / z], a number of 
         m/z regions are defined and integrated. The centers of the regions are 
         separated by (1.00335 / z), corresponding to the mass difference between 
-        13C and 12C, with 'z' being the absolute charge state. Each region has a width of
-        twice `self.quantitation_mz_window`.
-        Bin areas include linearly interpolated intensities at the exact
-        boundaries; average intensity and noise use only measured points.
+        13C and 12C, with 'z' being the absolute charge state. Each region has 
+        a width of twice `self.quantitation_mz_window`.
+
+        Bin regions include linearly interpolated intensities at the exact
+        boundaries, to be consistent with peak area integration.
 
         For all possible 5 consecutive regions, the average intensity is 
         calculated. The set of 5 bins with the lowest average intensity are 
@@ -175,21 +178,13 @@ class IsotopicPeak:
 
         Returns:
             A tuple of (background average intensity, background area, noise).
+
+        Raises:
+            ValueError: When a background bin extends outside the spectrum
+                or has zero data points.
         """
-        # Mass difference (Da) between carbon-13 and carbon-12.
-        C13_C12_mass_diff = (
-            ISOTOPES["carbon"]["C13"]["mass"]
-            - ISOTOPES["carbon"]["C12"]["mass"]
-        )
-
-        # Define background m/z window (Th).
-        background_mz_window = background_mass_window / abs(self.charge)
-
-        # Create array from -window to +window in steps of 1/z.
-        mz_steps = np.arange(
-            start=-background_mz_window,
-            stop=background_mz_window + 1 / abs(self.charge),
-            step=1 / abs(self.charge)
+        bin_centers = self.get_background_bin_centers(
+            target_mz, background_mass_window
         )
 
         # Collect bin data.
@@ -197,48 +192,66 @@ class IsotopicPeak:
         mz = self.spectrum[:, 0]
         intensity = self.spectrum[:, 1]
 
-        for step in mz_steps:
-            # Define center of bin.
-            mz_center = target_mz + step * C13_C12_mass_diff
-
-            # Get data for this bin.
-            idx_low = np.searchsorted(
-                self.spectrum[:, 0], 
-                mz_center - self.quantitation_mz_window, 
-                side="left"
-            )
-            idx_high = np.searchsorted(
-                self.spectrum[:, 0], 
-                mz_center + self.quantitation_mz_window, 
-                side="right"
-            )
-            bin_data = self.spectrum[idx_low:idx_high]
+        for mz_center in bin_centers:
+            # Define center and edges of bin.
             mz_low = mz_center - self.quantitation_mz_window
             mz_high = mz_center + self.quantitation_mz_window
 
-            # Select only existing points strictly inside the integration window.
-            idx_inner_low = np.searchsorted(mz, mz_low, side="right")
-            idx_inner_high = np.searchsorted(mz, mz_high, side="left")
-            mz_inner = mz[idx_inner_low:idx_inner_high]
-            intensity_inner = intensity[idx_inner_low:idx_inner_high]
+            # np.interp otherwise fills uncovered edges with endpoint values.
+            if mz_low < mz[0] or mz_high > mz[-1]:
+                raise ValueError(
+                    f"Background bin [{mz_low}, {mz_high}] for isotopic peak "
+                    f"at {self.mz_exact} Th is outside the spectrum m/z range."
+                )
 
-            # Interpolate intensity at the exact integration boundaries.
+            # Get data for this bin.
+            idx_low = np.searchsorted(
+                self.spectrum[:, 0], mz_low, side="left"
+            )
+            idx_high = np.searchsorted(
+                self.spectrum[:, 0], mz_high, side="right"
+            )
+            bin_data = self.spectrum[idx_low:idx_high]
+
+            # Check against empty bin data (edge case that can occur when
+            # the quantitation window is too small).
+            if len(bin_data) == 0:
+                raise ValueError(
+                    "Zero data points in background bin for isotopic peak at "
+                    f"{self.mz_exact} Th (bin center {mz_center}). "
+                    "Is the quantitation window too small?"
+                )
+
+            # Interpolate intensity at the exact quantitation boundaries.
             intensity_low = np.interp(mz_low, mz, intensity)
             intensity_high = np.interp(mz_high, mz, intensity)
-            mz_data = np.concatenate(([mz_low], mz_inner, [mz_high]))
-            intensity_data = np.concatenate(
-                ([intensity_low], intensity_inner, [intensity_high])
+
+            # Extend bin data with interpolated points at edges.
+            mz_data = np.concatenate(
+                ([mz_low], bin_data[:, 0], [mz_high])
             )
+            intensity_data = np.concatenate(
+                ([intensity_low], bin_data[:, 1], [intensity_high])
+            )
+
+            # Calculate bin area using interpolated data.
             bin_area = np.trapezoid(y=intensity_data, x=mz_data)
-            bins.append((bin_area, bin_data[:, 1]))
+
+            # Append bin area and intensities.
+            bins.append((bin_area, intensity_data))
 
         # Find 5 consecutive bins with lowest average intensity.
         background_average_intensity = np.inf
+        background_area = None
+        noise = None
         
         for i in range(len(bins) - 4):
             intensities = np.concatenate((
-                bins[i][1], bins[i + 1][1], bins[i + 2][1],
-                bins[i + 3][1], bins[i + 4][1]
+                bins[i][1], 
+                bins[i + 1][1], 
+                bins[i + 2][1],
+                bins[i + 3][1], 
+                bins[i + 4][1]
             ))
 
             intensities_average = np.average(intensities)
@@ -246,8 +259,11 @@ class IsotopicPeak:
             if intensities_average < background_average_intensity:
                 background_average_intensity = intensities_average
                 background_area = np.average([
-                    bins[i][0], bins[i + 1][0], bins[i + 2][0], 
-                    bins[i + 3][0], bins[i + 4][0]
+                    bins[i][0], 
+                    bins[i + 1][0], 
+                    bins[i + 2][0], 
+                    bins[i + 3][0], 
+                    bins[i + 4][0]
                 ])
                 noise = np.std(intensities, ddof=1)
 
@@ -262,11 +278,7 @@ class IsotopicPeak:
 
         A cubic spline is fitted over the MS data in the range
         `[mz_exact ± mz_window]`. Among all local maxima of the spline,
-        the one with the highest intensity is returned. If spline fitting
-        fails or there are insufficient data points, the same selection
-        logic is applied to the raw data points. If no local maximum is
-        found in either case, the data point with the highest intensity
-        within the specified m/z range is returned as a fallback.
+        the one with the highest intensity is returned.
 
         Args:
             mz_window: m/z window (Th) to use around the exact
@@ -276,7 +288,8 @@ class IsotopicPeak:
         
         Returns:
             (m/z, intensity) tuple at the highest local maximum within the
-            specified m/z range.
+            specified m/z range. `np.nan` when fitting fails or when the 
+            spline does not contain a local maximum.
         """
         # Get MS data for the specified range.
         idx_low = np.searchsorted(
@@ -289,9 +302,14 @@ class IsotopicPeak:
             self.mz_exact + mz_window,
             side="right"
         )
-        # TODO: Proper error handling.
+
+        # Check against zero data points (m/z window too small).
         if idx_low == idx_high:
-            return (self.mz_exact, 0.0)
+            self.logger.error(
+                f"Could not fit a spline around {self.mz_exact:.4f} m/z. "
+                "Is the quantitation window or calibration window too small?"
+            )
+            return np.nan
 
         data_mz_range = self.spectrum[idx_low:idx_high]
 
@@ -324,40 +342,30 @@ class IsotopicPeak:
                     max_idx = max_indices[np.argmax(predicted[max_indices])]
                     return (mz_array[max_idx], float(predicted[max_idx]))
 
-                # Fallback: no local maximum in spline → highest intensity point.
-                max_idx = np.argmax(predicted)
-                return (mz_array[max_idx], float(predicted[max_idx]))
+                # No local maximum in spline -> assume no peak.
+                self.logger.warning(
+                    f"Spline fit for {self.mz_exact:.4f} m/z (window="
+                    f"{mz_window:.4f} Th) contains no local maximum. " 
+                    "Returning NaN."
+                )
+                return np.nan
 
             except ValueError as e:
                 # Fallback: use non-fitted local maximum in the window.
                 self.logger.warning(
-                    f"Spline fit failed for m/z {self.mz_exact:.4f} "
+                    f"Spline fit failed for {self.mz_exact:.4f} m/z "
                     f"(window={mz_window:.4f} Th): {str(e)}. "
-                    f"Using non-fitted local maximum."
+                    f"Returning NaN."
                 )
+                
         else:
             self.logger.warning(
                 f"Insufficient data points ({len(mzs)}) for m/z {self.mz_exact:.4f} "
-                f"(window={mz_window:.4f} Th). Using non-fitted local maximum. "
-                f"Consider increasing the calibration mass window."
+                f"(window={mz_window:.4f} Th) to fit a spline. Returning NaN."
             )
+
+        return np.nan
         
-        # Use non-fitted local maximum (either insufficient points or spline failed).
-        max_indices = np.array([
-            i for i in range(1, len(intensities) - 1)
-            if intensities[i] > intensities[i - 1] and
-            intensities[i] > intensities[i + 1]
-        ], dtype=int)
-
-        if len(max_indices) > 0:
-            # Pick the local maximum with the highest intensity.
-            max_idx = max_indices[np.argmax(intensities[max_indices])]
-            return (mzs[max_idx], float(intensities[max_idx]))
-
-        # Fallback: no local maximum found → highest intensity point.
-        max_idx = int(np.argmax(intensities))
-        return (mzs[max_idx], float(intensities[max_idx]))
-
     def get_mass_error_ppm(self) -> float:
         """Return mass error in parts per million (ppm) based on the
         exact m/z and the observed m/z.
@@ -375,51 +383,3 @@ class IsotopicPeak:
         mass_error_ppm = (mz_observed - self.mz_exact) / self.mz_exact * 1e6
 
         return mass_error_ppm
-    
-    def plot(self, title: str) -> Figure:
-        """Plot the peak data.
-
-        The exact m/z, specified quantitation window and the integrated area
-        are all indicated. 
-
-        This function is currently not used.
-
-        Args:
-            title: Title for the plot.
-
-        Returns:
-            A matplotlib figure.
-        """
-        x, y = self.data[:, 0], self.data[:, 1]
-        
-        fig, ax = plt.subplots(figsize=(8, 5))
-        ax.set_xlabel("$m/z$")
-        ax.set_ylabel("Intensity")
-        ax.plot(x, y, linestyle="-", color="black")
-        ax.axvline(
-            x=self.mz_exact, 
-            color="blue", 
-            label="Exact m/z"
-        )
-        ax.axvline(
-            x=self.mz_exact - self.quantitation_mz_window, 
-            color="red", 
-            label="Quantitation window"
-        )
-        ax.axvline(
-            x=self.mz_exact + self.quantitation_mz_window, 
-            color="red"
-        )
-        ax.fill_between(
-            self.data[:, 0], 
-            0, 
-            self.data[:, 1], 
-            color ="black", 
-            alpha=0.3, 
-            label="Integrated area"
-        )
-        ax.set_title(title)
-        ax.legend(loc="upper left", framealpha=1)
-        ax.ticklabel_format(useOffset=False)  # Prevents scientific notation on m/z axis.
-
-        return fig

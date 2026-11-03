@@ -57,25 +57,29 @@ class Calibrant(IsotopicPeak):
         self.time_window = time_window
         self.background_mass_window = background_mass_window
         self.calibration_mass_window = calibration_mass_window
-        self.calibration_mz_window = self.get_calibration_mz_window()
-        self.spline_maximum = self.get_spline_maximum(self.calibration_mz_window)
-        self.mz_observed = self.get_mz_observed()
-        self.signal = self.get_signal()
-        self.signal_to_noise = self.get_signal_to_noise()
 
-    def get_calibration_mz_window(self) -> float:
+    @property
+    def calibration_mz_window(self) -> float:
         """Return the calibration m/z window (Th)."""
         return self.calibration_mass_window / abs(self.charge)
 
-    def get_mz_observed(self) -> float:
+    @property
+    def spline_maximum(self) -> float:
+        """Return the spline maximum using the calibration m/z window."""
+        return self.get_spline_maximum(self.calibration_mz_window)
+
+    @property
+    def mz_observed(self) -> float:
         """Return observed m/z from the spline maximum."""
         return float(self.spline_maximum[0])
 
-    def get_signal(self) -> float:
+    @property
+    def signal(self) -> float:
         """Return signal (intensity) at the spline maximum."""
         return float(self.spline_maximum[1])
-    
-    def get_signal_to_noise(self) -> float:
+
+    @property
+    def signal_to_noise(self) -> float:
         """Return signal-to-noise of the calibrant peak.
         
         Returns:

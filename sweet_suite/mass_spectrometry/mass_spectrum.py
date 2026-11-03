@@ -149,11 +149,11 @@ class MassSpectrum():
         calibrants = []
     
         for mz, charge, mz_window in tuples:
-
-            # Check m/z value is not outside MS range.
+            # The calibration search and quantitation windows are centered on
+            # the theoretical m/z. Background is checked at the observed m/z.
             half_span = max(
                 self.calibration_mass_window / abs(charge),
-                self.background_mass_window / abs(charge) + mz_window
+                mz_window,
             )
             if mz - half_span < mz_min or mz + half_span > mz_max:
                 self.logger.warning(
@@ -167,12 +167,35 @@ class MassSpectrum():
                 mz_exact=mz,
                 charge=charge,
                 time=self.time,
-                time_window = self.time_window,
+                time_window=self.time_window,
                 spectrum=self.data_uncalibrated,
                 background_mass_window=self.background_mass_window,
                 quantitation_mz_window=mz_window,
                 calibration_mass_window=self.calibration_mass_window
             )
+
+            spline_maximum = calibrant.spline_maximum
+            if np.shape(spline_maximum) != (2,) or not np.all(
+                np.isfinite(spline_maximum)
+            ):
+                self.logger.warning(
+                    f"Calibrant m/z {mz:.4f} has no valid spline maximum "
+                    "and will not be used."
+                )
+                continue
+
+            bin_centers = calibrant.get_background_bin_centers(
+                target_mz=spline_maximum[0],
+                background_mass_window=self.background_mass_window
+            )
+            edge_low = np.min(bin_centers) - mz_window
+            edge_high = np.max(bin_centers) + mz_window
+            if edge_low < mz_min or edge_high > mz_max:
+                self.logger.warning(
+                    f"Calibrant m/z {mz:.4f} has insufficient background "
+                    "coverage and will not be used."
+                )
+                continue
 
             calibrants.append(calibrant)
         
@@ -414,8 +437,8 @@ class MassSpectrum():
 
         # Check that all required m/z windows for each analyte fit within the
         # spectrum range. For every peak the quantitation window is checked;
-        # for the first (lowest-mass) peak per analyte the background window is
-        # also checked, because background is determined from that peak.
+        # for the first (lowest-mass) peak per analyte, the background window
+        # is also checked.
         mz_min = np.min(spectrum[:, 0])
         mz_max = np.max(spectrum[:, 0])
         analytes_to_skip = set()
@@ -427,30 +450,45 @@ class MassSpectrum():
             mz_window = row["mz_window"]
             charge = int(peak_name.split("_")[-2])
             analyte_label = "_".join(peak_name.split("_")[:-1])
+
+            # This statement is here to prevent adding the same `analyte_label`
+            # multiple times.
             if analyte_label in analytes_to_skip:
                 continue
+
+            # Check if there is enough background region around the first peak.
+            # Note that the first peak is not necessarily the isotopologue with
+            # index zero. For large analytes, that peak may not be included in 
+            # the reference file because its relative abundance is too small.
+            # Therefore `prev_analyte_label` is used.
+            if analyte_label != prev_analyte_label:
+                peak = IsotopicPeak(
+                    mz_exact=mz_val,
+                    charge=charge,
+                    spectrum=spectrum,
+                    quantitation_mz_window=mz_window
+                )
+                bin_centers = peak.get_background_bin_centers(
+                    target_mz=mz_val,
+                    background_mass_window=self.background_mass_window
+                )
+                edge_low = np.min(bin_centers) - mz_window
+                edge_high = np.max(bin_centers) + mz_window
+                # Check if this range falls within spectrum.
+                if edge_low < mz_min or edge_high > mz_max:
+                    analytes_to_skip.add(analyte_label)
+                    continue
+
+            prev_analyte_label = analyte_label
 
             # Check that the quantitation window fits within the spectrum range.
             if mz_val - mz_window < mz_min or mz_val + mz_window > mz_max:
                 analytes_to_skip.add(analyte_label)
                 continue
 
-            # For the first peak of each analyte, also check background window.
-            if analyte_label != prev_analyte_label:
-                background_half_span = (
-                    self.background_mass_window / abs(charge) + mz_window
-                )
-                if (
-                    mz_val - background_half_span < mz_min or 
-                    mz_val + background_half_span > mz_max
-                ):
-                    analytes_to_skip.add(analyte_label)
-
-            prev_analyte_label = analyte_label
-
         for label in analytes_to_skip:
             self.logger.warning(
-                f"Analyte {label} falls outside the spectrum m/z range "
+                f"Analyte {label} has insufficient spectrum coverage "
                 "and will not be quantified."
             )
 
@@ -465,6 +503,8 @@ class MassSpectrum():
 
         # Initialize list to which instances of Analyte will be added.
         analytes = []
+        if reference.empty:
+            return analytes
 
         # Initialize analyte properties.
         current_analyte = None
