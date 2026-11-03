@@ -180,12 +180,14 @@ class IsotopicPeak:
             A tuple of (background average intensity, background area, noise).
 
         Raises:
-            ValueError: When a background bin extends outside the spectrum
-                or has zero data points.
+            ValueError: When fewer than five bins are available, a bin extends
+                outside the spectrum, or a bin has zero data points.
         """
         bin_centers = self.get_background_bin_centers(
             target_mz, background_mass_window
         )
+        if len(bin_centers) < 5:
+            raise ValueError("Background estimation requires at least five bins.")
 
         # Collect bin data.
         bins = []
@@ -288,8 +290,8 @@ class IsotopicPeak:
         
         Returns:
             (m/z, intensity) tuple at the highest local maximum within the
-            specified m/z range. `np.nan` when fitting fails or when the 
-            spline does not contain a local maximum.
+            specified m/z range. `(np.nan, np.nan)` when fitting fails or when
+            the spline does not contain a local maximum.
         """
         # Get MS data for the specified range.
         idx_low = np.searchsorted(
@@ -309,7 +311,7 @@ class IsotopicPeak:
                 f"Could not fit a spline around {self.mz_exact:.4f} m/z. "
                 "Is the quantitation window or calibration window too small?"
             )
-            return np.nan
+            return (np.nan, np.nan)
 
         data_mz_range = self.spectrum[idx_low:idx_high]
 
@@ -348,7 +350,7 @@ class IsotopicPeak:
                     f"{mz_window:.4f} Th) contains no local maximum. " 
                     "Returning NaN."
                 )
-                return np.nan
+                return (np.nan, np.nan)
 
             except ValueError as e:
                 # Fallback: use non-fitted local maximum in the window.
@@ -364,7 +366,7 @@ class IsotopicPeak:
                 f"(window={mz_window:.4f} Th) to fit a spline. Returning NaN."
             )
 
-        return np.nan
+        return (np.nan, np.nan)
         
     def get_mass_error_ppm(self) -> float:
         """Return mass error in parts per million (ppm) based on the

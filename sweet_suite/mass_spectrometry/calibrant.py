@@ -64,7 +64,7 @@ class Calibrant(IsotopicPeak):
         return self.calibration_mass_window / abs(self.charge)
 
     @property
-    def spline_maximum(self) -> float:
+    def spline_maximum(self) -> tuple[float, float]:
         """Return the spline maximum using the calibration m/z window."""
         return self.get_spline_maximum(self.calibration_mz_window)
 
@@ -86,12 +86,22 @@ class Calibrant(IsotopicPeak):
         - S/N value of the calibrant peak as a float.
         - `0.0` in case of a non-positive background-subtracted signal.
         - `np.nan` when background-subtracted signal is positive but noise
-            is zero or non-finite.
+            is zero or non-finite, the maximum is unavailable, or background
+            cannot be determined.
         """
-        background_and_noise = self.get_background_and_noise(
-            target_mz=self.spline_maximum[0],
-            background_mass_window=self.background_mass_window
-        )
+        if not np.all(np.isfinite((self.mz_observed, self.signal))):
+            return np.nan
+        
+        try:
+            background_and_noise = self.get_background_and_noise(
+                target_mz=self.mz_observed,
+                background_mass_window=self.background_mass_window
+            )
+        except ValueError as exc:
+            self.logger.warning(
+                f"Could not determine calibrant {self.mz_exact} S/N: {exc}"
+            )
+            return np.nan
         
         background_avg_intensity = background_and_noise[0] 
         noise = background_and_noise[2]

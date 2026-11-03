@@ -107,7 +107,12 @@ class MassSpectrum():
         then that fit is used. Otherwise, fitting is attempted on provided
         `self.calibrants_to_fit`. If neither are provided then `fit`,
         `self.data_calibrated` and `self.calibration_plot` are all `None`.
+        Empty spectra leave calibrated data and the plot as `None`.
         """
+        if len(self.data_uncalibrated) == 0:
+            self.data_calibrated = None
+            self.calibration_plot = None
+            return
         if self.calibration_fit is not None:
             fit = self.calibration_fit
         else:
@@ -129,9 +134,10 @@ class MassSpectrum():
         instance (if applicable).
         
         When no calibrants are provided in `self.calibrants_df`, or when
-        `self.calibrate` is set to `False`, an empty list is returned.
+        `self.calibrate` is set to `False`, or the spectrum is empty, an empty
+        list is returned.
         """
-        if not self.calibrate:
+        if not self.calibrate or len(self.data_uncalibrated) == 0:
             return []  # To prevent unnecessary work below.
 
         # Create list of (m/z, charge, m/z window) tuples.
@@ -295,12 +301,10 @@ class MassSpectrum():
             [cal.mz_exact for cal in calibrants],
             dtype=float
         )
-
         mz_observed = np.array(
             [cal.mz_observed for cal in calibrants],
             dtype=float
         )
-
         mz_delta = np.array(
             [cal.mz_exact - cal.mz_observed for cal in calibrants],
             dtype=float
@@ -364,7 +368,6 @@ class MassSpectrum():
             )
 
         axis.plot(mz_plot, y_fitted, color="black")
-
         axis.set_xlabel(r"Observed $m/z$")
         axis.set_ylabel(y_label)
         axis.set_title(f"{self.file_raw}")
@@ -412,8 +415,13 @@ class MassSpectrum():
         
         Returns:
             A list with instances of the `Analyte` class.
-            `None` if the mass spectrum failed to calibrate.
+            `None` if the mass spectrum failed to calibrate. Empty spectra
+            return an empty list; unusable backgrounds skip their analyte.
         """
+        self.skipped_analytes = set()
+        if len(self.data_uncalibrated) == 0:
+            self.logger.warning(f"Spectrum {self.name} contains no data; skipping quantitation.")
+            return []
         # Determine which MS data to use.
         if self.data_calibrated is not None:
             spectrum = self.data_calibrated
@@ -442,6 +450,7 @@ class MassSpectrum():
         mz_min = np.min(spectrum[:, 0])
         mz_max = np.max(spectrum[:, 0])
         analytes_to_skip = set()
+        backgrounds = {}
         prev_analyte_label = None
 
         for _, row in reference.iterrows():
@@ -478,6 +487,15 @@ class MassSpectrum():
                 if edge_low < mz_min or edge_high > mz_max:
                     analytes_to_skip.add(analyte_label)
                     continue
+                try:
+                    backgrounds[analyte_label] = peak.get_background_and_noise(
+                        target_mz=mz_val,
+                        background_mass_window=self.background_mass_window
+                    )
+                except ValueError as exc:
+                    self.logger.warning(f"Skipping analyte {analyte_label}: {exc}")
+                    analytes_to_skip.add(analyte_label)
+                    continue
 
             prev_analyte_label = analyte_label
 
@@ -488,8 +506,8 @@ class MassSpectrum():
 
         for label in analytes_to_skip:
             self.logger.warning(
-                f"Analyte {label} has insufficient spectrum coverage "
-                "and will not be quantified."
+                f"Analyte {label} has insufficient spectrum coverage or "
+                "background data and will not be quantified."
             )
 
         self.skipped_analytes = analytes_to_skip
@@ -550,10 +568,7 @@ class MassSpectrum():
                 # Update analyte name plus background and noise.
                 # (Background and noise are based on the lowest-mass peak)
                 current_analyte = analyte_name
-                background_and_noise = peak.get_background_and_noise(
-                    target_mz=peak.mz_exact,
-                    background_mass_window=self.background_mass_window
-                )
+                background_and_noise = backgrounds[analyte_name]
                 
             # Extend list with peak areas.
             peaks.append({

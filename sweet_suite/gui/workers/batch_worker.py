@@ -944,18 +944,24 @@ class BatchWorker(QObject):
                     )
 
                     # Create a MassSpectrum instance and add to list.
-                    mass_spectrum = MassSpectrum(
-                        name=sum_spectrum.name,
-                        file_raw=sum_spectrum.file_raw,
-                        data_uncalibrated=sum_spectrum.data,
-                        background_mass_window=self.background_mass_window,
-                        calibrate=self.sum_spectra_calibration[pair]["calibrate"],
-                        calibration_mass_window=self.calibration_mass_window,
-                        calibrants_df=calibrants_df,
-                        time=sum_spectrum.time,
-                        time_window=sum_spectrum.time_window,
-                        plot_mz_corrections=self.plot_mz_corrections
-                    )
+                    try:
+                        mass_spectrum = MassSpectrum(
+                            name=sum_spectrum.name,
+                            file_raw=sum_spectrum.file_raw,
+                            data_uncalibrated=sum_spectrum.data,
+                            background_mass_window=self.background_mass_window,
+                            calibrate=self.sum_spectra_calibration[pair]["calibrate"],
+                            calibration_mass_window=self.calibration_mass_window,
+                            calibrants_df=calibrants_df,
+                            time=sum_spectrum.time,
+                            time_window=sum_spectrum.time_window,
+                            plot_mz_corrections=self.plot_mz_corrections
+                        )
+                    except ValueError as exc:
+                        self.logger.warning(
+                            f"Skipping invalid sum spectrum {sum_spectrum.name}: {exc}"
+                        )
+                        continue
 
                     mass_spectra.append(mass_spectrum)
 
@@ -1023,11 +1029,16 @@ class BatchWorker(QObject):
                         calibration_plot = ms.calibration_plot
                         ms.calibration_plot = None  # Free up memory
 
-                    self.logger.info(
-                        f"Calibrated sum spectrum ({ms.time:g}"
-                        f" ± {ms.time_window:g} s) for "
-                        f"{os.path.basename(path)}"
-                    )
+                    if ms.data_calibrated is not None:
+                        self.logger.info(
+                            f"Calibrated sum spectrum ({ms.time:g}"
+                            f" ± {ms.time_window:g} s) for "
+                            f"{os.path.basename(path)}"
+                        )
+                    else:
+                        self.logger.warning(
+                            f"Calibration failed for sum spectrum {ms.name}"
+                        )
 
                 # Save calibration plot to PDF.
                 # Need to check explicitly if the plot exists, because it is
@@ -1204,18 +1215,23 @@ class BatchWorker(QObject):
                     continue
                 
                 # Create an instance of MassSpectrum.
-                spectrum = MassSpectrum(
-                    name=file_name,
-                    file_raw=file_name,
-                    data_uncalibrated=data_uncalibrated,
-                    background_mass_window=self.background_mass_window,
-                    calibrate=(not calibrants_df.empty),
-                    calibration_mass_window=self.calibration_mass_window,
-                    calibrants_df=calibrants_df,
-                    time=None,
-                    time_window=None,
-                    plot_mz_corrections=self.plot_mz_corrections
-                )
+                try:
+                    spectrum = MassSpectrum(
+                        name=file_name,
+                        file_raw=file_name,
+                        data_uncalibrated=data_uncalibrated,
+                        background_mass_window=self.background_mass_window,
+                        calibrate=(not calibrants_df.empty),
+                        calibration_mass_window=self.calibration_mass_window,
+                        calibrants_df=calibrants_df,
+                        time=None,
+                        time_window=None,
+                        plot_mz_corrections=self.plot_mz_corrections
+                    )
+                except ValueError as exc:
+                    self.logger.warning(f"Skipping invalid spectrum {file_name}: {exc}")
+                    self.quantitation_progress.emit(round((idx + 1) / n * 100))
+                    continue
 
                 # Check number of calibrants above S/N cut-off.
                 calibrants = [
@@ -1227,9 +1243,10 @@ class BatchWorker(QObject):
                 if len(calibrants) >= self.min_calibrant_number:
                     spectrum.calibrants_to_fit = calibrants
                     spectrum.apply_calibration()
-                    self.logger.info(
-                        f"Calibrated spectrum {file_name}"
-                    )
+                    if spectrum.data_calibrated is not None:
+                        self.logger.info(f"Calibrated spectrum {file_name}")
+                    else:
+                        self.logger.warning(f"Calibration failed for spectrum {file_name}")
 
                 # If not enough calibrants: either no calibrants were specified
                 # and calibration can be skipped, or not enough calibrants
