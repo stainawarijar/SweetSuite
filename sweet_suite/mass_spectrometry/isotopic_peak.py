@@ -280,7 +280,11 @@ class IsotopicPeak:
 
         A cubic spline is fitted over the MS data in the range
         `[mz_exact ± mz_window]`. Among all local maxima of the spline,
-        the one with the highest intensity is returned.
+        the one with the highest intensity is returned. If fitting succeeds
+        but the evaluated spline has no local maximum, the highest-intensity
+        local maximum in the measured data within the window is returned.
+        A local maximum must be strictly higher than both neighboring points;
+        endpoints are excluded.
 
         Args:
             mz_window: m/z window (Th) to use around the exact
@@ -291,7 +295,9 @@ class IsotopicPeak:
         Returns:
             (m/z, intensity) tuple at the highest local maximum within the
             specified m/z range. `(np.nan, np.nan)` when fitting fails or when
-            the spline does not contain a local maximum.
+            neither the evaluated spline nor the measured data contains a
+            local maximum. Fewer than four measured points cannot be fitted
+            and also return `(np.nan, np.nan)`.
         """
         # Get MS data for the specified range.
         idx_low = np.searchsorted(
@@ -344,26 +350,39 @@ class IsotopicPeak:
                     max_idx = max_indices[np.argmax(predicted[max_indices])]
                     return (mz_array[max_idx], float(predicted[max_idx]))
 
-                # No local maximum in spline -> assume no peak.
+                # If no local maximum in spline, check the measured data.
+                self.logger.info(
+                    f"Spline fit for m/z {self.mz_exact:.4f} contains no " 
+                    "local maximum. Checking for a non-fitted local maximum."
+                )
+
+                max_indices = np.array([
+                    i for i in range(1, len(intensities) - 1)
+                    if intensities[i] > intensities[i - 1] and
+                    intensities[i] > intensities[i + 1]
+                ], dtype=int)
+
+                if len(max_indices) > 0:
+                    self.logger.info("Returning non-fitted local maximum found.")
+                    max_idx = max_indices[np.argmax(intensities[max_indices])]
+                    return (mzs[max_idx], float(intensities[max_idx]))
+
                 self.logger.warning(
-                    f"Spline fit for {self.mz_exact:.4f} m/z (window="
-                    f"{mz_window:.4f} Th) contains no local maximum. " 
-                    "Returning NaN."
+                    f"Region contains no local maximum. Returning NaN."
                 )
                 return (np.nan, np.nan)
 
-            except ValueError as e:
-                # Fallback: use non-fitted local maximum in the window.
+            except ValueError as exc:
                 self.logger.warning(
                     f"Spline fit failed for {self.mz_exact:.4f} m/z "
-                    f"(window={mz_window:.4f} Th): {str(e)}. "
+                    f"(window = {mz_window:.4f} Th): {str(exc)}. "
                     f"Returning NaN."
                 )
                 
         else:
             self.logger.warning(
                 f"Insufficient data points ({len(mzs)}) for m/z {self.mz_exact:.4f} "
-                f"(window={mz_window:.4f} Th) to fit a spline. Returning NaN."
+                f"(window = {mz_window:.4f} Th) to fit a spline. Returning NaN."
             )
 
         return (np.nan, np.nan)
