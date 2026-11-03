@@ -714,12 +714,10 @@ class BatchWorker(QObject):
             [cal.mz_exact for cal in calibrants],
             dtype=float
         )
-
         mz_observed = np.array(
             [cal.mz_observed for cal in calibrants],
             dtype=float
         )
-
         mz_delta = np.array(
             [cal.mz_exact - cal.mz_observed for cal in calibrants],
             dtype=float
@@ -770,7 +768,6 @@ class BatchWorker(QObject):
 
         axis.set_xlabel(r"Observed $m/z$")
         axis.set_ylabel(y_label)
-
         axis.set_title(
             f"{file_name}\n"
             "Calibration failed: insufficient number of suitable calibrants",
@@ -894,7 +891,6 @@ class BatchWorker(QObject):
         header = True  # Set to False after first non-empty mzXML file is processed.
         with PdfPages(pdf_path) as pdf:
             for idx, path in enumerate(mzxml_file_paths):
-
                 # Check if stop was requested.
                 if self.stop_requested:
                     self.logger.info(
@@ -902,6 +898,10 @@ class BatchWorker(QObject):
                     )
                     self.aborted.emit()
                     return
+
+                self.logger.info(
+                    f"Start processing of {os.path.basename(path)}"
+                )
 
                 # Read mzXML file.
                 mzxml = Mzxml(path)
@@ -1199,6 +1199,10 @@ class BatchWorker(QObject):
                     )
                     self.aborted.emit()
                     return
+
+                self.logger.info(
+                    f"Start processing of {os.path.basename(path)}"
+                )
 
                 # Read xy file.
                 # If reading fails, show warning and continue to next file.
