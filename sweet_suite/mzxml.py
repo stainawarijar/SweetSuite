@@ -343,7 +343,9 @@ class Mzxml:
         ):
             for line in old_file:
                 if "retentionTime=" in line:
-                    new_time = np.round(times_aligned[idx], 3)
+                    # NOTE: Temporary solution: set negative times to zero.
+                    # TODO: Find a beter alternative.
+                    new_time = max(0.0, np.round(times_aligned[idx], 3))
                     adjusted_line = re.sub(
                             'retentionTime="[^"]+"', 
                             f'retentionTime="PT{new_time}S"',

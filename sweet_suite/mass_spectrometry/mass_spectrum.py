@@ -28,7 +28,8 @@ class MassSpectrum():
             filenames.
         file_raw (str): Name of the raw data file containing the spectrum.
         data_uncalibrated (np.ndarray): 2D array with uncalibrated m/z values
-            in the first column and intensities in the second column.
+            in the first column and intensities in the second column, sorted
+            by increasing m/z. Empty spectra have shape (0, 2).
         background_mass_window (float): Mass window (Da) used to estimate
             background and noise around peaks.
         calibrate (bool): Whether calibration was requested for the spectrum.
@@ -41,15 +42,23 @@ class MassSpectrum():
         time_window (float | None): Retention-time window of the spectrum;
             `None` for MS-only data.
         local_calibrants (list[Calibrant]): Calibrants available within the
-            spectrum's m/z range and retention-time window.
+            spectrum's m/z range, with a finite maximum and full background
+            coverage. The caller supplies the RT-specific table and applies
+            S/N thresholds before choosing calibrants to fit.
         calibrants_to_fit (list[Calibrant] | None): Calibrants used to fit the
             calibration model.
+        calibration_fit (np.ndarray | None): Optional supplied correction
+            coefficients in descending polynomial order. After changing this
+            or `calibrants_to_fit`, call `apply_calibration()` explicitly.
         plot_mz_corrections (bool): If true, the calibration plot shows m/z
             corrections instead of mass errors in ppm.
         data_calibrated (np.ndarray | None): Calibrated spectrum data, or
             `None` when calibration cannot be performed.
         calibration_plot (Figure | None): Plot of the calibration fit, or
-            `None` when calibration cannot be performed.
+            `None` when plotting is disabled or fit/calibrants are unavailable.
+        skipped_analytes (set[str]): Analyte/charge labels skipped for coverage
+            or unusable background data in the latest quantitation call.
+            Created by `quantify_analytes()`.
     """
 
     def __init__(
@@ -87,9 +96,9 @@ class MassSpectrum():
     def apply_calibration(
         self,
         plot: bool = True,
-        color_map: dict[
+        rt_styles: dict[
             tuple[float, float],
-            tuple[float, float, float, float]
+            dict[str, tuple[float, float, float, float] | str]
         ] | None = None
     ) -> None:
         """Calibrate the data using a calibration fit, but only if fit 
@@ -98,16 +107,24 @@ class MassSpectrum():
         Args:
             plot: Whether to create a calibration figure or not. 
                 Set to `True` by default.
-            color_map: An optional dictionary that maps (time, window)
-                combinations to colors. These are used for coloring
-                data points in the calibration fit figure.
+            rt_styles: An optional dictionary that maps (time, window)
+                combinations to dictionaries with color and marker styles
+                for data points in the calibration fit figure.
 
-        The fitted coefficients are used to populate `data_calibrated` and
+        The coefficients are used to populate `data_calibrated` and
         `calibration_plot`. If a calibration fit is in `self.calibration_fit`
         then that fit is used. Otherwise, fitting is attempted on provided
         `self.calibrants_to_fit`. If neither are provided then `fit`,
         `self.data_calibrated` and `self.calibration_plot` are all `None`.
+        Empty spectra leave calibrated data and the plot as `None`. This method
+        does not enforce `calibrate`, S/N thresholds, or a minimum calibrant
+        count; the batch worker controls those decisions. A supplied fit can
+        calibrate data without a plot when `calibrants_to_fit` is unavailable.
         """
+        if len(self.data_uncalibrated) == 0:
+            self.data_calibrated = None
+            self.calibration_plot = None
+            return
         if self.calibration_fit is not None:
             fit = self.calibration_fit
         else:
@@ -118,20 +135,24 @@ class MassSpectrum():
         if plot:
             self.calibration_plot = self.plot_calibration(
                 calibration_fit=fit, 
-                color_map=color_map
+                rt_styles=rt_styles
             )
         else:
             self.calibration_plot = None
 
     def get_local_calibrants(self) -> list[Calibrant]:
-        """Return a list with instances of the `Calibrant` class, whose 
-        retention times correspond to the retention time of this MassSpectrum
-        instance (if applicable).
+        """Create calibrant observations from the caller's RT-specific table.
+
+        Require full calibration-search and quantitation windows around exact
+        m/z, a finite spline maximum, and background-bin coverage around the
+        observed m/z. No S/N threshold is applied here; a returned calibrant
+        can still have `np.nan` S/N if its background is unusable.
         
         When no calibrants are provided in `self.calibrants_df`, or when
-        `self.calibrate` is set to `False`, an empty list is returned.
+        `self.calibrate` is set to `False`, or the spectrum is empty, an empty
+        list is returned.
         """
-        if not self.calibrate:
+        if not self.calibrate or len(self.data_uncalibrated) == 0:
             return []  # To prevent unnecessary work below.
 
         # Create list of (m/z, charge, m/z window) tuples.
@@ -149,11 +170,11 @@ class MassSpectrum():
         calibrants = []
     
         for mz, charge, mz_window in tuples:
-
-            # Check m/z value is not outside MS range.
+            # The calibration search and quantitation windows are centered on
+            # the theoretical m/z. Background is checked at the observed m/z.
             half_span = max(
-                self.calibration_mass_window / charge,
-                self.background_mass_window / charge + mz_window
+                self.calibration_mass_window / abs(charge),
+                mz_window,
             )
             if mz - half_span < mz_min or mz + half_span > mz_max:
                 self.logger.warning(
@@ -167,12 +188,35 @@ class MassSpectrum():
                 mz_exact=mz,
                 charge=charge,
                 time=self.time,
-                time_window = self.time_window,
+                time_window=self.time_window,
                 spectrum=self.data_uncalibrated,
                 background_mass_window=self.background_mass_window,
                 quantitation_mz_window=mz_window,
                 calibration_mass_window=self.calibration_mass_window
             )
+
+            spline_maximum = calibrant.spline_maximum
+            if np.shape(spline_maximum) != (2,) or not np.all(
+                np.isfinite(spline_maximum)
+            ):
+                self.logger.warning(
+                    f"Calibrant m/z {mz:.4f} has no valid spline maximum "
+                    "and will not be used."
+                )
+                continue
+
+            bin_centers = calibrant.get_background_bin_centers(
+                target_mz=spline_maximum[0],
+                background_mass_window=self.background_mass_window
+            )
+            edge_low = np.min(bin_centers) - mz_window
+            edge_high = np.max(bin_centers) + mz_window
+            if edge_low < mz_min or edge_high > mz_max:
+                self.logger.warning(
+                    f"Calibrant m/z {mz:.4f} has insufficient background "
+                    "coverage and will not be used."
+                )
+                continue
 
             calibrants.append(calibrant)
         
@@ -189,6 +233,10 @@ class MassSpectrum():
             An array containing the model coefficients [quadratic, linear, 
             intercept]. If `self.calibrants_to_fit` is `None` or an empty list, 
             `None` is returned.
+
+        The caller must supply usable observations and enforce the minimum
+        calibrant count and S/N thresholds. The fitted coefficients are returned,
+        not stored in `self.calibration_fit` by this method.
         """ 
         calibrants = self.calibrants_to_fit
 
@@ -238,9 +286,9 @@ class MassSpectrum():
     def plot_calibration(
         self,
         calibration_fit: np.ndarray | None,
-        color_map: dict[
+        rt_styles: dict[
             tuple[float, float],
-            tuple[float, float, float, float]
+            dict[str, tuple[float, float, float, float] | str]
         ] | None = None
     ) -> Figure | None:
         """Plot the calibration fit.
@@ -253,8 +301,8 @@ class MassSpectrum():
         Args:
             calibration_fit: Quadratic fit coefficients in the order
                 [quadratic, linear, intercept].
-            color_map: An optional dictionary that maps (time, window)
-                combinations to colors. 
+            rt_styles: An optional dictionary that maps (time, window)
+                combinations to dictionaries with color and marker styles.
 
         Returns:
             A matplotlib Figure. `None` if `calibration_fit` is `None`. `None`
@@ -272,12 +320,10 @@ class MassSpectrum():
             [cal.mz_exact for cal in calibrants],
             dtype=float
         )
-
         mz_observed = np.array(
             [cal.mz_observed for cal in calibrants],
             dtype=float
         )
-
         mz_delta = np.array(
             [cal.mz_exact - cal.mz_observed for cal in calibrants],
             dtype=float
@@ -325,7 +371,8 @@ class MassSpectrum():
                     mz_observed[mask],
                     y_values[mask],
                     s=45,
-                    color=color_map[key] if color_map is not None else None,
+                    color=rt_styles[key]["color"] if rt_styles is not None else None,
+                    marker=rt_styles[key]["marker"] if rt_styles is not None else "o",
                     edgecolor="black",
                     linewidths=0.4,
                     label=f"{time_value:g} ± {window_value:g} s"
@@ -340,7 +387,6 @@ class MassSpectrum():
             )
 
         axis.plot(mz_plot, y_fitted, color="black")
-
         axis.set_xlabel(r"Observed $m/z$")
         axis.set_ylabel(y_label)
         axis.set_title(f"{self.file_raw}")
@@ -381,15 +427,24 @@ class MassSpectrum():
         Args:
             analytes_ref: Reference data with one row per isotopic peak and
                 columns `peak`, `mz`, `mz_window`, and `relative_area`.
+                Peak labels must be `AnalyteName_ChargeState_IsotopologueNumber`,
+                with no underscores in the analyte name. Rows must be contiguous
+                per analyte/charge group and ordered by increasing isotope mass;
+                the first selected peak provides the shared background estimate.
                 For LC-MS data, `time` and `time_window` columns identify the
-                sum spectrum in which each peak should be quantified.
+                sum spectrum by exact equality, not interval overlap.
             use_peak_height: If True, use maximum intensity of each isotopic
                 peak instead of the trapezoidal area for quantitation.
         
         Returns:
             A list with instances of the `Analyte` class.
-            `None` if the mass spectrum failed to calibrate.
+            `None` if the mass spectrum failed to calibrate. Empty spectra
+            return an empty list; unusable backgrounds skip their analyte.
         """
+        self.skipped_analytes = set()
+        if len(self.data_uncalibrated) == 0:
+            self.logger.warning(f"Spectrum {self.name} contains no data; skipping quantitation.")
+            return []
         # Determine which MS data to use.
         if self.data_calibrated is not None:
             spectrum = self.data_calibrated
@@ -413,11 +468,12 @@ class MassSpectrum():
 
         # Check that all required m/z windows for each analyte fit within the
         # spectrum range. For every peak the quantitation window is checked;
-        # for the first (lowest-mass) peak per analyte the background window is
-        # also checked, because background is determined from that peak.
+        # for the first (lowest-mass) peak per analyte, the background window
+        # is also checked.
         mz_min = np.min(spectrum[:, 0])
         mz_max = np.max(spectrum[:, 0])
         analytes_to_skip = set()
+        backgrounds = {}
         prev_analyte_label = None
 
         for _, row in reference.iterrows():
@@ -426,31 +482,55 @@ class MassSpectrum():
             mz_window = row["mz_window"]
             charge = int(peak_name.split("_")[-2])
             analyte_label = "_".join(peak_name.split("_")[:-1])
+
+            # This statement is here to prevent adding the same `analyte_label`
+            # multiple times.
             if analyte_label in analytes_to_skip:
                 continue
+
+            # Check if there is enough background region around the first peak.
+            # Note that the first peak is not necessarily the isotopologue with
+            # index zero. For large analytes, that peak may not be included in 
+            # the reference file because its relative abundance is too small.
+            # Therefore `prev_analyte_label` is used.
+            if analyte_label != prev_analyte_label:
+                peak = IsotopicPeak(
+                    mz_exact=mz_val,
+                    charge=charge,
+                    spectrum=spectrum,
+                    quantitation_mz_window=mz_window
+                )
+                bin_centers = peak.get_background_bin_centers(
+                    target_mz=mz_val,
+                    background_mass_window=self.background_mass_window
+                )
+                edge_low = np.min(bin_centers) - mz_window
+                edge_high = np.max(bin_centers) + mz_window
+                # Check if this range falls within spectrum.
+                if edge_low < mz_min or edge_high > mz_max:
+                    analytes_to_skip.add(analyte_label)
+                    continue
+                try:
+                    backgrounds[analyte_label] = peak.get_background_and_noise(
+                        target_mz=mz_val,
+                        background_mass_window=self.background_mass_window
+                    )
+                except ValueError as exc:
+                    self.logger.warning(f"Skipping analyte {analyte_label}: {exc}")
+                    analytes_to_skip.add(analyte_label)
+                    continue
+
+            prev_analyte_label = analyte_label
 
             # Check that the quantitation window fits within the spectrum range.
             if mz_val - mz_window < mz_min or mz_val + mz_window > mz_max:
                 analytes_to_skip.add(analyte_label)
                 continue
 
-            # For the first peak of each analyte, also check background window.
-            if analyte_label != prev_analyte_label:
-                background_half_span = (
-                    self.background_mass_window / charge + mz_window
-                )
-                if (
-                    mz_val - background_half_span < mz_min or 
-                    mz_val + background_half_span > mz_max
-                ):
-                    analytes_to_skip.add(analyte_label)
-
-            prev_analyte_label = analyte_label
-
         for label in analytes_to_skip:
             self.logger.warning(
-                f"Analyte {label} falls outside the spectrum m/z range "
-                "and will not be quantified."
+                f"Analyte {label} has insufficient spectrum coverage or "
+                "background data and will not be quantified."
             )
 
         self.skipped_analytes = analytes_to_skip
@@ -464,6 +544,8 @@ class MassSpectrum():
 
         # Initialize list to which instances of Analyte will be added.
         analytes = []
+        if reference.empty:
+            return analytes
 
         # Initialize analyte properties.
         current_analyte = None
@@ -509,10 +591,7 @@ class MassSpectrum():
                 # Update analyte name plus background and noise.
                 # (Background and noise are based on the lowest-mass peak)
                 current_analyte = analyte_name
-                background_and_noise = peak.get_background_and_noise(
-                    target_mz=peak.mz_exact,
-                    background_mass_window=self.background_mass_window
-                )
+                background_and_noise = backgrounds[analyte_name]
                 
             # Extend list with peak areas.
             peaks.append({

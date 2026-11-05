@@ -85,7 +85,11 @@ organized in subdirectories within the blocks folder; the entire folder is
 scanned recursively.
 
 `charge_min` and `charge_max` define the charge states in which each analyte 
-will be quantified. `time` and `time_window` define the retention time range 
+will be quantified. Always specify the numerically lowest charge as `charge_min`
+and the highest as `charge_max`. For negative ions, for example, use `-2` and
+`-1` and select `proton_loss` as the charge carrier to model proton removal.
+Reported m/z values remain positive for either polarity.
+`time` and `time_window` define the retention time range
 for generating sum spectra, where the range is [`time` ± `time_window`].
 
 To specify potential calibrants, place an `x` in the calibrant column.
