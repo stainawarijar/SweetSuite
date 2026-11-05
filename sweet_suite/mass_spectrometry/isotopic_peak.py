@@ -1,7 +1,5 @@
 import logging
 
-from matplotlib.figure import Figure
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import InterpolatedUnivariateSpline
 
@@ -47,9 +45,20 @@ class IsotopicPeak:
         self.charge = charge
         self.spectrum = spectrum
         self.quantitation_mz_window = quantitation_mz_window
+        self.data = self.get_data()
 
-    @property
-    def data(self) -> np.ndarray:
+    def interpolate_intensity(self, target_mz: float) -> float:
+        """Interpolate using only the samples surrounding a boundary."""
+        mz = self.spectrum[:, 0]
+        index = np.searchsorted(mz, target_mz, side="right")
+        start = max(0, index - 1)
+        stop = min(len(mz), index + 1)
+
+        return np.interp(
+            target_mz, mz[start:stop], self.spectrum[start:stop, 1]
+        )
+
+    def get_data(self) -> np.ndarray:
         """Return MS data within the exact quantitation m/z window.
 
         The intensities at the exact lower and upper boundaries are obtained by
@@ -74,8 +83,8 @@ class IsotopicPeak:
         intensity_inner = intensity[idx_low:idx_high]
 
         # Interpolate intensity at the exact integration boundaries.
-        intensity_low = np.interp(mz_low, mz, intensity)
-        intensity_high = np.interp(mz_high, mz, intensity)
+        intensity_low = self.interpolate_intensity(mz_low)
+        intensity_high = self.interpolate_intensity(mz_high)
 
         mz_data = np.concatenate(([mz_low], mz_inner, [mz_high]))
         intensity_data = np.concatenate(
@@ -192,7 +201,6 @@ class IsotopicPeak:
         # Collect bin data.
         bins = []
         mz = self.spectrum[:, 0]
-        intensity = self.spectrum[:, 1]
 
         for mz_center in bin_centers:
             # Define center and edges of bin.
@@ -225,8 +233,8 @@ class IsotopicPeak:
                 )
 
             # Interpolate intensity at the exact quantitation boundaries.
-            intensity_low = np.interp(mz_low, mz, intensity)
-            intensity_high = np.interp(mz_high, mz, intensity)
+            intensity_low = self.interpolate_intensity(mz_low)
+            intensity_high = self.interpolate_intensity(mz_high)
 
             # Extend bin data with interpolated points at edges.
             mz_data = np.concatenate(

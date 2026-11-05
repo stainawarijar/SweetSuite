@@ -1273,6 +1273,7 @@ class BatchWorker(QObject):
                     finally:
                         plt.close(spectrum.calibration_plot)
                         spectrum.calibration_plot = None
+                        
                 elif not calibrants_df.empty:
                     failed_plot = self.plot_failed_calibration(
                         file_name=file_name,
