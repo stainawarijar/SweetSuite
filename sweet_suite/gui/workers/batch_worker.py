@@ -1004,6 +1004,11 @@ class BatchWorker(QObject):
                 calibration_plot = None
 
                 for ms in mass_spectra:
+                    # Empty RT windows cannot generate the shared calibration
+                    # plot. Leave fitting to the first nonempty spectrum.
+                    if len(ms.data_uncalibrated) == 0:
+                        continue
+
                     if not ms.calibrate:
                         self.logger.info(
                             f"Skipped calibration of sum spectrum ({ms.time:g}"
