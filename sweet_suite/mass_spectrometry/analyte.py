@@ -161,6 +161,22 @@ class Analyte:
             return 0.0
         return values_sum
 
+    def get_most_abundant_peak_index(self, metric: str):
+        """Return the peak index, or warn if theoretical abundances are invalid."""
+        theoretical = self.peaks["relative_area_theoretical"]
+        theoretical_total = np.sum(theoretical)
+        if (not np.isfinite(theoretical).all()
+                or not np.isfinite(theoretical_total)
+                or theoretical_total <= 0):
+            self.logger.warning(
+                f"{metric} is undefined for analyte {self.name} "
+                f"(charge {self.charge}): theoretical isotope abundances "
+                "contain non-finite values or have a non-positive total; "
+                "the most abundant isotopic peak cannot be determined. Returning NaN."
+            )
+            return None
+        return theoretical.idxmax()
+
     def get_signal_to_noise(self) -> float:
         """Return the signal-to-noise (S/N) of the analyte.
         
@@ -181,10 +197,10 @@ class Analyte:
             return 0.0
 
         # Get maximum intensity for the most abundant isotopic peak.
-        maximum_intensity = self.peaks.loc[
-            self.peaks["relative_area_theoretical"].idxmax(), 
-            "maximum_intensity"
-        ]
+        peak_index = self.get_most_abundant_peak_index("S/N")
+        if peak_index is None:
+            return np.nan
+        maximum_intensity = self.peaks.loc[peak_index, "maximum_intensity"]
 
         # Get noise and average background intensity.
         background_avg_intensity = self.background_and_noise[0]
@@ -193,10 +209,6 @@ class Analyte:
         # Calculate background-subtracted signal.
         signal_minus_background = maximum_intensity - background_avg_intensity
 
-        # If background subtracted signal is non-positive, return zero.
-        if signal_minus_background <= 0:
-            return 0.0
-
         if not np.isfinite(signal_minus_background):
             self.logger.warning(
                 f"S/N is undefined for analyte {self.name} "
@@ -204,6 +216,10 @@ class Analyte:
                 "of the most abundant isotopic peak is non-finite. Returning NaN."
             )
             return np.nan
+
+        # If background subtracted signal is non-positive, return zero.
+        if signal_minus_background <= 0:
+            return 0.0
 
         # Guard against zero or non-finite noise values.
         if noise == 0 or not np.isfinite(noise):
@@ -237,9 +253,10 @@ class Analyte:
         if self.total_area_background_subtracted == 0:
             return np.nan
 
-        mass_error_ppm = self.peaks.loc[
-            self.peaks["relative_area_theoretical"].idxmax(), "mass_error_ppm"
-        ]
+        peak_index = self.get_most_abundant_peak_index("Mass error")
+        if peak_index is None:
+            return np.nan
+        mass_error_ppm = self.peaks.loc[peak_index, "mass_error_ppm"]
 
         if np.isnan(mass_error_ppm):
             self.logger.warning(
