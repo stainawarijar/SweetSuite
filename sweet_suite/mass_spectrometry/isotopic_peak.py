@@ -10,18 +10,20 @@ class IsotopicPeak:
     """Represents an isotopic peak in a mass spectrum.
 
     An `IsotopicPeak` stores the exact m/z value, charge state, spectrum, 
-    and extraction window. It provides methods to estimate the local background 
-    and noise around the peak.
+    and extraction half-window. It integrates peak areas, measures strict local
+    maxima, and estimates background and noise. Spectra must be nonempty and
+    sorted by increasing m/z. Callers must ensure quantitation-window coverage;
+    boundary interpolation otherwise uses the nearest endpoint intensity.
     
     Attributes:
         mz_exact (float): The exact m/z value of the isotopic peak.
         charge (int): Charge state of the ion.
         spectrum (np.ndarray): 2D NumPy array with two columns: 
             m/z values and intensities.
-        quantitation_mz_window (float): m/z window (Th) used for extracting the 
-            peak from the spectrum.
+        quantitation_mz_window (float): Half-width (Th) of the peak window.
         data (np.ndarray): 2D array with MS data of the spectrum in the 
-            m/z range `[mz_exact ± quantitation_mz_window]`.
+            m/z range `[mz_exact ± quantitation_mz_window]`, including linearly
+            interpolated intensities at the exact boundaries.
     """
 
     def __init__(
@@ -35,10 +37,11 @@ class IsotopicPeak:
 
         Args:
             mz_exact: The exact m/z value of the isotopic peak.
-            charge: Charge state of the ion.
-            spectrum: 2D NumPy array with m/z values and intensities.
-            quantitation_mz_window: m/z window (Th) used for extracting the 
-                peak from the spectrum.
+            charge: Nonzero signed charge state; window scaling uses its
+                absolute value.
+            spectrum: Nonempty 2D NumPy array with m/z values and intensities,
+                sorted by increasing m/z.
+            quantitation_mz_window: Half-width (Th) of the extraction window.
         """
         self.logger = logging.getLogger(self.__class__.__name__)
         self.mz_exact = mz_exact
@@ -48,7 +51,10 @@ class IsotopicPeak:
         self.data = self.get_data()
 
     def interpolate_intensity(self, target_mz: float) -> float:
-        """Interpolate using only the samples surrounding a boundary."""
+        """Linearly interpolate between the samples surrounding a boundary.
+
+        Outside the spectrum range, return the nearest endpoint intensity.
+        """
         mz = self.spectrum[:, 0]
         index = np.searchsorted(mz, target_mz, side="right")
         start = max(0, index - 1)
@@ -108,7 +114,10 @@ class IsotopicPeak:
         the one with the highest intensity is selected. 
         If no local maximum is found (for example, when the window contains
         only a monotonic slope), `0.0` is returned.
-        Returns `np.nan` if `self.data` is empty.
+        Endpoints and flat plateaus do not qualify. Interpolated boundary
+        intensities are used as neighbours, but are not candidate maxima.
+        Returns `np.nan` if `self.data` is explicitly empty; normal extraction
+        includes both boundaries even when no measured points lie inside.
         """
         if len(self.data) == 0:
             self.logger.warning(
@@ -141,7 +150,14 @@ class IsotopicPeak:
         target_mz: float,
         background_mass_window: float
     ) -> np.ndarray:
-        """Return the exact bin centers used for background estimation."""
+        """Return the exact bin centers used for background estimation.
+
+        Offsets start at `-background_mass_window / abs(charge)` and advance
+        by `1 / abs(charge)` using `np.arange` through the positive limit.
+        Multiplying these offsets by the carbon-13/carbon-12 mass difference
+        gives m/z offsets from `target_mz`. The final bin center may exceed
+        the nominal positive limit when the span is not a whole number of steps.
+        """
         mass_difference = (
             ISOTOPES["carbon"]["C13"]["mass"]
             - ISOTOPES["carbon"]["C12"]["mass"]
@@ -164,11 +180,10 @@ class IsotopicPeak:
     ) -> tuple[float, float, float]:
         """Determine the background and noise for an isotopic peak.
 
-        In the range [`target_mz` ± `background_mass_window` / z], a number of 
-        m/z regions are defined and integrated. The centers of the regions are 
-        separated by (1.00335 / z), corresponding to the mass difference between 
-        13C and 12C, with 'z' being the absolute charge state. Each region has 
-        a width of twice `self.quantitation_mz_window`.
+        Define and integrate regions at the centers returned by
+        `get_background_bin_centers()`. Centers are separated by the carbon-13
+        minus carbon-12 mass difference divided by the absolute charge state.
+        Each region has a width of twice `self.quantitation_mz_window`.
 
         Bin regions include linearly interpolated intensities at the exact
         boundaries, to be consistent with peak area integration.
@@ -178,8 +193,9 @@ class IsotopicPeak:
         For all possible 5 consecutive regions, the average intensity is 
         calculated. The set of 5 bins with the lowest average intensity are 
         taken as the background region. Their areas are averaged to yield the 
-        background area, and the noise is estimated as the standard deviation
-        of intensities in those bins.
+        background area, and the noise is estimated as the sample standard
+        deviation (`ddof=1`) of measured intensities in those bins. The mean
+        intensity is weighted by the number of measured samples in each bin.
 
         Args:
             target_mz: m/z value for which background and noise should be 
@@ -401,8 +417,9 @@ class IsotopicPeak:
         """Return mass error in parts per million (ppm) based on the
         exact m/z and the observed m/z.
 
-        The m/z value for which the fitted spline has a maximum intensity
-        is taken to be the observed m/z.
+        The observed m/z comes from `get_spline_maximum()`, including its
+        measured-local-maximum fallback. Returns `np.nan` when no usable
+        maximum is available.
 
         The mass error is calculated as: `(observed - exact) / exact * 1e6`
         """

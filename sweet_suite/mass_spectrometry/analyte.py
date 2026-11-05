@@ -25,15 +25,18 @@ class Analyte:
             the isotopic peak with the highest theoretical relative area.
         total_area (float): Total observed area (or summed peak heights) of the
             integrated isotopic peaks.
-        total_background (float): Total background of the analyte.
-        total_noise (float): Total noise of the analyte.
+        total_background (float): Shared per-peak background area (or average
+            intensity in peak-height mode) multiplied by the peak count.
+        total_noise (float): Shared intensity noise multiplied by the peak count,
+            in either quantitation mode.
         total_area_background_subtracted (float): Total background 
             subtracted area (or summed peak heights) of the analyte.
         signal_to_noise (float): The signal-to-noise (S/N) of the analyte,
             based on the isotopic peak with the highest theoretical relative 
             area.
-        isotopic_pattern_quality (float): Isotopic pattern quality (IPQ)
-            of the analyte.
+        isotopic_pattern_quality (float): Sum of absolute differences between
+            normalized theoretical and background-subtracted observed isotope
+            fractions. Lower values indicate a closer match.
     """
 
     def __init__(
@@ -209,9 +212,10 @@ class Analyte:
         """
         Return the isotopic pattern quality (IPQ).
 
-        For each isotopic peak, the absolute difference between the expected
-        relative area and the observed relative area is taken. The resulting
-        absolute differences are then summed to yield the IPQ.
+        Normalize theoretical abundances over the selected isotopologues.
+        Subtract the shared background from each measured area (or peak height),
+        clip negative values to zero, and normalize by their sum. Sum the
+        absolute differences between theoretical and observed fractions.
 
         Returns `np.nan` if the analyte background-subtracted signal is zero.
         """

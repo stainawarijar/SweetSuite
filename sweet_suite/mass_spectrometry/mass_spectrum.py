@@ -28,7 +28,8 @@ class MassSpectrum():
             filenames.
         file_raw (str): Name of the raw data file containing the spectrum.
         data_uncalibrated (np.ndarray): 2D array with uncalibrated m/z values
-            in the first column and intensities in the second column.
+            in the first column and intensities in the second column, sorted
+            by increasing m/z. Empty spectra have shape (0, 2).
         background_mass_window (float): Mass window (Da) used to estimate
             background and noise around peaks.
         calibrate (bool): Whether calibration was requested for the spectrum.
@@ -41,15 +42,23 @@ class MassSpectrum():
         time_window (float | None): Retention-time window of the spectrum;
             `None` for MS-only data.
         local_calibrants (list[Calibrant]): Calibrants available within the
-            spectrum's m/z range and retention-time window.
+            spectrum's m/z range, with a finite maximum and full background
+            coverage. The caller supplies the RT-specific table and applies
+            S/N thresholds before choosing calibrants to fit.
         calibrants_to_fit (list[Calibrant] | None): Calibrants used to fit the
             calibration model.
+        calibration_fit (np.ndarray | None): Optional supplied correction
+            coefficients in descending polynomial order. After changing this
+            or `calibrants_to_fit`, call `apply_calibration()` explicitly.
         plot_mz_corrections (bool): If true, the calibration plot shows m/z
             corrections instead of mass errors in ppm.
         data_calibrated (np.ndarray | None): Calibrated spectrum data, or
             `None` when calibration cannot be performed.
         calibration_plot (Figure | None): Plot of the calibration fit, or
-            `None` when calibration cannot be performed.
+            `None` when plotting is disabled or fit/calibrants are unavailable.
+        skipped_analytes (set[str]): Analyte/charge labels skipped for coverage
+            or unusable background data in the latest quantitation call.
+            Created by `quantify_analytes()`.
     """
 
     def __init__(
@@ -102,12 +111,15 @@ class MassSpectrum():
                 combinations to dictionaries with color and marker styles
                 for data points in the calibration fit figure.
 
-        The fitted coefficients are used to populate `data_calibrated` and
+        The coefficients are used to populate `data_calibrated` and
         `calibration_plot`. If a calibration fit is in `self.calibration_fit`
         then that fit is used. Otherwise, fitting is attempted on provided
         `self.calibrants_to_fit`. If neither are provided then `fit`,
         `self.data_calibrated` and `self.calibration_plot` are all `None`.
-        Empty spectra leave calibrated data and the plot as `None`.
+        Empty spectra leave calibrated data and the plot as `None`. This method
+        does not enforce `calibrate`, S/N thresholds, or a minimum calibrant
+        count; the batch worker controls those decisions. A supplied fit can
+        calibrate data without a plot when `calibrants_to_fit` is unavailable.
         """
         if len(self.data_uncalibrated) == 0:
             self.data_calibrated = None
@@ -129,9 +141,12 @@ class MassSpectrum():
             self.calibration_plot = None
 
     def get_local_calibrants(self) -> list[Calibrant]:
-        """Return a list with instances of the `Calibrant` class, whose 
-        retention times correspond to the retention time of this MassSpectrum
-        instance (if applicable).
+        """Create calibrant observations from the caller's RT-specific table.
+
+        Require full calibration-search and quantitation windows around exact
+        m/z, a finite spline maximum, and background-bin coverage around the
+        observed m/z. No S/N threshold is applied here; a returned calibrant
+        can still have `np.nan` S/N if its background is unusable.
         
         When no calibrants are provided in `self.calibrants_df`, or when
         `self.calibrate` is set to `False`, or the spectrum is empty, an empty
@@ -218,6 +233,10 @@ class MassSpectrum():
             An array containing the model coefficients [quadratic, linear, 
             intercept]. If `self.calibrants_to_fit` is `None` or an empty list, 
             `None` is returned.
+
+        The caller must supply usable observations and enforce the minimum
+        calibrant count and S/N thresholds. The fitted coefficients are returned,
+        not stored in `self.calibration_fit` by this method.
         """ 
         calibrants = self.calibrants_to_fit
 
@@ -408,8 +427,12 @@ class MassSpectrum():
         Args:
             analytes_ref: Reference data with one row per isotopic peak and
                 columns `peak`, `mz`, `mz_window`, and `relative_area`.
+                Peak labels must be `AnalyteName_ChargeState_IsotopologueNumber`,
+                with no underscores in the analyte name. Rows must be contiguous
+                per analyte/charge group and ordered by increasing isotope mass;
+                the first selected peak provides the shared background estimate.
                 For LC-MS data, `time` and `time_window` columns identify the
-                sum spectrum in which each peak should be quantified.
+                sum spectrum by exact equality, not interval overlap.
             use_peak_height: If True, use maximum intensity of each isotopic
                 peak instead of the trapezoidal area for quantitation.
         

@@ -13,16 +13,22 @@ class Calibrant(IsotopicPeak):
     Attributes:
         time (float | None): Retention time of corresponding sum spectrum.
             `None` in case of MS-only data.
+        time_window (float | None): Retention-time half-window in seconds,
+            or `None` for MS-only data.
         background_mass_window (float): Mass window (Da) used to estimate
             background and noise around the calibrant peak.
         calibration_mass_window (float): Mass window (Da) used to derive 
             the calibration m/z window.
         calibration_mz_window (float): m/z window (Th), equal to
             `calibration_mass_window / abs(charge)`.
-        spline_maximum (tuple[float, float]): (m/z, intensity) at the
-            spline-derived maximum within the window.
+        spline_maximum (tuple[float, float]): (m/z, intensity) from
+            `get_spline_maximum()`, or `(np.nan, np.nan)` if unavailable.
         mz_observed (float): Observed m/z at the spline maximum.
         signal (float): Signal (intensity) at the spline maximum.
+        signal_to_noise (float): Background-subtracted signal divided by noise,
+            estimated around `mz_observed` using the quantitation bin width.
+            Zero for non-positive signal; `np.nan` for unusable maxima or
+            backgrounds, or positive signal with zero/non-finite noise.
     """
 
     def __init__(
@@ -45,10 +51,12 @@ class Calibrant(IsotopicPeak):
                 in case of MS-only data.
             time_window: Retention time window of the corresponding sum 
                 spectrum. Set to `None` in case of MS-only data.
-            spectrum: 2D array with m/z and intensity columns.
+            spectrum: Nonempty 2D array with m/z and intensity columns, sorted
+                by increasing m/z. The caller checks search-window coverage.
             background_mass_window: Mass window (Da) used to estimate
                 background and noise around the calibrant peak.
-            quantitation_mz_window: m/z window (Th) used for extraction.
+            quantitation_mz_window: Extraction and background-bin half-width
+                (Th), independent of the calibration search half-width.
             calibration_mass_window: Mass window (Da) used to compute the 
                 calibration m/z window.
         """                                                                       
