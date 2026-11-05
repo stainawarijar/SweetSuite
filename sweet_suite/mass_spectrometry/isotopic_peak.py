@@ -172,6 +172,8 @@ class IsotopicPeak:
 
         Bin regions include linearly interpolated intensities at the exact
         boundaries, to be consistent with peak area integration.
+        The interpolated intensities are used for area integration, but not
+        for calculating background and noise.
 
         For all possible 5 consecutive regions, the average intensity is 
         calculated. The set of 5 bins with the lowest average intensity are 
@@ -247,8 +249,8 @@ class IsotopicPeak:
             # Calculate bin area using interpolated data.
             bin_area = np.trapezoid(y=intensity_data, x=mz_data)
 
-            # Append bin area and intensities.
-            bins.append((bin_area, intensity_data))
+            # Use interpolated boundaries only for area integration.
+            bins.append((bin_area, bin_data[:, 1]))
 
         # Find 5 consecutive bins with lowest average intensity.
         background_average_intensity = np.inf
