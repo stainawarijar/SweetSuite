@@ -132,12 +132,30 @@ class Analyte:
         area of each isotopic peak.
         In peak-height mode: the average background intensity is subtracted
         from the maximum intensity of each isotopic peak.
-        The resulting positive values are summed.
+        The resulting positive values are summed. Returns `np.nan` with a
+        warning if peak values, background, or the calculated total are
+        non-finite.
         """
         col = "maximum_intensity" if self.use_peak_height else "area"
         bg = self.background_and_noise[0 if self.use_peak_height else 1]
-        values = self.peaks[col] - bg
-        values_sum = np.sum(values[values > 0])
+        if not np.isfinite(bg) or not np.isfinite(self.peaks[col]).all():
+            self.logger.warning(
+                f"Background-subtracted total is undefined for analyte {self.name} "
+                f"(charge {self.charge}): peak {col} values or background "
+                "contain non-finite values. Returning NaN."
+            )
+            return np.nan
+
+        with np.errstate(over="ignore", invalid="ignore"):
+            values = self.peaks[col] - bg
+            values_sum = np.sum(values[values > 0])
+        if not np.isfinite(values_sum):
+            self.logger.warning(
+                f"Background-subtracted total is undefined for analyte {self.name} "
+                f"(charge {self.charge}): the calculated total is non-finite. "
+                "Returning NaN."
+            )
+            return np.nan
         # In case of negative result, return zero.
         if values_sum < 0:
             return 0.0
