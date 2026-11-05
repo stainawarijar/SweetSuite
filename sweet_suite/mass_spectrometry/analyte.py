@@ -247,10 +247,19 @@ class Analyte:
         The mass error of the analyte is taken to be the mass error
         of the isotopic peak with the highest theoretical relative area.
 
-        If the analyte background-subtracted area is zero, `np.nan` is 
-        returned because the analyte is not present.
+        If the analyte background-subtracted area is zero, `np.nan` is
+        returned because the analyte is not present. A non-finite total also
+        returns `np.nan`, with a warning identifying the analyte.
         """
         if self.total_area_background_subtracted == 0:
+            return np.nan
+
+        if not np.isfinite(self.total_area_background_subtracted):
+            self.logger.warning(
+                f"Mass error is undefined for analyte {self.name} "
+                f"(charge {self.charge}): the total background-subtracted "
+                "signal is non-finite. Returning NaN."
+            )
             return np.nan
 
         peak_index = self.get_most_abundant_peak_index("Mass error")
