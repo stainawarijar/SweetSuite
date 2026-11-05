@@ -393,7 +393,7 @@ class IsotopicPeak:
                     max_idx = max_indices[np.argmax(intensities[max_indices])]
                     return (mzs[max_idx], float(intensities[max_idx]))
 
-                self.logger.warning(
+                self.logger.info(
                     f"Region contains no local maximum. Returning NaN."
                 )
                 return (np.nan, np.nan)
