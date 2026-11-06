@@ -22,6 +22,22 @@ targeted quantitation of (glyco)peptides and glycans in both LC-MS and MS-only d
     - [Third-party assets](#third-party-assets)
 
 ## USING SWEETSUITE
+
+### Update notifications
+
+On startup, SweetSuite checks GitHub for a newer published release in the
+background. **Get latest version** opens that release in your browser; updates
+are downloaded and installed manually. Checks use HTTPS and send no research
+data or user identifiers. GitHub receives ordinary connection information,
+including your public IP address. If the check cannot complete, SweetSuite
+continues without a warning.
+
+To suppress a release notification, select **Don't remind me again for this
+version** and click **Ignore**. The version is saved in `.ignoreupdate` beside
+the executable (in the project root when running from source). A newer release
+will prompt again. Delete this file to restore reminders for the ignored
+version. The application directory must be writable to save this preference.
+
 ***Note:*** *A more extensive user guide may be written in the future.*
 
 For LC-MS data, raw data files should be converted to mzXML format using 

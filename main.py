@@ -8,9 +8,10 @@ import sys
 
 from PyQt6.QtGui import QPalette, QColor
 from PyQt6.QtWidgets import QApplication, QStyleFactory
-from PyQt6.QtCore import qInstallMessageHandler
+from PyQt6.QtCore import QTimer, qInstallMessageHandler
 
 from sweet_suite.gui.main_window import MainWindow
+from sweet_suite.gui.managers.update_check_manager import UpdateCheckManager
 
 
 def suppress_qt_warnings(_mode, _context, message):
@@ -94,6 +95,9 @@ def main():
     # Create and show the main window.
     main_window = MainWindow()
     main_window.show()
+    update_checker = UpdateCheckManager(main_window)
+    app.aboutToQuit.connect(update_checker.stop)
+    QTimer.singleShot(0, update_checker.start)
     # Start application's event loop, exit when loop ends.
     sys.exit(app.exec())
 
