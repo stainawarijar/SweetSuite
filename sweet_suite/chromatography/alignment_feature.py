@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 from .eic import Eic
@@ -52,6 +54,7 @@ class AlignmentFeature:
                 chromatographic run will fail if the feature's S/N is below the
                 specified cut-off.
         """
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.mz_exact = mz_exact
         self.time_required = time_required
         self.alignment_time_window = alignment_time_window

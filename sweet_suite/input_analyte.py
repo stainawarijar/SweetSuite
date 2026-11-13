@@ -1,3 +1,5 @@
+import logging
+
 import math
 import re
 from typing import Any
@@ -79,6 +81,7 @@ class InputAnalyte:
             mass_modifier: Block name of the mass modifier (e.g. 'water'), or
                 None if no modifier is applied.
         """
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.blocks = blocks
         self.name = name
         self.charge_min = charge_min

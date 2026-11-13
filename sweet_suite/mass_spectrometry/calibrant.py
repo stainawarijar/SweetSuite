@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 from .isotopic_peak import IsotopicPeak
@@ -53,6 +55,7 @@ class Calibrant(IsotopicPeak):
                 calibration m/z window.
         """                                                                       
         super().__init__(mz_exact, charge, spectrum, quantitation_mz_window)
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.time = time
         self.time_window = time_window
         self.background_mass_window = background_mass_window

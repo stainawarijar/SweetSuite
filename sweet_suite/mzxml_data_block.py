@@ -1,3 +1,6 @@
+import logging
+
+
 class MzxmlDataBlock:
     """Represents a single scan block extracted from an mzXML file.
 
@@ -24,6 +27,7 @@ class MzxmlDataBlock:
         Args:
             contents: Raw XML string representing a '<scan>' element.
         """
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.contents = contents
         self.retention_time = self.get_retention_time()
         self.compression = self.get_compression()

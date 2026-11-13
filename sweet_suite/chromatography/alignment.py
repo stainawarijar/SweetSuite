@@ -1,9 +1,35 @@
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.polynomial import Polynomial
 from scipy.optimize import curve_fit
 
 from .eic import Eic
+
+
+def rt_fit_quadratic(
+    points: list[tuple[float, float]]
+) -> Polynomial:
+    """
+    Fit a quadratic retention-time correction function.
+
+    The required retention time corrections are fitted as a function of 
+    expected retention times.
+
+    Args:
+        points: A list of (observed, required) retention time tuples.
+    
+    Returns:
+        A polynomial describing the required time correction.
+    """
+    observed_rt = np.array([point[0] for point in points])
+    expected_rt = np.array([point[1] for point in points])
+
+    correction = expected_rt - observed_rt
+
+    fit = Polynomial.fit(observed_rt, correction, deg=2)
+
+    return fit
 
 
 def fit_power(

@@ -1,5 +1,7 @@
 import time
 
+import pandas as pd
+
 from PyQt6.QtCore import Qt, QThread
 from PyQt6.QtWidgets import QDialog, QMessageBox, QListWidgetItem
 
@@ -185,18 +187,32 @@ class BatchCoordinator:
             )
             return
 
-        def selected_path(widget):
+        def selected_list(widget):
             item = widget.item(0)
-            return item.text() if item is not None else None
+            if item is None:
+                return None
+            try:
+                return pd.read_excel(item.text())
+            except Exception as e:
+                UIHelpers.show_message_box(
+                    self.parent, title="Invalid LC-FLD list",
+                    text=f"Could not read {item.text()}.",
+                    informative_text=str(e), icon="Warning"
+                )
+                return None
 
         self.batch_worker = FldBatchWorker(
             raw_folder_path=folder.text(),
-            peaks_list_path=selected_path(ui.path_peaks_list),
-            alignment_list_path=selected_path(ui.path_alignment_list),
+            peaks_list_df=selected_list(ui.path_peaks_list),
+            alignment_list_df=selected_list(ui.path_alignment_list),
             alignment_time_window=float(ui.alignment_time_window.value()),
             alignment_sn_cutoff=float(ui.alignment_sn_cutoff.value()),
             alignment_min_peaks=int(ui.alignment_min_peaks.value()),
             quantitate_aligned_only=ui.quantify_aligned.isChecked(),
+            roi_start=float(ui.roi_start.value()),
+            roi_end=float(ui.roi_end.value()),
+            peak_width=float(ui.peak_width.value()),
+            integration_window=float(ui.integration_window.value()),
         )
         self.parent.setEnabled(False)
         self.batch_start_time = time.perf_counter()

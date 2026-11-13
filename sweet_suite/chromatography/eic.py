@@ -1,5 +1,6 @@
+import logging
+
 import numpy as np
-import matplotlib.pyplot as plt
 
 from .chromatogram import Chromatogram
 
@@ -58,14 +59,17 @@ class Eic(Chromatogram):
             
         """
         super().__init__(data)
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.mz_exact = mz_exact
         self.time_required = time_required
         self.alignment_time_window = alignment_time_window
         self.alignment_sn_cutoff = alignment_sn_cutoff
         self.required_for_alignment = required_for_alignment
+        self.peak_data = self.get_peak_data()
+        self.maximum = self.get_maximum()
+        self.signal_to_noise = self.get_signal_to_noise()
 
-    @property
-    def peak_data(self) -> np.ndarray:
+    def get_peak_data(self) -> np.ndarray:
         """Return data within the specified alignment time range."""
         start_idx = np.searchsorted(
             self.data[:, 0],
@@ -83,8 +87,7 @@ class Eic(Chromatogram):
 
         return self.data[start_idx:end_idx, :]
 
-    @property
-    def maximum(self) -> tuple[float, float]:
+    def get_maximum(self) -> tuple[float, float]:
         """Determines where the peak range data has a maximum intensity.
 
         The time where the intensity takes on a maximum is taken to be
@@ -99,8 +102,7 @@ class Eic(Chromatogram):
         
         return tuple(self.peak_data[np.argmax(self.peak_data[:, 1])])
 
-    @property
-    def signal_to_noise(self) -> float:
+    def get_signal_to_noise(self) -> float:
         """Returns the signal-to-noise (S/N).
         
         The signal is calculated as the intensity minus the background area.

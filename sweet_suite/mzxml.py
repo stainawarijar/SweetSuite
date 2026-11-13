@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 import re
 import zlib
@@ -39,6 +40,7 @@ class Mzxml:
         Args:
             path: Path to the mzXML file to be read.
         """
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.path = path
         self.file_name = self.get_file_name()
         self.times_encoded_data = self.read_data_blocks()

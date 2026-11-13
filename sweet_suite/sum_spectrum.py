@@ -1,3 +1,4 @@
+import logging
 import os
 
 import numpy as np
@@ -41,6 +42,7 @@ class SumSpectrum:
             data: 2D NumPy array with m/z values in the first column and 
                 intensities in the second column.
         """
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.file_raw = file_raw
         self.time = time
         self.time_window = time_window

@@ -34,7 +34,7 @@ def parse_fld_txt_file(path: str) -> np.ndarray:
             if line.strip() in {"Raw Data:", "Chromatogram Data:"}:
                 break
         else:
-            raise ValueError("Chromatogram Data section not found")
+            raise ValueError("Chromatogram data section not found")
 
         next(file)  # Time, step and value column names
 
@@ -47,4 +47,3 @@ def parse_fld_txt_file(path: str) -> np.ndarray:
                 ))
 
     return np.asarray(rows, dtype=float)
-

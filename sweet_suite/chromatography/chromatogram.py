@@ -1,8 +1,6 @@
-import os
+import logging
 
 import numpy as np
-import matplotlib.pyplot as plt
-import plotly.express as px
 
 
 class Chromatogram:
@@ -41,20 +39,21 @@ class Chromatogram:
             end_time: End of the retention time region of interest in 
                 minutes. Use `np.inf` when not applicable.
         """
+        self.logger = logging.getLogger(self.__class__.__name__)
         self.data = data
         self.start_time = start_time
         self.end_time = end_time
+        self.data_roi = self.get_data_roi()
+        self.data_for_background_and_noise = self.get_data_for_background_and_noise()
+        self.background_and_noise = self.get_background_and_noise()
 
-    @property
-    def data_roi(self) -> np.ndarray:
+    def get_data_roi(self) -> np.ndarray:
         """Return chromatogram data in retention time region of interest."""
         rt = self.data[:, 0]
         mask = (rt >= self.start_time) & (rt <= self.end_time)
-        
         return self.data[mask]
 
-    @property
-    def data_for_background_and_noise(self):
+    def get_data_for_background_and_noise(self):
         """Return the data used for background and noise estimation.
         
         `data_roi` is used here by default, but in `FldChromatogram` (a child
@@ -63,8 +62,7 @@ class Chromatogram:
         """
         return self.data_roi
 
-    @property
-    def background_and_noise(self) -> tuple[float, float]:
+    def get_background_and_noise(self) -> tuple[float, float]:
         """Estimates the chromatographic background and noise.
 
         This method sorts the intensity values in ascending order and selects 
