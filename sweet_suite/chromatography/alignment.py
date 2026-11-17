@@ -8,28 +8,88 @@ from .eic import Eic
 
 
 def rt_fit_quadratic(
-    points: list[tuple[float, float]]
-) -> Polynomial:
+    points: list[tuple[float, float]],
+    units: str,
+    title: str
+) -> tuple[Polynomial, Figure]:
     """
     Fit a quadratic retention-time correction function.
 
     The required retention time corrections are fitted as a function of 
-    expected retention times.
+    expected retention times. The resulting fit is returned as a Polynomial
+    object and as a figure.
 
     Args:
         points: A list of (observed, required) retention time tuples.
+        units: String indicating the units used for retention time (e.g. 
+            'min' or 'sec').
+        title: The title for the plot. Defaults to an empty string.
     
     Returns:
-        A polynomial describing the required time correction.
+        A tuple `(fit, figure)` containing the fit as a NumPy Polynomial
+        object and a matplotlib figure visualizing the fit.
     """
     observed_rt = np.array([point[0] for point in points])
     expected_rt = np.array([point[1] for point in points])
-
     correction = expected_rt - observed_rt
 
     fit = Polynomial.fit(observed_rt, correction, deg=2)
+    
+    figure = plot_fit_quadratic(fit, correction, observed_rt, units, title)
 
-    return fit
+    return (fit, figure)
+
+
+def plot_fit_quadratic(
+    fit: Polynomial,
+    correction: np.ndarray,
+    observed_rt: np.ndarray,
+    units: str,
+    title: str = ""
+) -> Figure:
+    """Visualize the quadratic curve fitting for retention time alignment.
+
+    The required retention time corrections are shown on the y-axis, and
+    the observed retention times are shown on the x-axis. The quadratic fit
+    is plotted through the data points.
+
+    Args:
+        fit: NumPy 2nd-degree polynomial fit object.
+        correction: Array containing required retention time corrections.
+        observed_rt: Array containing observed retention times.
+        units: String indicating the units used for retention time (e.g. 
+            'min' or 'sec').
+        title: The title for the plot. Defaults to an empty string.
+
+    Returns:
+        A matplotlib figure.
+    """
+    fig, ax = plt.subplots()
+
+    # PLot observed data points.
+    ax.scatter(observed_rt, correction, alpha=0.7, color="blue")
+
+    # Evaluate the polynomial over the observed retention time range.
+    x_fit = np.linspace(observed_rt.min(), observed_rt.max(), 500)
+    y_fit = fit(x_fit)
+
+    # Plot the fitted quadratic curve.
+    ax.plot(x_fit, y_fit, color="red")
+    ax.set(
+        xlabel=f"Observed retention time ({units})",
+        ylabel=f"Required retention time correction ({units})",
+        title=title
+    )
+
+    fig.tight_layout()
+
+    return fig
+
+
+def plot_failed_fit():
+    # TODO: Function for failed calibration fit when there are not enough
+    # data points.
+    return
 
 
 def fit_power(

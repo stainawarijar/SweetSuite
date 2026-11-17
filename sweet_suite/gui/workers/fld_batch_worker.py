@@ -128,9 +128,9 @@ class FldBatchWorker(QObject):
 
                 # Read in the data from the files and perform alignment.
                 aligned_finised = self.align_txt_files(txt_file_paths)
+
                 if not aligned_finised[0]:
-                    # Batch process was aborted
-                    return
+                    return  # Batch process was aborted
 
             except Exception as exc:
                 self.logger.exception(
@@ -139,7 +139,7 @@ class FldBatchWorker(QObject):
                 )
                 self.error.emit(
                     "Processing error",
-                    "Unexpected error during alignment:",
+                    "Unexpected error during alignment: ",
                     str(exc),
                     "Critical"
                 )
@@ -147,8 +147,67 @@ class FldBatchWorker(QObject):
                 return
 
             # TODO: Message with number of files for which error occured
+        
+        # Check if stop was requested before continuing.
+        if self.stop_requested:
+            self.logger.info(
+                "FldBatchWorker aborted after alignment"
+            )
+            self.aborted.emit()
+            return
 
-            
+        # TODO: Quantitation
+        if self.peaks_list_df is None:
+            quantitation_results = None
+        else:
+            try:
+                print("Quantitation code where are you?")
+                # NOTE None-aligned file: assume Thermo format
+                # NOTE: aligned file: assume simple tab-separated txt format
+
+                # Check if batch processing was aborted during quantitation
+                if quantitation_results is None:
+                    return
+
+            except Exception as exc:
+                self.logger.exception(
+                    "Unexpected error during quantitation: ",
+                    f"{str(exc)}"
+                )
+                self.error.emit(
+                    "Processing error",
+                    "Unexpected error during quantitation:",
+                    str(exc),
+                    "Critical"
+                )
+                self.finished.emit(False)
+                return
+
+        # TODO: Export results
+        # try:
+        #     self.export_results(
+        #         aligned=(
+        #             aligned_finished if aligned_finished is not None
+        #             else False
+        #         ),
+        #         quantitation_results=quantitation_results
+        #     )
+        #     self.logger.info("FldBatchWorker finished successfully")
+        #     self.ginished.emit(True)
+        # except Exception as exc:
+        #     self.logger.exception(
+        #         "Unexpected error while exporting results: "
+        #         f"{str(exc)}"
+        #     )
+        #     self.error.emit(
+        #         "Processing error",
+        #         "Unexpected error while exporting results:",
+        #         str(exc),
+        #         "Critical"
+        #     )
+        #     self.finished.emit(False)
+        #     return
+
     def get_txt_file_paths(self) -> list[str]:
         """Collect all txt file paths from the specified folder."""
         txt_file_paths = []
@@ -159,16 +218,20 @@ class FldBatchWorker(QObject):
 
         return txt_file_paths
 
-    def align_txt_files(self, txt_file_paths: list[str]) -> tuple[bool, int]:
+    def align_txt_files(
+        self, 
+        txt_file_paths: list[str]
+    ) -> tuple[bool, int]:
         """Perform retention time alignment on raw chromatogram data.
         
         Args:
-            txt_file_paths: ...
+            txt_file_paths: A list containing paths to the chromatogram
+                text files.
         
         Returns:
-            A tuple `(finished, errors)` where `finished` is a boolean indicating
-            whether the alignment process finished, and `errors` indicates the
-            number of files for which an unexpected error occured.
+            A tuple `(finished, error_files)` where `finished` is a boolean 
+            indicating whether the alignment process finished, and `error_files`
+            is a list with paths to the files for which an error occured.
         """
         # Create a list with alignment peaks.
         alignment_peaks = sorted([
@@ -193,20 +256,21 @@ class FldBatchWorker(QObject):
             f"{self.start_time}_alignment.pdf"
         )
 
-        # Loop over text file paths, keeping track of processed files and errors.
+        # Loop over file paths, keeping track of processed files and errors.
         n = len(txt_file_paths)
-        errors = 0
+        error_files = []
         with PdfPages(pdf_path) as pdf:
             for idx, path in enumerate(txt_file_paths):
                 # Check if stop was requested.
                 if self.stop_requested:
                     self.logger.info("FldBatchWorker stop requested during alignment")
                     self.aborted.emit()
-                    return (False, errors)
+                    return (False, error_files)
 
                 # Attempt to create an `FldChromatogram` instance.
                 try:
                     chrom = FldChromatogram(
+                        name=os.path.basename(path),
                         data=parse_fld_txt_file(path),
                         start_time=self.start_time,
                         end_time=self.end_time,
@@ -215,10 +279,10 @@ class FldBatchWorker(QObject):
                     )
                 except Exception as exc:
                     self.logger.error(
-                        f"Unexpected error in reading {path}: {str(exc)}"
+                        f"Unexpected error in reading {os.path.basename(path)}: {str(exc)}"
                     )
                     self.logger.info("Continuing with next file")
-                    errors += 1
+                    error_files.append(os.path.basename(path))
                     continue
 
                 # Perform baseline correction.
@@ -227,33 +291,54 @@ class FldBatchWorker(QObject):
                         chrom.correct_baseline()
                     except Exception as exc:
                         self.logger.error(
-                            f"Unexpected error while attempting baseline correction for {path}: {str(exc)}"
+                            f"Unexpected error while attempting baseline correction for {os.path.basename(path)}: {str(exc)}"
                         )
                         self.logger.info("Continuing with next file")
-                        errors += 1
+                        error_files.append(os.path.basename(path))
                         continue
 
-                # TODO: Alignment here...
+                # Perform alignment
+                try:
+                    # Create alignment fit.
+                    fit = chrom.get_alignment_fit(
+                        min_peaks=self.alignment_min_peaks
+                    )
+                    poly, fig = fit[0], fit[1]
+
+                    if poly is not None:
+                        # Apply polynomial fit to get aligned data.
+                        data_aligned = chrom.get_aligned_data(poly=poly)
+
+                        # Write aligned data to a tab-separated text file.
+                        np.savetxt(
+                            f"aligned-{path}",
+                            data_aligned,
+                            delimiter="\t", fmt="%.8f"
+                        )
+
+                        self.logger.info(
+                            f"Alignment fit successful for {os.path.basename(path)}"
+                        )
+                        pdf.savefig(fig)
+                        plt.close(fig)
+                        fig = None
+
+                    else:
+                        np.savetxt(f"aligned-{path}", np.empty(shape=0))
+                        self.logger.info(
+                            f"Alignment fit failed for {os.path.basename(path)}"
+                        )
+
+                except Exception as exc:
+                    self.logger.error(
+                        f"Unexpected error while aligning {os.path.basename(path)}: {str(exc)}"
+                    )
+                    self.logger.info("Continuing with next file")
+                    error_files.append(os.path.basename(path))
+                    continue
 
                 # Update percentage of processed files
                 percent = round((idx + 1) / n * 100)
                 self.alignment_progress.emit(percent)
 
-            return (True, errors)
-                
-
-
-
-
-
-
-
-
-            
-            
-
-
-            
-            
-
-    
+            return (True, error_files)

@@ -1,6 +1,8 @@
 import logging
 
+from matplotlib.figure import Figure
 import numpy as np
+from numpy.polynomial import Polynomial
 import plotly.express as px
 
 from .alignment import rt_fit_quadratic
@@ -19,6 +21,7 @@ class FldChromatogram(Chromatogram):
 
     def __init__(
         self,
+        name: str,
         data: np.ndarray,
         start_time: float = -np.inf,
         end_time: float = +np.inf,
@@ -27,6 +30,7 @@ class FldChromatogram(Chromatogram):
     ):
         """
         Args:
+            name: Name of the chromatogram.
             data: Array of shape (N, 2) with time in column 0 and intensity
                 in column 1, ordered from low to high time.
             start_time: Start of the retention time region of interest in
@@ -45,6 +49,7 @@ class FldChromatogram(Chromatogram):
         self.data_baseline_corrected = None
         self.peak_width = peak_width
         self.alignment_peaks = alignment_peaks
+        self.name = name
         super().__init__(data, start_time, end_time)
 
     @staticmethod
@@ -175,10 +180,10 @@ class FldChromatogram(Chromatogram):
             return self.data_baseline_corrected
         return self.data_roi
 
-    def get_alignment_fits(
+    def get_alignment_fit(
         self, 
-        min_peaks: int
-    ) -> tuple[np.ndarray, list[float, float]]:
+        min_peaks: int = 5
+    ) -> tuple[Polynomial, Figure]:
         """Perform retention time alignment fit on the chromatogram data in the
         retention time region of interest.
 
@@ -189,10 +194,8 @@ class FldChromatogram(Chromatogram):
             min_peaks: The minimum number of peaks required for alignment.
 
         Returns:
-            A tuple containing an array with quadratic fit coefficients as its
-            first element and a list with (observed, required) retention time
-            data points as its second element. The first element is `None` when
-            curve fitting fails.
+            A tuple containing a NumPy Polynomial fit object as its first 
+            element and a matplotlib figure as its second element.
         """
         if self.alignment_peaks is None or len(self.alignment_peaks) == 0:
             return
@@ -219,14 +222,44 @@ class FldChromatogram(Chromatogram):
 
         # Check if there are enough data points for fitting.
         if len(alignment_data) < min_peaks:
-            # TODO: Log a message
-            return (None, alignment_data)
+            # TODO: Proper warning message.
+            # TODO: Replace second `None` by a failed alignment figure.
+            failed_fig = None
+            return ((None, failed_fig), alignment_data)
 
         # Get quadratic alignment fit.
-        fit = rt_fit_quadratic(alignment_data)
+        fit = rt_fit_quadratic(
+            points=alignment_data, 
+            units="min", 
+            title=self.name
+        )
 
+        return fit
+
+    def get_aligned_data(
+        self,
+        poly: Polynomial
+    ) -> np.ndarray:
+        """Apply a polynomial correction to the retention times in the 
+        chromatogram data to get aligned data. 
+
+        The correction is applied to all retention times in the chromatogram,
+        not just the region of interest.
+
+        Args:
+            poly: A NumPy Polynomial object that predicts the required
+            retention time correction.
         
-            
+        Returns:
+            A 2D array with aligned retention times in the first column and
+            intensities in the second column.
+        """
+        intensities = self.data[:, 1]
+        times_observed = self.data[:, 0]
+        times_aligned = times_observed + poly(times_observed)
+        
+        return np.column_stack((times_aligned, intensities))
+
     def plotly(self):
         """Create an interactive Plotly figure of the chromatographic data
         in the retention time region of interest.
