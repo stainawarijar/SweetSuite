@@ -255,13 +255,12 @@ class FldChromatogram(Chromatogram):
 
     def get_aligned_data(
         self,
-        poly: Polynomial
-    ) -> np.ndarray:
+        poly: Polynomial | None
+    ) -> np.ndarray | None:
         """Apply a polynomial correction to the retention times in the 
         chromatogram data to get aligned data. 
 
-        The correction is applied to all retention times in the chromatogram,
-        not just the region of interest.
+        The correction is applied only to the data in the region of interest.
 
         Args:
             poly: A NumPy Polynomial object that predicts the required
@@ -269,11 +268,25 @@ class FldChromatogram(Chromatogram):
         
         Returns:
             A 2D array with aligned retention times in the first column and
-            intensities in the second column.
+            intensities in the second column. `None` when the corrected 
+            retention times include non-finite values or when the corrected
+            times are not strictly increasing.
         """
-        intensities = self.data[:, 1]
-        times_observed = self.data[:, 0]
+        intensities = self.data_roi[:, 1]
+        times_observed = self.data_roi[:, 0]
         times_aligned = times_observed + poly(times_observed)
+
+        if not np.isfinite(times_aligned).all():
+            self.logger.warning(
+                f"Alignment rejected for {self.name}: non-finite corrected retention times"
+            )
+            return
+        
+        if not np.all(times_aligned[1:] > times_aligned[:-1]):
+            self.logger.warning(
+                f"Alignment rejected for {self.name}: corrected times are not strictly increasing"
+            )
+            return
         
         return np.column_stack((times_aligned, intensities))
 

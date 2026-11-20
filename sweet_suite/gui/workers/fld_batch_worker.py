@@ -125,7 +125,7 @@ class FldBatchWorker(QObject):
                     )
                     self.error.emit(
                         "Empty directory",
-                        "The specified folder contains no txt files.",
+                        "The specified folder contains no text files.",
                         "",
                         "Warning"
                     )
@@ -335,18 +335,25 @@ class FldBatchWorker(QObject):
                     try:
                         # Apply polynomial fit to get aligned data.
                         data_aligned = chrom.get_aligned_data(poly=poly)
-
-                        # Write aligned data to a tab-separated text file.
-                        np.savetxt(
-                            Path(path).with_name(f"aligned-{Path(path).name}"),
-                            data_aligned,
-                            delimiter="\t", fmt="%.8f"
-                        )
-
-                        pdf.savefig(fig)
-                        self.logger.info(
-                            f"Alignment fit successful for {os.path.basename(path)}"
-                        )
+                        if data_aligned is not None:
+                            # Write aligned data to a tab-separated text file.
+                            np.savetxt(
+                                Path(path).with_name(f"aligned-{Path(path).name}"),
+                                data_aligned,
+                                delimiter="\t", fmt="%.8f"
+                            )
+                            pdf.savefig(fig)
+                            self.logger.info(
+                                f"Alignment fit successful for {os.path.basename(path)}"
+                            )
+                        else:
+                            np.savetxt(
+                                Path(path).with_name(f"unaligned-{Path(path).name}"),
+                                np.empty(shape=0)
+                            )
+                            self.logger.info(
+                                f"Alignment fit failed for {os.path.basename(path)}"
+                            )
                     finally:
                         plt.close(fig)
 
