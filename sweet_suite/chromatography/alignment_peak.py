@@ -8,7 +8,7 @@ class AlignmentPeak:
 
     Attributes:
         peak (str): Peak name as a string.
-        time (float): The expected/required retention time in minutes.
+        time_required (float): The expected/required retention time in minutes.
         time_window (float): The time window in minutes around the expected 
             retention time in which to search for the peak.
         sn_cutoff (float): The minimum signal-to-noise that the peak should
@@ -21,7 +21,7 @@ class AlignmentPeak:
     def __init__(
         self,
         peak: str,
-        time: float,
+        time_required: float,
         time_window: float,
         sn_cutoff: float,
         required: bool
@@ -41,7 +41,7 @@ class AlignmentPeak:
         """
         self.logger = logging.getLogger(self.__class__.__name__)
         self.peak = peak
-        self.time_required = time
+        self.time_required = time_required
         self.alignment_time_window = time_window
         self.alignment_sn_cutoff = sn_cutoff
         self.required = required
@@ -71,12 +71,12 @@ class AlignmentPeak:
         """
         # Select region of chromatogram data in which to look for the peak.
         start_idx = np.searchsorted(
-            self.data[:, 0],
+            data[:, 0],
             self.time_required - self.alignment_time_window,
             side="left"
         )
         end_idx = np.searchsorted(
-            self.data[:, 0],
+            data[:, 0],
             self.time_required + self.alignment_time_window,
             side="right"
         )

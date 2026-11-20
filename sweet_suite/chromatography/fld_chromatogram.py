@@ -182,7 +182,7 @@ class FldChromatogram(Chromatogram):
 
     def get_alignment_fit(
         self, 
-        min_peaks: int = 5
+        min_peaks: int = 4
     ) -> tuple[Polynomial, Figure]:
         """Perform retention time alignment fit on the chromatogram data in the
         retention time region of interest.
@@ -192,6 +192,8 @@ class FldChromatogram(Chromatogram):
 
         Args:
             min_peaks: The minimum number of peaks required for alignment.
+                Defaults to 4, which is the absolute minimum required for 
+                a quadratic fit.
 
         Returns:
             A tuple containing a NumPy Polynomial fit object as its first 
@@ -200,32 +202,47 @@ class FldChromatogram(Chromatogram):
         if self.alignment_peaks is None or len(self.alignment_peaks) == 0:
             return
 
-        if self.data_baseline_corrected:
+        if self.data_baseline_corrected is not None:
             data = self.data_baseline_corrected
         else:
             data = self.data_roi
 
         # Collect alignment peak data with high enough S/N.
         alignment_data = []
-
+        
         for peak in self.alignment_peaks:
             info = peak.get_info(
                 data=data,
                 background=self.background_and_noise[0],
                 noise=self.background_and_noise[1]
             )
-            time_observed, sn = info[0], info[1]
+            time_observed = info[0]
+            sn = info[1]
+
             if not (np.isfinite(time_observed) and np.isfinite(sn)):
-                continue
+                if peak.required:
+                    # Mising required peak -> fail alignment.
+                    # TODO: Create figure for missing required peak.
+                    missing_required_fig = None
+                    return (None, missing_required_fig)
+                else:
+                    # TODO: Log a message.
+                    continue
+
             if sn >= peak.alignment_sn_cutoff:
-                alignment_data.append((peak.time_required, time_observed))
+                alignment_data.append((time_observed, peak.time_required))
+            elif peak.required:
+                # Mising required peak -> fail alignment.
+                # TODO: Create figure for missing required peak.
+                missing_required_fig = None
+                return (None, missing_required_fig)
 
         # Check if there are enough data points for fitting.
         if len(alignment_data) < min_peaks:
             # TODO: Proper warning message.
             # TODO: Replace second `None` by a failed alignment figure.
             failed_fig = None
-            return ((None, failed_fig), alignment_data)
+            return (None, failed_fig)
 
         # Get quadratic alignment fit.
         fit = rt_fit_quadratic(

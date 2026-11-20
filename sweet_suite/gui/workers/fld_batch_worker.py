@@ -1,12 +1,11 @@
 from datetime import datetime
 import logging
 import os
-import warnings
+from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -16,7 +15,6 @@ from ... import __version__
 from ...chromatography.alignment_peak import AlignmentPeak
 from ...chromatography.fld_chromatogram import FldChromatogram
 from ...chromatography.helpers import parse_fld_txt_file
-from ...utils import utils
 
 
 class FldBatchWorker(QObject):
@@ -46,6 +44,7 @@ class FldBatchWorker(QObject):
         correct_baseline: bool = True
     ):
         super().__init__(parent)
+        self.start_time = datetime.now().strftime("%d-%m-%Y_%H%M%S")
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info(f"\nFldBatchWorker initialized at {self.start_time}")
         self.raw_folder_path = raw_folder_path
@@ -60,7 +59,6 @@ class FldBatchWorker(QObject):
         self.peak_width = peak_width
         self.integration_window = integration_window
         self.correct_baseline = correct_baseline
-        self.start_time = datetime.now().strftime("%d-%m-%Y_%H%M%S")
         self.excel_path = self.get_output_excel_path()
         self.stop_requested = False
 
@@ -103,10 +101,22 @@ class FldBatchWorker(QObject):
         # Retention time alignment.
         if self.alignment_list_df is None:
             aligned_finished = None
+
+        elif len(self.alignment_list_df) < self.alignment_min_peaks:
+            self.logger.error("Not enough alignment peaks specified")
+            self.error.emit(
+                "Specify more alignment peaks specified",
+                "The provided alignment list does not contain enough peaks.",
+                f"{len(self.alignment_list_df)} peaks are specified, but at least {self.alignment_min_peaks} are required.",
+                "Warning"
+            )
+            self.finished.emit(False)
+            return
+        
         else:
             try:
                 # Collect all .txt file paths
-                txt_file_paths = self.get_txt_file_paths()
+                txt_file_paths = self.get_txt_file_paths(subset="raw")
 
                 # Check if there actually are files.
                 if len(txt_file_paths) == 0:
@@ -127,9 +137,9 @@ class FldBatchWorker(QObject):
                 )
 
                 # Read in the data from the files and perform alignment.
-                aligned_finised = self.align_txt_files(txt_file_paths)
+                aligned_finished = self.align_txt_files(txt_file_paths)
 
-                if not aligned_finised[0]:
+                if not aligned_finished:
                     return  # Batch process was aborted
 
             except Exception as exc:
@@ -145,8 +155,6 @@ class FldBatchWorker(QObject):
                 )
                 self.finished.emit(False)
                 return
-
-            # TODO: Message with number of files for which error occured
         
         # Check if stop was requested before continuing.
         if self.stop_requested:
@@ -163,10 +171,11 @@ class FldBatchWorker(QObject):
             try:
                 print("Quantitation code where are you?")
                 # NOTE None-aligned file: assume Thermo format
-                # NOTE: aligned file: assume simple tab-separated txt format
+                # NOTE Aligned file: assume simple tab-separated txt format
+                quantitation_results = self.quantify()  # Returns False for now.
 
-                # Check if batch processing was aborted during quantitation
-                if quantitation_results is None:
+                # Check if batch processing was aborted during quantitation.
+                if not quantitation_results:
                     return
 
             except Exception as exc:
@@ -183,6 +192,11 @@ class FldBatchWorker(QObject):
                 self.finished.emit(False)
                 return
 
+        # NOTE Temporary finished emit
+        # TODO Remove
+        self.logger.info("FldBatchWorker alignment finished")
+        self.finished.emit(True)
+
         # TODO: Export results
         # try:
         #     self.export_results(
@@ -193,7 +207,7 @@ class FldBatchWorker(QObject):
         #         quantitation_results=quantitation_results
         #     )
         #     self.logger.info("FldBatchWorker finished successfully")
-        #     self.ginished.emit(True)
+        #     self.finished.emit(True)
         # except Exception as exc:
         #     self.logger.exception(
         #         "Unexpected error while exporting results: "
@@ -208,20 +222,52 @@ class FldBatchWorker(QObject):
         #     self.finished.emit(False)
         #     return
 
-    def get_txt_file_paths(self) -> list[str]:
-        """Collect all txt file paths from the specified folder."""
+    def get_txt_file_paths(
+        self,
+        subset: str = "all"
+    ) -> list[str]:
+        """Collect all txt file paths from the specified folder, with the option
+        to only return files with or without an 'aligned' prefix. 
+        
+        Files with an 'unaligned' prefix, i.e. files for which alignment failed, 
+        are never returned.
+
+        Args:
+            subset: One of `'all'`, `'raw'` and `'aligned'`, with `'all'` being
+                the default. When using `'raw'`, only files without an 'aligned'
+                prefix are returned. When using `'aligned'`, only files with
+                an 'aligned' prefix are returned.
+        """
         txt_file_paths = []
-        for file in os.listdir(self.raw_folder_path):
-            if file.endswith(".txt"):
-                full_path = os.path.join(self.raw_folder_path, file)
-                txt_file_paths.append(full_path)
+
+        if subset == "all":
+            for file in os.listdir(self.raw_folder_path):
+                if file.endswith(".txt"):
+                    if file.startswith("unaligned"):
+                        continue
+                    full_path = os.path.join(self.raw_folder_path, file)
+                    txt_file_paths.append(full_path)
+
+        elif subset == "raw":
+            for file in os.listdir(self.raw_folder_path):
+                if file.endswith(".txt") and not file.startswith("aligned"):
+                    if file.startswith("unaligned"):
+                        continue
+                    full_path = os.path.join(self.raw_folder_path, file)
+                    txt_file_paths.append(full_path)
+
+        elif subset == "aligned":
+            for file in os.listdir(self.raw_folder_path):
+                if file.endswith(".txt") and file.startswith("aligned"):
+                    full_path = os.path.join(self.raw_folder_path, file)
+                    txt_file_paths.append(full_path)
 
         return txt_file_paths
 
     def align_txt_files(
         self, 
         txt_file_paths: list[str]
-    ) -> tuple[bool, int]:
+    ) -> bool:
         """Perform retention time alignment on raw chromatogram data.
         
         Args:
@@ -229,20 +275,19 @@ class FldBatchWorker(QObject):
                 text files.
         
         Returns:
-            A tuple `(finished, error_files)` where `finished` is a boolean 
-            indicating whether the alignment process finished, and `error_files`
-            is a list with paths to the files for which an error occured.
+            `True` if the alignment batch process finished, `False` if it was
+            aborted.
         """
         # Create a list with alignment peaks.
         alignment_peaks = sorted([
             AlignmentPeak(
                 peak=str(row["peak"]),
                 time_required = float(row["time"]),
-                alignment_time_window=(
+                time_window=(
                     self.alignment_time_window if pd.isnull(row["time_window"])
                     else float(row["time_window"])
                 ),
-                alignment_sn_cutoff = (
+                sn_cutoff = (
                     self.alignment_sn_cutoff if pd.isnull(row["sn_cutoff"])
                     else float(row["sn_cutoff"])
                 ),
@@ -258,87 +303,71 @@ class FldBatchWorker(QObject):
 
         # Loop over file paths, keeping track of processed files and errors.
         n = len(txt_file_paths)
-        error_files = []
         with PdfPages(pdf_path) as pdf:
             for idx, path in enumerate(txt_file_paths):
                 # Check if stop was requested.
                 if self.stop_requested:
                     self.logger.info("FldBatchWorker stop requested during alignment")
                     self.aborted.emit()
-                    return (False, error_files)
+                    return False
 
-                # Attempt to create an `FldChromatogram` instance.
-                try:
-                    chrom = FldChromatogram(
-                        name=os.path.basename(path),
-                        data=parse_fld_txt_file(path),
-                        start_time=self.start_time,
-                        end_time=self.end_time,
-                        peak_width=self.peak_width,
-                        alignment_peaks=alignment_peaks
-                    )
-                except Exception as exc:
-                    self.logger.error(
-                        f"Unexpected error in reading {os.path.basename(path)}: {str(exc)}"
-                    )
-                    self.logger.info("Continuing with next file")
-                    error_files.append(os.path.basename(path))
-                    continue
+                # Create an `FldChromatogram` instance.
+                chrom = FldChromatogram(
+                    name=os.path.basename(path),
+                    data=parse_fld_txt_file(path),
+                    start_time=self.roi_start,
+                    end_time=self.roi_end,
+                    peak_width=self.peak_width,
+                    alignment_peaks=alignment_peaks
+                )
 
-                # Perform baseline correction.
+                # Perform baseline correction if applicable.
                 if self.correct_baseline:
+                    chrom.correct_baseline()
+
+                # Create alignment fit.
+                fit = chrom.get_alignment_fit(
+                    min_peaks=self.alignment_min_peaks
+                )
+                poly, fig = fit[0], fit[1]
+
+                if poly is not None:
                     try:
-                        chrom.correct_baseline()
-                    except Exception as exc:
-                        self.logger.error(
-                            f"Unexpected error while attempting baseline correction for {os.path.basename(path)}: {str(exc)}"
-                        )
-                        self.logger.info("Continuing with next file")
-                        error_files.append(os.path.basename(path))
-                        continue
-
-                # Perform alignment
-                try:
-                    # Create alignment fit.
-                    fit = chrom.get_alignment_fit(
-                        min_peaks=self.alignment_min_peaks
-                    )
-                    poly, fig = fit[0], fit[1]
-
-                    if poly is not None:
                         # Apply polynomial fit to get aligned data.
                         data_aligned = chrom.get_aligned_data(poly=poly)
 
                         # Write aligned data to a tab-separated text file.
                         np.savetxt(
-                            f"aligned-{path}",
+                            Path(path).with_name(f"aligned-{Path(path).name}"),
                             data_aligned,
                             delimiter="\t", fmt="%.8f"
                         )
 
+                        pdf.savefig(fig)
                         self.logger.info(
                             f"Alignment fit successful for {os.path.basename(path)}"
                         )
-                        pdf.savefig(fig)
+                    finally:
                         plt.close(fig)
-                        fig = None
 
-                    else:
-                        np.savetxt(f"aligned-{path}", np.empty(shape=0))
-                        self.logger.info(
-                            f"Alignment fit failed for {os.path.basename(path)}"
-                        )
-
-                except Exception as exc:
-                    self.logger.error(
-                        f"Unexpected error while aligning {os.path.basename(path)}: {str(exc)}"
+                else:
+                    np.savetxt(
+                        Path(path).with_name(f"unaligned-{Path(path).name}"),
+                        np.empty(shape=0)
                     )
-                    self.logger.info("Continuing with next file")
-                    error_files.append(os.path.basename(path))
-                    continue
+                    self.logger.info(
+                        f"Alignment fit failed for {os.path.basename(path)}"
+                    )
 
-                # Update percentage of processed files
-                percent = round((idx + 1) / n * 100)
-                self.alignment_progress.emit(percent)
+                percentage = round((idx + 1) / n * 100)
+                self.alignment_progress.emit(percentage)
 
-            return (True, error_files)
+            return True
+
+    def quantify(
+        self
+    ) -> bool:
+        """
+        """
+        # TODO: Quantitation
+        return False

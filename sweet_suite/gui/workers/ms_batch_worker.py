@@ -245,8 +245,21 @@ class MsBatchWorker(QObject):
         if self.ms_only:
             self.logger.info("MS-only mode: skipping alignment")
             aligned_finished = None
+
         elif self.alignment_list_df is None:
             aligned_finished = None
+
+        elif len(self.alignment_list_df) < self.alignment_min_peaks:
+            self.logger.error("Not enough alignment peaks specified")
+            self.error.emit(
+                "Specify more alignment peaks specified",
+                "The provided alignment list does not contain enough peaks.",
+                f"{len(self.alignment_list_df)} peaks are specified, but at least {self.alignment_min_peaks} are required.",
+                "Warning"
+            )
+            self.finished.emit(False)
+            return
+
         else:
             try:
                 # Collect all mzXML file paths.
@@ -583,7 +596,7 @@ class MsBatchWorker(QObject):
             mzxml_file_paths: List of paths to mzXML files to align.
         
         Returns:
-            True if alignment finished. False if alignment was aborted.
+            `True` if alignment finished. `False` if alignment was aborted.
         """
         # Create a list with alignment features.
         alignment_features = sorted([
@@ -638,13 +651,13 @@ class MsBatchWorker(QObject):
                 # Create figure.
                 plot = mzxml.plot_alignment_fit(fit_eics)
                 if plot is not None:
-                    self.logger.info(
-                        f"Alignment fit succesful for {os.path.basename(path)}"
-                    )
-                    pdf.savefig(plot)
-                    plt.close(plot)
-                    # Set plot to None to free up memory.
-                    plot = None
+                    try:
+                        pdf.savefig(plot)
+                        self.logger.info(
+                            f"Alignment fit succesful for {os.path.basename(path)}"
+                        )
+                    finally:
+                        plt.close(plot)
                 else:
                     self.logger.info(
                         f"Alignment fit failed for {os.path.basename(path)}"
